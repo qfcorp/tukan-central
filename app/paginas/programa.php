@@ -15,8 +15,10 @@ if (!$fila) {
     redirigir('programas');
 }
 $registro = puede('auditoria') ? (new Auditoria(db()))->buscar(['instancia' => $id], 1, 12)['filas'] : [];
+$cap = capacidades()->obtener($id);
+$unico = \Tukan\Productos::tipo($fila['producto'])['unico'] || ($cap['datos']['unico'] ?? false);
 vista('programa', [
-    'f' => $fila,
+    'f' => $fila, 'cap' => $cap, 'unico' => $unico, 'licencia' => $unico && puede('finanzas') ? licencias()->obtener($id) : null,
     'disp' => monitor()->disponibilidad($id),
     'registro' => $registro,
 ], $fila['nombre'] . ' · Panel Tukán');

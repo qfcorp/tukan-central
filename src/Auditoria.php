@@ -34,6 +34,14 @@ final class Auditoria
         'csrf_rechazado'      => 'Formulario rechazado (página caducada o falsa)',
         'permiso_negado'      => 'Intentó abrir algo sin permiso',
         'cli'                 => 'Cambio desde la consola del servidor',
+        // Protocolo v2
+        'ejecutar'            => 'Hizo un cambio en un programa',
+        'recordatorio'        => 'Recordó a un cliente por WhatsApp',
+        'gasto'               => 'Gastos',
+        'ingreso_extra'       => 'Ingresos extra',
+        'licencia'            => 'Licencia de un programa',
+        'exportar'            => 'Descargó las finanzas',
+        'actualizar_datos'    => 'Trajo solicitudes, clientes o finanzas',
     ];
 
     public function __construct(private PDO $db) {}
@@ -69,7 +77,9 @@ final class Auditoria
             $grupos = [
                 'acceso'    => ['login_ok', 'login_fallido', 'login_bloqueado', '2fa_fallido', '2fa_activado', '2fa_respaldo', '2fa_quitado', 'salir', 'sesion_vencida', 'sesiones_cerradas', 'codigos_nuevos', 'clave_cambiada'],
                 'fallos'    => ['login_fallido', 'login_bloqueado', '2fa_fallido', 'csrf_rechazado', 'permiso_negado'],
-                'programas' => ['entrar', 'probar', 'instancia_agregada', 'instancia_editada', 'instancia_eliminada', 'secreto_cambiado'],
+                'programas' => ['entrar', 'probar', 'instancia_agregada', 'instancia_editada', 'instancia_eliminada', 'secreto_cambiado', 'ejecutar'],
+                'clientes'  => ['ejecutar', 'recordatorio'],
+                'plata'     => ['gasto', 'ingreso_extra', 'licencia', 'exportar'],
                 'cambios'   => ['instancia_agregada', 'instancia_editada', 'instancia_eliminada', 'secreto_cambiado', 'usuario_creado', 'usuario_editado', 'ajustes', 'clave_cambiada', '2fa_quitado', 'cli'],
             ];
             if (isset($grupos[$f['grupo']])) {

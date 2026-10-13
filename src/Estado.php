@@ -57,6 +57,10 @@ final class Estado
             'pagos_vencidos'        => self::lista($d['pagos_vencidos'] ?? null, 'desde', 'pagos_vencidos'),
             'extra'                 => self::extra($d['extra'] ?? null),
             'cliente'               => self::texto($d['cliente'] ?? null, 80),
+            // v2 §2.4 (un Central viejo los ignora)
+            'protocolo_max'         => is_int($d['protocolo_max'] ?? null) && $d['protocolo_max'] >= 1 && $d['protocolo_max'] <= 99 ? $d['protocolo_max'] : null,
+            'solicitudes_abiertas'  => self::entero($d['solicitudes_abiertas'] ?? null, 'solicitudes_abiertas'),
+            'solicitudes_huella'    => is_string($d['solicitudes_huella'] ?? null) && preg_match('/^[0-9a-f]{16}$/', $d['solicitudes_huella']) ? $d['solicitudes_huella'] : null,
         ];
     }
 
@@ -147,6 +151,19 @@ final class Estado
         'formato'      => 'El programa respondió, pero los datos no tienen el formato del Protocolo Tukán Central.',
         'otro'         => 'No se pudo consultar el programa.',
         'secreto_ilegible' => 'No se puede leer el secreto guardado (la llave del panel cambió). Toca "Cambiar secreto".',
+        // Protocolo v2 (códigos que manda el programa, §3.2)
+        'tipo'           => 'Error del panel (pedido mal armado). Avísale al programador.',
+        'no_encontrado'  => 'Ya no existe en el programa (quizás lo borraron). Actualiza la lista.',
+        'invalido'       => 'El programa no aceptó el pedido.',
+        'no_permitido'   => 'El programa no permite eso.',
+        'conflicto'      => 'Alguien ya lo atendió o cambió. Actualiza y revisa.',
+    ];
+
+    /** "codigo" del protocolo v2 -> código del panel (los mismos que se adivinaban por palabras en v1). */
+    public const CODIGO_V2 = [
+        'firma' => 'secreto', 'inst' => 'id', 'tipo' => 'tipo', 'version' => 'version', 'vencido' => 'reloj', 'futuro' => 'reloj',
+        'nonce' => 'repetido', 'sin_configurar' => 'sin_configurar', 'limite' => 'limite', 'interno' => 'error_programa',
+        'no_encontrado' => 'no_encontrado', 'invalido' => 'invalido', 'no_permitido' => 'no_permitido', 'conflicto' => 'conflicto',
     ];
 
     /**
@@ -171,6 +188,20 @@ final class Estado
         $j = json_decode($cuerpo, true);
         if (is_array($j) && is_string($j['error'] ?? null)) $msg = mb_substr(trim($j['error']), 0, 150);
         $dijo = $msg !== '' ? ' El programa dijo: "' . $msg . '".' : '';
+
+        // v2: primero el "codigo" del JSON (§3.2); solo si no hay, se adivina por palabras (conectores v1)
+        if (is_array($j) && is_string($j['codigo'] ?? null) && isset(self::CODIGO_V2[$j['codigo']])) {
+            $c = self::CODIGO_V2[$j['codigo']];
+            $texto = match ($j['codigo']) {
+                'vencido' => ErrorPrograma::TEXTOS['vencido'],
+                'futuro' => ErrorPrograma::TEXTOS['futuro'],
+                'interno' => self::ERRORES['error_programa'] . " (HTTP $http)",
+                'invalido', 'no_permitido', 'conflicto' => self::ERRORES[$c] . $dijo,
+                default => self::ERRORES[$c],
+            };
+            if ($c === 'reloj' && $desfase !== null && abs($desfase) > 30) $texto .= ' Diferencia: ' . self::segundos($desfase) . '.';
+            return [$c, $texto];
+        }
 
         if ($http === 404) return ['no_conectado', self::ERRORES['no_conectado']];
         if ($http === 429) return ['limite', self::ERRORES['limite']];

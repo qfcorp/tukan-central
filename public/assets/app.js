@@ -31,11 +31,12 @@
     if (ev.target.closest('[data-imprimir]')) window.print();
   });
 
-  // Confirmar antes de enviar: <form data-confirmar="¿Seguro?">
+  // Confirmar antes de enviar: <form data-confirmar="¿Seguro?"> (data-dos-veces: lo delicado se confirma dos veces)
   document.addEventListener('submit', function (ev) {
     var f = ev.target;
     var t = f.getAttribute && f.getAttribute('data-confirmar');
     if (t && !window.confirm(t)) { ev.preventDefault(); return; }
+    if (f.hasAttribute && f.hasAttribute('data-dos-veces') && !window.confirm('Esto no se puede deshacer fácilmente. ¿Continuar?')) { ev.preventDefault(); return; }
     // Evita doble envío
     var b = f.querySelector('button[type="submit"]');
     if (b && f.target !== '_blank') { setTimeout(function () { b.disabled = true; }, 0); setTimeout(function () { b.disabled = false; }, 8000); }
@@ -90,4 +91,74 @@
       .then(function (j) { if (j && j.ok && j.hecho) window.location.reload(); else if (boton) { boton.disabled = false; } })
       .catch(function () { if (boton) boton.disabled = false; if (sub) sub.textContent = 'No se pudieron actualizar las cifras. Toca "Actualizar".'; });
   }
+
+  // ------------------------------------------------------------------ Protocolo v2
+
+  // Hoja (celular) / ventana (escritorio) con el formulario de un botón: <a data-hoja href="/?r=accion&...">
+  var hoja = document.getElementById('hoja');
+  var cuerpoHoja = document.getElementById('hoja-cuerpo');
+  function cerrarHoja() { if (hoja && hoja.open) hoja.close(); }
+  document.addEventListener('click', function (ev) {
+    var a = ev.target.closest('a[data-hoja]');
+    if (a && hoja && hoja.showModal && window.fetch) {
+      ev.preventDefault();
+      cuerpoHoja.innerHTML = '<p class="suave">Cargando…</p>';
+      if (!hoja.open) hoja.showModal();
+      fetch(a.href + '&parcial=1', { credentials: 'same-origin', headers: { 'Accept': 'text/html' } })
+        .then(function (r) { return r.text(); })
+        .then(function (html) { cuerpoHoja.innerHTML = html; prepararFormulario(cuerpoHoja); var p = cuerpoHoja.querySelector('input:not([type=hidden]),select,textarea'); if (p) p.focus(); })
+        .catch(function () { window.location.href = a.href; });
+      return;
+    }
+    var c = ev.target.closest('[data-cerrar]');
+    if (c && hoja && hoja.contains(c)) { ev.preventDefault(); cerrarHoja(); }
+  });
+  if (hoja) hoja.addEventListener('click', function (ev) { if (ev.target === hoja) cerrarHoja(); });
+
+  // Formularios v2: valor sugerido (cotizar) y confirmación con el valor y la fecha
+  function prepararFormulario(raiz) {
+    (raiz || document).querySelectorAll('form[data-cotizar-url]').forEach(function (f) {
+      var aviso = f.querySelector('[data-cotizado]');
+      var monto = f.querySelector('[data-campo="monto"]');
+      var nombre = f.getAttribute('data-nombre') || 'este cliente';
+      var hasta = '';
+      var confirmar = function () {
+        var m = monto ? monto.value : '';
+        f.setAttribute('data-confirmar', 'Vas a registrar $' + m + ' de ' + nombre + '.' + (hasta ? ' Quedará activa hasta el ' + hasta + '.' : '') + ' ¿Confirmas?');
+      };
+      var pedir = function () {
+        var q = '';
+        ['plan', 'periodo', 'meses'].forEach(function (k) { var c = f.querySelector('[data-campo="' + k + '"]'); if (c && c.value) q += '&' + k + '=' + encodeURIComponent(c.value); });
+        fetch(f.getAttribute('data-cotizar-url') + q, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            if (!j || !j.ok) { if (aviso) aviso.textContent = ''; return; }
+            if (monto && j.monto_texto) monto.value = j.monto_texto;
+            hasta = j.hasta_texto || '';
+            if (aviso) aviso.textContent = (j.detalle ? j.detalle + ' · ' : '') + j.monto_bonito + (hasta ? ' · quedará activa hasta el ' + hasta : '');
+            confirmar();
+          }).catch(function () {});
+      };
+      f.addEventListener('change', function (ev) { var k = ev.target.getAttribute('data-campo'); if (k === 'plan' || k === 'periodo' || k === 'meses') pedir(); });
+      if (monto) monto.addEventListener('input', confirmar);
+      pedir();
+    });
+    (raiz || document).querySelectorAll('input[type=checkbox][data-muestra]').forEach(function (cb) {
+      var obj = document.querySelector(cb.getAttribute('data-muestra'));
+      var ver = function () { if (obj) obj.hidden = !cb.checked; };
+      cb.addEventListener('change', ver); ver();
+    });
+  }
+  prepararFormulario(document);
+
+  // Selector que se envía solo (filtros)
+  document.addEventListener('change', function (ev) {
+    var s = ev.target.closest('select[data-enviar-al-cambiar]');
+    if (s && s.form) s.form.submit();
+  });
+
+  // Menú "Más" (escritorio): se cierra al tocar fuera
+  document.addEventListener('click', function (ev) {
+    document.querySelectorAll('details.menu-mas[open]').forEach(function (d) { if (!d.contains(ev.target)) d.removeAttribute('open'); });
+  });
 })();

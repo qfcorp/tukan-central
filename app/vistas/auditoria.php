@@ -1,9 +1,9 @@
 <?php
 use Tukan\Auditoria;
 
-$grupos = ['' => 'Todo', 'acceso' => 'Ingresos al panel', 'fallos' => 'Fallos y bloqueos', 'programas' => 'Entradas a programas', 'cambios' => 'Cambios'];
+$grupos = ['' => 'Todo', 'acceso' => 'Ingresos al panel', 'fallos' => 'Fallos y bloqueos', 'programas' => 'Entradas a programas', 'clientes' => 'Cambios en clientes', 'plata' => 'Gastos y finanzas', 'cambios' => 'Cambios'];
 $malas = ['login_fallido', 'login_bloqueado', '2fa_fallido', 'csrf_rechazado', 'permiso_negado'];
-$cambios = ['instancia_agregada', 'instancia_editada', 'instancia_eliminada', 'secreto_cambiado', 'usuario_creado', 'usuario_editado', 'ajustes', 'clave_cambiada', '2fa_quitado', 'codigos_nuevos', '2fa_activado', 'cli'];
+$cambios = ['ejecutar', 'gasto', 'ingreso_extra', 'licencia', 'instancia_agregada', 'instancia_editada', 'instancia_eliminada', 'secreto_cambiado', 'usuario_creado', 'usuario_editado', 'ajustes', 'clave_cambiada', '2fa_quitado', 'codigos_nuevos', '2fa_activado', 'cli'];
 $paginas = max(1, (int) ceil($total / $porPagina));
 $q = array_filter($f);
 ?>

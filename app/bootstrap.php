@@ -26,9 +26,11 @@ spl_autoload_register(function (string $clase): void {
     }
 });
 
-use Tukan\{Acceso, Auditoria, Db, Instancias, Monitor, Telegram, Ajustes};
+use Tukan\{Acceso, Auditoria, Db, Instancias, Monitor, Telegram, Ajustes, Capacidades, ClienteV2, Clientes, Solicitudes, Finanzas, Licencias,
+            Operaciones, Sincronizador, Sincronizacion};
 
 require RAIZ . '/app/iconos.php';
+require RAIZ . '/app/ui.php';
 
 // 3) Sesión segura (solo en la web)
 if (PHP_SAPI !== 'cli') {
@@ -125,6 +127,118 @@ function ajustes(): Ajustes
     return $a ??= new Ajustes(db());
 }
 
+// --- Protocolo v2 ---
+function capacidades(): Capacidades
+{
+    static $c = null;
+    return $c ??= new Capacidades(db());
+}
+
+function cliente_v2(): ClienteV2
+{
+    static $c = null;
+    return $c ??= new ClienteV2(instancias());
+}
+
+function clientes(): Clientes
+{
+    static $c = null;
+    return $c ??= new Clientes(db());
+}
+
+function solicitudes(): Solicitudes
+{
+    static $s = null;
+    return $s ??= new Solicitudes(db());
+}
+
+function finanzas(): Finanzas
+{
+    static $f = null;
+    return $f ??= new Finanzas(db());
+}
+
+function licencias(): Licencias
+{
+    static $l = null;
+    return $l ??= new Licencias(db());
+}
+
+function operaciones(): Operaciones
+{
+    static $o = null;
+    return $o ??= new Operaciones(db(), cliente_v2());
+}
+
+function sincronizacion(): Sincronizacion
+{
+    static $s = null;
+    return $s ??= new Sincronizacion(db());
+}
+
+function sincronizador(): Sincronizador
+{
+    static $s = null;
+    return $s ??= new Sincronizador(db(), instancias(), monitor(), cliente_v2(), new Telegram());
+}
+
+/** Usuario para los pedidos v2 (email, nombre y rol del que está en el panel). */
+function usuario_v2(): array
+{
+    $u = usuario();
+    return ['id' => $u['id'] ?? null, 'email' => $u['email'] ?? ClienteV2::EMAIL_REVISION, 'nombre' => $u['nombre'] ?? 'Panel Tukán', 'rol' => $u['rol'] ?? 'dueno'];
+}
+
+/** ¿El rol de este usuario ve teléfonos y correos? (§9.3) */
+function ve_contacto(): bool
+{
+    return puede('contacto');
+}
+
+/** "20/10" o "20/10/2027" a partir de "2026-10-20" */
+function fecha_dm(?string $f, bool $anio = false): string
+{
+    if (!$f || !($d = DateTimeImmutable::createFromFormat('!Y-m-d', substr($f, 0, 10)))) return '—';
+    return $d->format($anio ? 'd/m/Y' : 'd/m');
+}
+
+/** "faltan 7 días" / "hoy" / "mañana" / "hace 2 días" */
+function falta(?int $dias): string
+{
+    if ($dias === null) return '';
+    return match (true) {
+        $dias === 0 => 'hoy',
+        $dias === 1 => 'mañana',
+        $dias > 1 => "faltan $dias días",
+        $dias === -1 => 'ayer',
+        default => 'hace ' . -$dias . ' días',
+    };
+}
+
+/** "hace 2 horas" a partir de un momento ISO ("2026-10-13T09:12:00-05:00") */
+function hace_iso(?string $iso): string
+{
+    $t = $iso ? strtotime($iso) : false;
+    return $t ? hace($t) : 'nunca';
+}
+
+/** Enlace a la pantalla actual con otros parámetros (para filtros y pestañas). */
+function url_aqui(array $cambios, array $quitar = []): string
+{
+    $p = array_diff_key(array_merge($_GET, $cambios), array_flip(array_merge($quitar, array_key_exists('pagina', $cambios) ? [] : ['pagina'])));
+    $p = array_filter($p, fn($v) => $v !== '' && $v !== null);
+    $r = (string) ($p['r'] ?? 'inicio');
+    unset($p['r']);
+    return url($r, $p);
+}
+
+/** Datos de un formulario v2 que vienen como campo[...] */
+function campos_post(): array
+{
+    $c = $_POST['campo'] ?? [];
+    return is_array($c) ? $c : [];
+}
+
 /** Escapa texto para mostrarlo en HTML. */
 function e(mixed $v): string
 {
@@ -210,10 +324,13 @@ function origen_valido(): bool
     return strcasecmp($host, (string) ($_SERVER['HTTP_HOST'] ?? '')) === 0;
 }
 
-/** Cabeceras de seguridad. form-action incluye los programas para que el botón "Entrar" pueda redirigir. */
+/**
+ * Cabeceras de seguridad. form-action incluye los programas para que el botón "Entrar" pueda redirigir,
+ * y WhatsApp para el botón "Recordar por WhatsApp" (se anota y luego redirige a wa.me).
+ */
 function cabeceras_seguridad(array $origenes = []): void
 {
-    $form = implode(' ', array_merge(["'self'"], $origenes));
+    $form = implode(' ', array_merge(["'self'"], $origenes, $origenes ? ['https://wa.me', 'https://api.whatsapp.com'] : []));
     header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; "
          . "connect-src 'self'; manifest-src 'self'; form-action $form; frame-ancestors 'none'; base-uri 'none'");
     header_remove('X-Powered-By');
@@ -288,6 +405,7 @@ function vista(string $nombre, array $datos = [], string $titulo = 'Panel Tukán
     ob_start();
     require RAIZ . "/app/vistas/$nombre.php";
     $contenido = ob_get_clean();
+    $u = usuario();   // una vista podría usar $u para otra cosa
     require RAIZ . ($u ? '/app/vistas/_diseno.php' : '/app/vistas/_acceso.php');
 }
 

@@ -21,11 +21,16 @@ final class Acceso
 
     public const ROLES = [
         'dueno'   => 'Dueño (todo)',
-        'soporte' => 'Soporte (entra a los programas, no cambia nada)',
+        'soporte' => 'Soporte (entra a los programas y atiende solicitudes; no ve contactos ni plata)',
     ];
 
-    /** Lo que puede hacer cada rol. El dueño puede todo. */
-    private const PERMISOS_SOPORTE = ['ver', 'entrar', 'probar', 'actualizar', 'mi_cuenta'];
+    /**
+     * Lo que puede hacer cada rol. El dueño puede todo (PROTOCOLO_V2 §9.3):
+     *   ver (solicitudes, clientes sin contacto, vencimientos, demos, embudo), atender (atender_solicitud, responder_ticket)
+     *   solo dueño: contacto (teléfono, correo, WhatsApp), demos (crear_demo, extender_prueba, nueva_clave_dueno, nota_interna),
+     *   cobros (registrar_pago, comprobantes, anular_pago, suspender, reactivar, cambiar_plan, guardar_plan), finanzas.
+     */
+    private const PERMISOS_SOPORTE = ['ver', 'entrar', 'probar', 'actualizar', 'mi_cuenta', 'atender'];
 
     private ?Cifrado $cifrado;
 

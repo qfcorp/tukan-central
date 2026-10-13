@@ -24,7 +24,8 @@ if ($ruta === '/admin') {
         return true;
     }
     echo '<!doctype html><meta charset=utf-8><title>Admin</title><h1>Panel de administración de prueba</h1><p id="quien">'
-        . htmlspecialchars($_SESSION['admin'] . ' / ' . $_SESSION['nombre']) . '</p><a href="' . htmlspecialchars((string) getenv('TUKAN_CENTRAL_URL')) . '">← Panel Tukán</a>';
+        . htmlspecialchars($_SESSION['admin'] . ' / ' . $_SESSION['nombre']) . '</p><p id="donde">' . htmlspecialchars((string) $_SERVER['REQUEST_URI']) . '</p><a href="'
+        . htmlspecialchars((string) getenv('TUKAN_CENTRAL_URL')) . '">← Panel Tukán</a>';
     return true;
 }
 if (preg_match('#^/bot[^/]+/sendMessage$#', $ruta)) {

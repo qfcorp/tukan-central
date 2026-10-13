@@ -70,6 +70,56 @@ $on = $activo && $f['consultado'] !== null && (int) $f['en_linea'];
   </div>
 </div>
 
+<?php $resumen = \Tukan\Capacidades::resumen($cap && $cap['protocolo'] === 2 ? $cap['datos'] : []); $esV2 = $cap && $cap['protocolo'] === 2; ?>
+<div class="tarjeta seccion" id="capacidades">
+  <h2>Qué puede hacer desde el panel</h2>
+  <?php if (!$cap): ?>
+    <p class="suave">Todavía no se sabe: toca <b>Probar conexión</b>.</p>
+  <?php else: ?>
+    <p class="chico suave mb"><?= $esV2 ? 'Protocolo v2' . (!empty($cap['datos']['version']) ? ' · versión ' . e($cap['datos']['version']) : '') . ' · revisado ' . e(hace($cap['consultado'])) : 'Este programa todavía usa el protocolo v1: solo cifras y Entrar.' ?></p>
+    <ul class="capacidades">
+      <?php foreach ($resumen as $t => $si): if ($unico && in_array($t, ['Crear demos', 'Alargar pruebas', 'Registrar pagos', 'Aprobar comprobantes', 'Finanzas (ingresos por mes)', 'Ver las solicitudes (bandeja)'], true)) continue; ?>
+        <li class="<?= $si ? 'si' : 'no' ?>"><?= icono($si ? 'check' : 'cruz') ?> <?= e($t) ?></li>
+      <?php endforeach; ?>
+    </ul>
+    <?php if (in_array(false, $resumen, true) && !$unico): ?><p class="chico suave mt">Lo que sale con ✖: actualiza <?= e($f['nombre']) ?> para tener esto.</p><?php endif; ?>
+  <?php endif; ?>
+</div>
+
+<?php if ($unico && puede('finanzas')): $lc = $licencia['contacto'] ?? []; $hasta = $licencia['activo_hasta'] ?? null; $dl = $hasta ? dias_hasta($hasta) : null; ?>
+<div class="rejilla dos seccion" id="licencia">
+  <form method="post" action="<?= e(url('licencias')) ?>" class="tarjeta">
+    <h2>Licencia</h2>
+    <p class="mb"><?php if (!$licencia): ?><span class="etiqueta">Sin datos todavía</span>
+      <?php elseif ($hasta === null): ?><span class="etiqueta">Sin fecha</span>
+      <?php else: ?><?= etiqueta_estado($dl < 0 ? 'vencido' : ($dl <= 7 ? 'por_vencer' : 'activo'), ($dl < 0 ? 'Vencida el ' : 'Pagada hasta el ') . fecha_dm($hasta, true)) ?><?php endif; ?>
+      <?php if ($licencia): ?> · <?= e(dinero((float) $licencia['valor_mensual'])) ?> al mes<?php endif; ?></p>
+    <?= campo_csrf() ?><input type="hidden" name="i" value="<?= e($f['id']) ?>"><input type="hidden" name="accion" value="guardar">
+    <div class="fila-campos">
+      <div class="campo"><label for="l-valor">Valor al mes ($)</label><input id="l-valor" name="valor_mensual" inputmode="decimal" value="<?= e(number_format((float) ($licencia['valor_mensual'] ?? 0), 2, ',', '')) ?>"></div>
+      <div class="campo"><label for="l-hasta">Pagada hasta</label><input id="l-hasta" type="date" name="activo_hasta" value="<?= e((string) $hasta) ?>"></div>
+      <div class="campo"><label for="l-cn">Contacto</label><input id="l-cn" name="contacto_nombre" value="<?= e((string) ($lc['nombre'] ?? '')) ?>" maxlength="100"></div>
+      <div class="campo"><label for="l-ct">Celular</label><input id="l-ct" type="tel" name="contacto_telefono" value="<?= e((string) ($lc['telefono'] ?? '')) ?>" maxlength="30"></div>
+    </div>
+    <div class="campo"><label for="l-ce">Correo</label><input id="l-ce" type="email" name="contacto_email" value="<?= e((string) ($lc['email'] ?? '')) ?>" maxlength="150"></div>
+    <div class="campo"><label for="l-n">Notas</label><textarea id="l-n" name="notas" maxlength="1000"><?= e((string) ($licencia['notas'] ?? '')) ?></textarea></div>
+    <button class="btn" type="submit">Guardar licencia</button>
+  </form>
+  <form method="post" action="<?= e(url('licencias')) ?>" class="tarjeta" id="pago-licencia">
+    <h2>Registrar pago de licencia</h2>
+    <p class="chico suave mb">Se anota como ingreso extra de <?= e($f['nombre']) ?> y la fecha "pagada hasta" se mueve sola.</p>
+    <?= campo_csrf() ?><input type="hidden" name="i" value="<?= e($f['id']) ?>"><input type="hidden" name="accion" value="pago">
+    <div class="fila-campos">
+      <div class="campo"><label for="p-monto">Valor recibido ($)</label><input id="p-monto" name="monto" inputmode="decimal" value="<?= e(number_format((float) ($licencia['valor_mensual'] ?? 0), 2, ',', '')) ?>" required></div>
+      <div class="campo"><label for="p-meses">Meses</label><select id="p-meses" name="meses"><?php foreach ([1, 3, 6, 12] as $m): ?><option value="<?= $m ?>"><?= $m ?> <?= $m === 1 ? 'mes' : 'meses' ?></option><?php endforeach; ?></select></div>
+      <div class="campo"><label for="p-fecha">Fecha del pago</label><input id="p-fecha" type="date" name="fecha" value="<?= e(date('Y-m-d')) ?>" required></div>
+      <div class="campo"><label for="p-met">Forma de pago</label><select id="p-met" name="metodo"><?php foreach (\Tukan\Finanzas::METODOS as $t): ?><option><?= e($t) ?></option><?php endforeach; ?></select></div>
+    </div>
+    <button class="btn btn-primario" type="submit"><?= icono('dinero') ?> Registrar pago</button>
+  </form>
+</div>
+<?php endif; ?>
+
 <?php if (puede('programas')): ?>
 <div class="rejilla dos seccion">
   <div class="tarjeta">

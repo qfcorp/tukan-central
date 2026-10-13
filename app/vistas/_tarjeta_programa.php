@@ -62,6 +62,12 @@ $kv = array_slice($kv, 0, 6, true);
     <?php elseif ($activo && !$d): ?>
       <p class="chico suave"><?= $consultado ? 'Todavía no hay cifras de este programa.' : 'Toca "Actualizar" para traer sus cifras.' ?></p>
     <?php endif; ?>
+    <?php if (!empty($lineaV2)): ?>
+      <p class="linea-v2"><a href="<?= e(url('solicitudes', ['i' => $f['id']])) ?>"><?= $lineaV2['solicitudes'] ?> <?= $lineaV2['solicitudes'] === 1 ? 'solicitud' : 'solicitudes' ?></a> ·
+        <a href="<?= e(url('clientes', ['i' => $f['id'], 'vence' => '7'])) ?>"><?= $lineaV2['vencen'] ?> <?= $lineaV2['vencen'] === 1 ? 'vence' : 'vencen' ?> esta semana</a></p>
+    <?php elseif ($activo && isset($caps[$f['id']]) && $caps[$f['id']]['protocolo'] === 1): ?>
+      <p class="etiqueta solo-v1">Solo cifras (actualiza el programa para ver solicitudes y clientes)</p>
+    <?php endif; ?>
     <div class="disp" title="Disponibilidad de los últimos 7 días">
       <div class="barras" role="img" aria-label="Disponibilidad 7 días: <?= $dp['pct'] === null ? 'sin datos' : e(str_replace('.', ',', (string) $dp['pct'])) . ' %' ?>">
         <?php foreach ($dp['tramos'] as $tr): ?><i class="<?= e($tr['clase']) ?>"></i><?php endforeach; ?>

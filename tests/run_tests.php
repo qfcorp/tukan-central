@@ -14,7 +14,8 @@ putenv('TUKAN_CENTRAL_ENV=/nonexistent');
 putenv('TELEGRAM_BOT_TOKEN=');
 require dirname(__DIR__) . '/app/bootstrap.php';
 
-use Tukan\{Acceso, Auditoria, Cifrado, Db, Estado, EstadoInvalido, Instancias, Monitor, Productos, Qr, Token, Totp};
+use Tukan\{Acceso, Ajustes, Analisis, Auditoria, Capacidades, Cifrado, ClienteV2, Clientes, Contacto, Db, ErrorPrograma, Estado, EstadoInvalido, Exportar, Finanzas, Formulario,
+            Instancias, Licencias, Monitor, Operaciones, Productos, Qr, Sincronizacion, Sincronizador, Solicitudes, Token, Totp, Xlsx};
 
 $ok = 0;
 $fallos = [];
@@ -424,6 +425,8 @@ foreach (glob(dirname(__DIR__) . '/{bin,deploy}/*.{php,sh}', GLOB_BRACE) as $arc
     $conTilde = array_filter($mm[0], fn($l) => preg_match('/[áéíóúñÁÉÍÓÚÑ]/u', $l));
     check('Mensajes de ' . basename($archivo) . ' sin tildes', [], array_values($conTilde));
 }
+
+require __DIR__ . '/run_tests_v2.php';
 
 // ---------------------------------------------------------------------------
 echo "\n----------------------------------------\n";

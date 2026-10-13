@@ -11,16 +11,21 @@ require dirname(__DIR__) . '/app/bootstrap.php';
 $rutas = [
     'login' => 'publica', 'colores_css' => 'publica',
     'verificar' => 'pre', 'activar_2fa' => 'pre',
-    'inicio' => 'ver', 'programas' => 'ver', 'programa' => 'ver', 'ayuda' => 'ver',
-    'refrescar' => 'actualizar', 'entrar' => 'entrar', 'probar' => 'probar',
+    'inicio' => 'ver', 'programas' => 'ver', 'programa' => 'ver', 'ayuda' => 'ver', 'mas' => 'ver',
+    'refrescar' => 'actualizar', 'actualizar_datos' => 'actualizar', 'entrar' => 'entrar', 'probar' => 'probar',
     'mi_cuenta' => 'mi_cuenta', 'codigos' => 'mi_cuenta', 'salir' => 'mi_cuenta',
+    // Protocolo v2 (los permisos de cada operación se revisan adentro, §9.3)
+    'solicitudes' => 'ver', 'solicitud' => 'ver', 'adjunto' => 'ver', 'clientes' => 'ver', 'cliente' => 'ver',
+    'vencimientos' => 'ver', 'demos' => 'ver', 'embudo' => 'ver', 'accion' => 'ver', 'ejecutar' => 'ver',
+    'demo_nueva' => 'demos', 'cotizar' => 'cobros', 'recordar' => 'contacto',
+    'finanzas' => 'finanzas', 'gastos' => 'finanzas', 'ingresos_extra' => 'finanzas', 'exportar' => 'finanzas', 'licencias' => 'finanzas',
     // Solo el dueño
     'programa_nuevo' => 'programas', 'programa_editar' => 'programas', 'programa_comando' => 'programas',
     'rotar' => 'programas', 'eliminar' => 'programas',
     'usuarios' => 'usuarios', 'auditoria' => 'auditoria', 'ajustes' => 'ajustes',
 ];
 // Rutas que solo aceptan POST (cambian algo)
-$soloPost = ['refrescar', 'entrar', 'probar', 'rotar', 'eliminar', 'salir'];
+$soloPost = ['refrescar', 'actualizar_datos', 'entrar', 'probar', 'rotar', 'eliminar', 'salir', 'ejecutar', 'recordar', 'licencias'];
 
 $ruta = param('r', 'inicio');
 if (!isset($rutas[$ruta]) || !is_file(RAIZ . "/app/paginas/$ruta.php")) {
@@ -86,6 +91,7 @@ try {
     require RAIZ . "/app/paginas/$ruta.php";
 } catch (Throwable $e) {
     error_log('Tukan Central: ' . $e->getMessage() . ' en ' . $e->getFile() . ':' . $e->getLine());
+    while (ob_get_level() > 0) ob_end_clean();   // lo que se alcanzó a dibujar no sirve
     if (!headers_sent()) http_response_code(500);
     if (isset($_SERVER['HTTP_X_CSRF'])) responder_json(['ok' => false, 'error' => 'interno'], 500);
     vista('error', ['mensaje' => 'Algo falló al abrir esta página. Intenta de nuevo en un momento.'], 'Error');

@@ -7,7 +7,7 @@ o si alguna pantalla se sale a lo ancho (scroll horizontal).
 import base64, hashlib, hmac, os, struct, sys, time
 from playwright.sync_api import sync_playwright
 
-BASE = os.environ.get('BASE', 'http://127.0.0.1:8301')
+BASE = os.environ.get('BASE', 'http://127.0.0.1:8260')
 SALIDA = sys.argv[1] if len(sys.argv) > 1 else 'tests/capturas'
 EMAIL, CLAVE = 'capturas@tukan.ec', 'claveCapturas2026'
 os.makedirs(SALIDA, exist_ok=True)
@@ -80,6 +80,42 @@ with sync_playwright() as p:
     foto('8_auditoria', completa=False)
     pag.goto(f'{BASE}/?r=ayuda')
     foto('9_ayuda')
+    # Protocolo v2
+    def ir(ruta, nombre, completa=True):
+        pag.goto(f'{BASE}/?r={ruta}')
+        pag.wait_for_load_state('networkidle')
+        foto(nombre, completa)
+    ir('inicio', '10_inicio_v2')
+    ir('solicitudes', '11_solicitudes')
+    ir('solicitud&i=tuvocalia&id=soporte:9', '12_solicitud_detalle')
+    # La hoja con el formulario (se abre con JavaScript)
+    for ancho, alto, sufijo in ((390, 844, '390'), (1280, 860, 'escritorio')):
+        pag.set_viewport_size({'width': ancho, 'height': alto})
+        pag.goto(f'{BASE}/?r=cliente&i=tuvocalia&id=6')
+        pag.wait_for_load_state('networkidle')
+        pag.click('a[data-hoja][href*="a=registrar_pago"]')
+        pag.wait_for_selector('#hoja[open] form#form-accion')
+        pag.wait_for_timeout(700)
+        pag.screenshot(path=os.path.join(SALIDA, f'13_hoja_registrar_pago_{sufijo}.png'))
+        hechas.append(f'13_hoja_registrar_pago_{sufijo}.png')
+        pag.keyboard.press('Escape')
+    pag.set_viewport_size({'width': 390, 'height': 844})
+    ir('clientes&vence=30', '14_clientes_filtro')
+    ir('cliente&i=tuvocalia&id=6', '15_cliente_ficha')
+    ir('demo_nueva&i=tuvocalia', '16_demo_formulario')
+    pag.fill('#d-nombre', 'Liga Barrial El Inca')
+    pag.fill('#d-contacto_nombre', 'Mario Paredes')
+    pag.fill('#d-telefono', '0991112233')
+    pag.fill('#d-email', 'mario@elinca.ec')
+    pag.click('form#form-demo button[type=submit]')
+    pag.wait_for_load_state('networkidle')
+    foto('17_demo_lista')
+    ir('finanzas', '18_finanzas')
+    ir('gastos', '19_gastos_formulario')
+    ir('vencimientos', '20_vencimientos')
+    ir('embudo', '21_embudo')
+    ir('demos', '22_demos')
+    ir('mas', '23_mas')
     nav.close()
 
 print(f'{len(hechas)} capturas en {SALIDA}')

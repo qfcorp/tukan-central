@@ -1212,3 +1212,111 @@ function tc2_validar(string $accion): array
     return [$p, $datos];
 }
 ```
+
+---
+
+## Notas de implementación — TuGuardería
+
+(Agregado por el conector de TuGuardería, `app/central.php`. No cambia nada de arriba.)
+
+1. **Dónde va `cliente_id` en `ejecutar`** (§4.4 vs §6.1): §6.1 lo pide arriba (`{"operacion_id", "accion", "cliente_id", "datos"}`),
+   pero §4.4 dice que el Central manda los `datos` fijos del botón (`{"cliente_id": "unico"}`) **dentro** de `datos`.
+   TuGuardería acepta los dos: usa `cliente_id` de arriba y, si no viene, `datos.cliente_id`. Si no está en ninguno →
+   `422 invalido` con `campo: "cliente_id"`. Sugerencia para el Central: mandarlo siempre arriba.
+2. **Límites**: `sso` y `estado` siguen con el límite de v1 (30 por minuto por IP); las acciones v2 tienen su propio
+   contador (120 por minuto y 30 rechazados por minuto por IP, tabla `tukan_central_limite_v2`).
+3. **`cliente`** (§8 "sin plan, pagos ni fechas"): `plan: null`, `pagos: null`, `mensual_estimado: null`, y `fechas` es un
+   objeto con todas sus claves en `null` (así `fechas.vence` se puede leer sin revisar antes). `estado: "activo"`,
+   `estado_detalle: "licencia"`. `dueno` es `null` si no hay administrador principal activo.
+4. **`solicitudes_huella`** sin solicitudes = primeros 16 hex de `sha256("")` (`e3b0c44298fc1c14`).
+5. **Tabla `tukan_central_operaciones`** en MariaDB usa `DATETIME` en `creado`/`terminado` (no `TIMESTAMP`, para evitar
+   los valores por defecto automáticos de MariaDB).
+
+---
+
+## Notas de implementación — TuEvento/TuSalón
+
+(Agregado por los conectores v2 de TuEvento y TuSalón, `src/TukanCentralV2.php`. No cambia nada de arriba.)
+
+1. **Nombres de acción**: una acción que no está en el protocolo (`borrar`, …) → `400 invalido` "Acción no válida."
+   (como v1, ahora con `codigo`); una del protocolo que el programa no tiene (`adjunto`: no hay comprobantes ni tickets)
+   pasa por toda la validación y termina en `403 no_permitido` con `detalle.motivo = "no_disponible"`.
+2. **Límite**: un solo contador por IP para v1 y v2 (`tukan_central_pedidos` + columna `rechazados`): 120 pedidos y
+   30 rechazados (401) por minuto, también para `sso` y `estado`.
+3. **`cliente_id` en `ejecutar`**: se acepta arriba o en `datos.cliente_id` (como TuGuardería, nota 1).
+4. **Ids de recordatorios con la fecha de la etapa**: `seguimiento_prueba:{id}:{etapa}:{prueba_hasta}` y
+   `renovacion:{id}:{etapa}:{activo_hasta}`, para que una prueba alargada o un plan renovado que vuelve a la misma etapa
+   tenga id nuevo (§5.8). Además `extender_prueba` borra las atenciones de `seguimiento_prueba:{id}:*`.
+5. **`solicitudes`**: `contadores` cuenta por `tipo` el resultado filtrado (antes de paginar); `desde` filtra por
+   `actualizado` en `cerradas` y `todas`. Huella = primeros 16 hex de `sha256` de las líneas `id|estado` ordenadas y
+   unidas con `\n` (sin solicitudes: `sha256("")`, igual que TuGuardería).
+6. **`atender_solicitud`**: mismo resultado → `sin_cambios`; `en_proceso` puede pasar a cualquiera; una ya `atendida`
+   o `descartada` con otro resultado → `409 conflicto` (`detalle.motivo = "ya_atendida"`). En `dominio_gratis`, `dominio`
+   se guarda en `suscripciones.dominio` del pago anual (eso cierra la solicitud). TuSalón: `pago_automatico` (Google
+   Play) es `aviso`, prioridad `baja`, con botón "Visto" (`datos` fijos `{"solicitud_id", "resultado": "atendida"}`).
+7. **`crear_demo`**: no hay pedidos de demo → `solicitud_id` con valor → `422` (`campo: "datos.solicitud_id"`).
+   `correo_enviado` siempre `false` (no hay correo de bienvenida). TuEvento: `extra.ciudad`, plan por defecto `quinta`,
+   clave temporal (`clave_temporal = true`). TuSalón: sin campos propios (`formularios.crear_demo: []`), plan por
+   defecto `completa`, clave normal de 10 caracteres (no existe "clave temporal"; el mensaje dice que la cambie).
+8. **`registrar_pago`**: `fecha` es opcional (hoy); `meses` → `422` (`meses_libres: false`); `nota` va solo en
+   `registro_admin` (no hay columna). `monto` debe ser número JSON. **`anular_pago`**: ya anulado → `409 conflicto`; si
+   no le quedan pagos y estaba activo, el cliente vuelve a `prueba` (antes quedaba "al día sin vencimiento") y lo dice
+   el `mensaje`.
+9. **`guardar_plan`**: `datos` = `plan`, `nombre`, `precio_mensual` (o `precios[]` con el `mensual`), `descripcion`,
+   límites (`max_espacios`/`max_usuarios` en TuEvento, `max_profesionales` en TuSalón; `null` = ilimitado; si no viene,
+   se conserva) y `ajustes` opcional (`dias_prueba`, `dias_gracia`, …). Su formulario va en `capacidades.formularios.guardar_plan`.
+10. **Cliente**: `tipo: null`; `ir_trabajar: null` ("Entrar como el dueño" es solo por POST desde la ficha); TuSalón
+    `ciudad: null` y teléfono = `salones.telefono`. **Enlace público de TuSalón**: `/?r=reservar&s=<slug>` (§10.3 dice
+    `/<slug>`, pero esa dirección no existe; es la que muestra la ficha del panel de Tukán).
+11. **`estado` v1**: los contadores siguen la regla de §4.2; la lista `pagos_vencidos` no cambia (vencidos sin gracia y
+    pruebas terminadas, "Sin pagar" del panel).
+
+---
+
+## Notas de implementación — TuVocalía/TuAcademia
+
+Conector v2 en `app/tukan_central.php` (el mismo archivo en los dos repositorios; distingue por `PRODUCTO` y `app/academia.php`) y
+funciones compartidas en `app/cuentas_super.php`. Lo que el texto de arriba dejaba abierto se resolvió así:
+
+1. **Acción desconocida** (y pedido sin `accion`): `403 no_permitido` con `detalle.motivo = "no_disponible"` (paso 15), ya no 404.
+   Sin configurar sigue siendo 404, ahora con JSON `sin_configurar` (en `sso`: texto plano con `X-Tukan-Codigo: sin_configurar`).
+2. **Límite** (§3.1 paso 2) vale para **todas** las acciones, también `sso` y `estado`: 120 pedidos/minuto/IP y 30 rechazados (401)/minuto/IP
+   (tabla `intentos`, tipos `tukan_central` y `tukan_central_mal`). Pasa a `429 limite` con `Retry-After: 60` (el v1 contestaba 401
+   «Demasiados pedidos…»; el texto se conserva para los Centrales v1 que clasifican por palabras).
+3. **Errores de `estado`**: JSON de §3.2 (`"protocolo": 2` y `codigo`); la respuesta correcta de `estado` sigue con `"protocolo": 1`.
+4. **Ids de los recordatorios** llevan la fecha de vencimiento: `seguimiento_prueba:<cliente>:<etapa>:<AAAAMMDD>` y
+   `renovacion:<cliente>:<etapa>:<AAAAMMDD>`. Así, al alargar la demo o al renovar, la etapa nueva tiene id nuevo («reinicia los avisos»)
+   y una atención vieja no la esconde. `registro_nuevo:<cliente>`, `pago_automatico:<pago>`, `dominio_gratis:<pago>`,
+   `comision_vendedor:<comisión>`, `liquidacion_pendiente:<cliente>:<MAX(id)>`.
+5. **Pagos anulados**: el programa **borra** el pago (no tiene marca de anulado), así que `pagos_detalle` nunca trae `anulado: true` y
+   `finanzas` cuenta las filas que existen. La comisión **pendiente** del vendedor se borra con el pago (clave foránea en cascada); si la
+   comisión ya está **pagada** → `403 no_permitido` (`motivo: comision_pagada`). Si el pago era el que dejó `ligas.vence`, la fecha vuelve
+   al `MAX(hasta)` de los pagos que quedan; si no queda ninguno, no se toca y `mensaje` lo dice (`resultado.sin_pagos: true`).
+   Lo mismo pasa al eliminar un pago en Ventas.
+6. **`crear_demo`**: `origen = "demo_pedida"` cuando viene con `solicitud_id`, si no `"central"`. `contacto_nombre` pide **3** letras como
+   mínimo (regla del programa, no 2). Los campos propios (`tipo`, `ciudad`; TuAcademia: `ciudad`, `disciplina`) se aceptan en `extra`
+   o sueltos en `datos` (el formulario del pedido de demo los trae sueltos). TuAcademia siempre crea academia (`tipo: escuela`).
+   Con pedido de demo ya «creada» → `409 conflicto`. En la respuesta guardada la clave se cambia por un aviso también dentro de
+   `mensaje_whatsapp` y `whatsapp_url` queda en `null` (además de `acceso.clave: null, clave_oculta: true`). Igual en `nueva_clave_dueno`.
+7. **`atender_solicitud` de un `demo_pedida` con `atendida`** → estado del programa `contactada` (como dice §10.1), o sea que sigue
+   **abierta** (`en_proceso`); se cierra con `crear_demo` o con `descartada`. Si ya tenía su demo, `atendida` → `sin_cambios`, y
+   `descartada` → `409`.
+8. **Soporte**: `cerrado` y `resuelto` → `atendida` (aunque se haya marcado `descartada` desde el Central, que guarda `cerrado`).
+9. **Suspendido**: `extender_prueba` → `403 no_permitido` (`motivo: suspendido`). `registrar_pago` **sí** se permite (la cuenta sigue
+   suspendida y el `mensaje` lo avisa). Los recordatorios `seguimiento_prueba`/`renovacion` no salen para cuentas suspendidas.
+   Suspensión real: `liga_puede_editar()` y `exigir_suscripcion()` niegan con «Cuenta suspendida. Comuníquese con …»; aviso arriba del panel.
+10. **`registrar_pago`**: `meses` (1–36) se acepta siempre, `periodo` tiene prioridad si vienen los dos; `inicio` (opcional) fija el inicio de la
+    vigencia (también en `cotizar`); `dominio` se guarda en `ligas.dominio` (activarlo en el servidor sigue siendo Ligas → Editar).
+    `metodo` es una clave de `formas_pago()` (no se acepta `google_play` a mano).
+11. **Idempotencia**: toda la operación, la fila de `tukan_central_operaciones` (`en_curso`) y la respuesta (`ok`) van en **una** transacción
+    `BEGIN IMMEDIATE`; otro pedido con el mismo `operacion_id` espera (busy_timeout 5 s) y luego ve `ok` → `repetida`. Si no logra el
+    permiso de escritura en 5 s → `409 conflicto` con `motivo: en_curso`. Un error de validación (incluidos los `RuntimeException` del
+    programa, que se devuelven como `422 invalido`) deshace todo y se guarda como `error`; una excepción interna no deja fila.
+    Para que las funciones del programa (que abren su propia transacción) funcionen dentro, `db()` usa un PDO con transacciones anidadas
+    (SAVEPOINT).
+12. **`finanzas`**: solo se mandan los `costos`/`otros_ingresos` mayores que 0. El costo `google_play` (15 %, `estimado: true`) sale en
+    cualquier instalación que tenga pagos `forma_pago = google_play`. `por_periodo.periodo` para meses que no son 1/3/6/12 es `"N meses"`.
+    En modo academia todo se filtra a las academias.
+13. **`cliente.actualizado`** = último cambio de la fila en la bitácora (o el alta); `ultima_actividad` = último ingreso de un usuario de la cuenta.
+    `tipo` puede ser `liga`, `escuela` o `federacion` (filtro `tipo` igual). Filtro extra aceptado: `ids`.
+14. **`planes`** trae además `detalle` (los textos de límites del programa). En modo academia no salen los planes solo de ligas.

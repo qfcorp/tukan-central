@@ -43,8 +43,97 @@ final class Db
             $db->exec(self::ESQUEMA);
             $db->exec('PRAGMA user_version = 1');
         }
-        // Aquí irán las migraciones siguientes: if ($version < 2) { ... PRAGMA user_version = 2 }
+        if ($version < 2) {
+            // Protocolo v2 (docs/PROTOCOLO_V2.md §9.2): copia local de clientes, solicitudes y finanzas,
+            // operaciones, demos, gastos e ingresos extra, gastos fijos y licencias.
+            $db->beginTransaction();
+            $db->exec(self::ESQUEMA_V2);
+            $db->exec('PRAGMA user_version = 2');
+            $db->commit();
+        }
+        // Siguiente: if ($version < 3) { ... PRAGMA user_version = 3 }
     }
+
+    private const ESQUEMA_V2 = <<<'SQL'
+CREATE TABLE IF NOT EXISTS capacidades (
+    instancia_id TEXT PRIMARY KEY REFERENCES instancias(id) ON DELETE CASCADE,
+    protocolo INTEGER NOT NULL,                 -- 1 = programa todavía v1, 2 = v2
+    datos TEXT NOT NULL,                        -- JSON de "capacidades" ya revisado
+    consultado INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS clientes (
+    instancia_id TEXT NOT NULL REFERENCES instancias(id) ON DELETE CASCADE,
+    cliente_id TEXT NOT NULL,
+    nombre TEXT NOT NULL, estado TEXT NOT NULL, estado_texto TEXT, plan TEXT,
+    alta TEXT, vence TEXT, dias_para_vencer INTEGER, ultima_actividad TEXT,
+    total_pagado REAL NOT NULL DEFAULT 0, primer_pago TEXT, mensual_estimado REAL NOT NULL DEFAULT 0,
+    origen TEXT, contacto_cif TEXT,             -- {"nombre","telefono","whatsapp","email"} cifrado
+    datos TEXT NOT NULL,                        -- el resto del JSON (sin contacto)
+    visto INTEGER NOT NULL,
+    PRIMARY KEY (instancia_id, cliente_id)
+);
+CREATE INDEX IF NOT EXISTS clientes_vence ON clientes (vence);
+CREATE TABLE IF NOT EXISTS solicitudes (
+    instancia_id TEXT NOT NULL REFERENCES instancias(id) ON DELETE CASCADE,
+    solicitud_id TEXT NOT NULL, tipo TEXT NOT NULL, categoria TEXT NOT NULL, estado TEXT NOT NULL, prioridad TEXT,
+    cliente_id TEXT, fecha TEXT NOT NULL, titulo TEXT, resumen TEXT, monto REAL,
+    quien_cif TEXT,                             -- quien + detalle + WhatsApp, cifrado (datos personales)
+    datos TEXT NOT NULL,
+    primera_vez INTEGER NOT NULL, ultima_vez INTEGER NOT NULL, avisada INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (instancia_id, solicitud_id)
+);
+CREATE INDEX IF NOT EXISTS solicitudes_estado ON solicitudes (estado, fecha);
+CREATE TABLE IF NOT EXISTS operaciones (
+    operacion_id TEXT PRIMARY KEY, instancia_id TEXT NOT NULL, accion TEXT NOT NULL, cliente_id TEXT, solicitud_id TEXT,
+    usuario_id INTEGER, estado TEXT NOT NULL,   -- enviada | ok | error | sin_respuesta
+    http INTEGER, codigo TEXT, mensaje TEXT, resumen TEXT, creada INTEGER NOT NULL, respondida INTEGER,
+    cuerpo_cif TEXT                             -- agregado: cuerpo exacto (cifrado) para reintentar byte por byte; se borra al terminar
+);
+CREATE TABLE IF NOT EXISTS demos (
+    id INTEGER PRIMARY KEY, instancia_id TEXT NOT NULL, cliente_id TEXT NOT NULL, nombre TEXT NOT NULL, contacto TEXT,
+    plan TEXT, prueba_hasta TEXT, solicitud_id TEXT, creada_por INTEGER, creada INTEGER NOT NULL,
+    primer_pago TEXT, monto_primer_pago REAL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS demos_cliente ON demos (instancia_id, cliente_id);
+CREATE TABLE IF NOT EXISTS recordatorios (
+    id INTEGER PRIMARY KEY, instancia_id TEXT NOT NULL, cliente_id TEXT NOT NULL, tipo TEXT NOT NULL,
+    usuario_id INTEGER, momento INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS recordatorios_cliente ON recordatorios (instancia_id, cliente_id, momento);
+CREATE TABLE IF NOT EXISTS finanzas_mes (
+    instancia_id TEXT NOT NULL REFERENCES instancias(id) ON DELETE CASCADE, mes TEXT NOT NULL, datos TEXT NOT NULL,
+    consultado INTEGER NOT NULL, PRIMARY KEY (instancia_id, mes)
+);
+CREATE TABLE IF NOT EXISTS gastos (
+    id INTEGER PRIMARY KEY, fecha TEXT NOT NULL, mes TEXT NOT NULL, categoria TEXT NOT NULL, descripcion TEXT NOT NULL,
+    monto REAL NOT NULL CHECK (monto >= 0), producto TEXT, instancia_id TEXT, recurrente_id INTEGER,
+    metodo TEXT, referencia TEXT, creado_por INTEGER, creado INTEGER NOT NULL, anulado INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS gastos_mes ON gastos (mes);
+CREATE UNIQUE INDEX IF NOT EXISTS gastos_recurrente_mes ON gastos (recurrente_id, mes) WHERE recurrente_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS ingresos_extra (
+    id INTEGER PRIMARY KEY, fecha TEXT NOT NULL, mes TEXT NOT NULL, concepto TEXT NOT NULL, monto REAL NOT NULL CHECK (monto >= 0),
+    producto TEXT, instancia_id TEXT, recurrente_id INTEGER, metodo TEXT, creado_por INTEGER, creado INTEGER NOT NULL,
+    anulado INTEGER NOT NULL DEFAULT 0
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ingresos_recurrente_mes ON ingresos_extra (recurrente_id, mes) WHERE recurrente_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS recurrentes (
+    id INTEGER PRIMARY KEY, tipo TEXT NOT NULL CHECK (tipo IN ('gasto','ingreso')), categoria TEXT, descripcion TEXT NOT NULL,
+    monto REAL NOT NULL, dia INTEGER NOT NULL CHECK (dia BETWEEN 1 AND 28), producto TEXT, instancia_id TEXT,
+    desde_mes TEXT NOT NULL, hasta_mes TEXT, activo INTEGER NOT NULL DEFAULT 1, creado INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS licencias (
+    instancia_id TEXT PRIMARY KEY REFERENCES instancias(id) ON DELETE CASCADE,
+    valor_mensual REAL NOT NULL DEFAULT 0, activo_hasta TEXT, contacto_cif TEXT, notas TEXT, actualizado INTEGER NOT NULL
+);
+-- Agregado al §9.2: cuándo se trajo cada cosa de cada programa (y su huella / contadores / MRR)
+CREATE TABLE IF NOT EXISTS sincronizacion (
+    instancia_id TEXT NOT NULL REFERENCES instancias(id) ON DELETE CASCADE,
+    que TEXT NOT NULL,                          -- capacidades | clientes | solicitudes | finanzas
+    momento INTEGER NOT NULL, huella TEXT, datos TEXT,
+    PRIMARY KEY (instancia_id, que)
+);
+SQL;
 
     private const ESQUEMA = <<<'SQL'
 CREATE TABLE IF NOT EXISTS usuarios (

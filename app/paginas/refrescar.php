@@ -5,7 +5,8 @@ use Tukan\Db;
 
 /**
  * Consulta otra vez todos los programas (botón "Actualizar" o app.js cuando lo guardado tiene más de 2 minutos).
- * Si ya hay otra consulta en marcha, no se repite.
+ * Con los programas v2 también trae lo que cambió: capacidades, solicitudes (si cambió su huella), clientes y finanzas
+ * (si nunca se trajeron o no coinciden con las cifras). Si ya hay otra consulta en marcha, no se repite.
  */
 $u = usuario();
 $esJs = isset($_SERVER['HTTP_X_CSRF']);
@@ -13,7 +14,7 @@ $candado = fopen(Db::carpetaDatos() . '/refrescar.lock', 'c');
 $res = [];
 $hecho = false;
 if ($candado && flock($candado, LOCK_EX | LOCK_NB)) {
-    $res = monitor()->refrescar(null, $u['email'], $u['nombre']);
+    $res = sincronizador()->revisar(null, $u['email'], $u['nombre'], false);
     flock($candado, LOCK_UN);
     $hecho = true;
 }
