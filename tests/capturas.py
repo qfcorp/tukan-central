@@ -1,7 +1,8 @@
 """Capturas de pantalla del Panel Tukán Central con Playwright (Chromium), a 390 px (celular) y en escritorio.
 Las llama tests/run_web.sh con el panel y los programas de prueba ya corriendo.
 Uso: BASE=http://127.0.0.1:8301 python3 tests/capturas.py CARPETA_SALIDA
-Falla (código 1) si hay errores de JavaScript o de la política de seguridad (CSP) en la consola.
+Falla (código 1) si hay errores de JavaScript o de la política de seguridad (CSP) en la consola,
+o si alguna pantalla se sale a lo ancho (scroll horizontal).
 """
 import base64, hashlib, hmac, os, struct, sys, time
 from playwright.sync_api import sync_playwright
@@ -33,8 +34,17 @@ with sync_playwright() as p:
             pag.set_viewport_size({'width': ancho, 'height': alto})
             pag.evaluate('window.scrollTo(0, 0)')
             pag.wait_for_timeout(150)
+            ancho_doc = pag.evaluate('document.documentElement.scrollWidth')
+            if ancho_doc > ancho:
+                errores.append(f'{nombre} a {ancho}px: se sale de la pantalla (ancho {ancho_doc}px)')
             ruta = os.path.join(SALIDA, f'{nombre}_{sufijo}.png')
+            # En la captura de página completa, la barra fija de abajo (celular) se pone al final, como se ve al bajar
+            # (con el CSSOM: la CSP no permite estilos en línea)
+            if completa:
+                pag.evaluate("document.querySelectorAll('.nav-abajo').forEach(n => n.style.position = 'static')")
             pag.screenshot(path=ruta, full_page=completa)
+            if completa:
+                pag.evaluate("document.querySelectorAll('.nav-abajo').forEach(n => n.style.position = '')")
             hechas.append(os.path.basename(ruta))
         pag.set_viewport_size({'width': 390, 'height': 844})
 
@@ -69,7 +79,7 @@ with sync_playwright() as p:
     pag.goto(f'{BASE}/?r=auditoria')
     foto('8_auditoria', completa=False)
     pag.goto(f'{BASE}/?r=ayuda')
-    foto('9_ayuda', completa=False)
+    foto('9_ayuda')
     nav.close()
 
 print(f'{len(hechas)} capturas en {SALIDA}')

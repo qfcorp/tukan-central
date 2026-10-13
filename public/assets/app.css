@@ -317,7 +317,7 @@ table.tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
   .tabla.apilable thead { display: none; }
   .tabla.apilable tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--line); }
   .tabla.apilable td { display: block; border: 0; padding: 2px 0; }
-  .tabla.apilable td[data-t]::before { content: attr(data-t) ": "; color: var(--ink-soft); font-size: 12px; }
+  .tabla.apilable td[data-t]::before { content: attr(data-t) ": "; color: var(--ink-soft); font-size: 12px; font-family: var(--f-body); letter-spacing: 0; }
 }
 .filtros { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; }
 .filtros .campo { margin: 0; }

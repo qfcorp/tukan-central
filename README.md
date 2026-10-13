@@ -91,7 +91,7 @@ sudo -u www-data php /var/www/tukan-central/bin/quitar_2fa.php tu@correo.com
 Al entrar, el panel te pedirá activar la verificación otra vez con el celular nuevo. Queda anotado en la auditoría.
 
 **Olvidé la contraseña** → `sudo -u www-data php /var/www/tukan-central/bin/crear_admin.php` con tu mismo correo
-(agrega `--quitar-2fa` para borrar también la verificación).
+(agrega `--quitar-2fa` o `--reset-2fa` para borrar también la verificación).
 
 **Bloqueado por intentos** → después de 5 errores se bloquea 15 minutos (por correo y por IP). Espera o, si es urgente,
 `quitar_2fa.php` también limpia los intentos de ese correo.
@@ -144,14 +144,21 @@ src/                     Totp, Qr, Cifrado, Token (protocolo), Productos (tipos 
 bin/                     crear_admin.php, quitar_2fa.php, revisar.php (cron)
 deploy/                  instalar.sh, respaldo.sh
 datos/                   central.sqlite y sesiones (no va a GitHub)
-tests/                   run_tests.php (lógica), run_web.sh (punta a punta), mock/ (programa de prueba), capturas.py
+tests/                   run_tests.php (lógica), run_web.sh (punta a punta), integracion.sh (conectores reales),
+                         mock/ (programa de prueba), capturas.py
 ```
 
 ## 7. Pruebas
 
 ```
 php tests/run_tests.php       # lógica: TOTP (vectores RFC 6238), QR (leído con OpenCV), token byte a byte, cifrado,
-                              # bloqueo, roles, comandos, JSON de estado
+                              # bloqueo, roles, comandos, JSON de estado, errores reales de los conectores
 bash tests/run_web.sh         # punta a punta con programas de prueba que cumplen el protocolo + capturas (Playwright)
 SIN_CAPTURAS=1 bash tests/run_web.sh
+bash tests/integracion.sh     # con los conectores REALES de TuEvento y TuSalón (php -S + PostgreSQL de prueba):
+                              # agregar, probar conexión, cifras en Inicio, Entrar hasta su panel de super usuario,
+                              # token repetido, secreto cambiado, límite 429 y programa apagado.
+                              # Si falta un repo o su usuario de PostgreSQL, ese programa se omite.
 ```
+
+Puertos que usan las pruebas: 8301-8319 (`run_web.sh`) y 8240-8242 (`integracion.sh`).
