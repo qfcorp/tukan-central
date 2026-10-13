@@ -16,15 +16,23 @@ y entre a cualquiera con un toque (SSO del Protocolo Tukán Central v1, `docs/PR
 - [x] `bin/revisar.php` (cron 15 min, reintento a los 10 s, historial, Telegram: caída / vuelta / negocios nuevos).
 - [x] Mi cuenta, Usuarios, Auditoría con filtros, Ajustes (Telegram), Ayuda.
 - [x] `bin/crear_admin.php` (`--quitar-2fa`, `--rol=`), `bin/quitar_2fa.php`, instalador y respaldo diario (guarda 14 + `.env`).
-- [x] Pruebas: `tests/run_tests.php` (238) y `tests/run_web.sh` (222, con programas de prueba y capturas Playwright).
+- [x] Pruebas: `tests/run_tests.php` (254), `tests/run_web.sh` (223, con programas de prueba y capturas Playwright
+      que revisan errores de consola y que nada se salga a lo ancho) y `tests/integracion.sh` (65, con los conectores
+      REALES de TuEvento y TuSalón: probar conexión, cifras, Entrar hasta su panel, token repetido, secreto cambiado,
+      límite 429, programa apagado).
+- [x] Errores de los conectores reales reconocidos por su texto (firma, ya se usó, otra instalación, versión,
+      sin configurar, demasiados pedidos) y 400 / 429 explicados en palabras simples.
+- [x] Instalador probado en un entorno de prueba (dos veces: conserva la llave y Telegram; crea 9 tablas; respaldo OK).
 
 ## Pendiente
 1. Crear el repositorio `qfcorp/tukan-central` en GitHub (público, sin `config/.env` ni `datos/`) y subir.
 2. Instalar en qfcorp con la línea del README y agregar la ruta en Cloudflare (panel.tukanec.com → HTTP → localhost:80, Host header).
 3. `crear_admin.php` para Dimitry y activar 2FA. Opcional: Telegram en `config/.env`.
-4. Confirmar con los agentes de cada producto las rutas de `conectar_central.sh` (están en `src/Productos.php`; se cambian ahí).
+4. ~~Confirmar las rutas de `conectar_central.sh`~~ (confirmadas el 13 oct; están en `src/Productos.php`).
 5. Conectar cada programa (TuEvento, TuSalón, TuVocalía, TuAcademia y cada TuGuardería) y probar conexión.
-6. Colores elegidos para TuEvento (#8E3B52, vino como su tema) y TuAcademia (#3B6FE0): confirmar con la marca.
+6. TuVocalía, TuAcademia y TuGuardería no están en `tests/integracion.sh` (sus pruebas reinician datos dentro de su
+   propio repo o usan MySQL): se prueban con el programa de prueba (`tests/mock/`) y al conectarlos de verdad.
+7. Colores elegidos para TuEvento (#8E3B52, vino como su tema) y TuAcademia (#3B6FE0): confirmar con la marca.
 
 ## Notas sobre el protocolo (para la versión 2; NO se cambió el contrato)
 - Los errores 401 no tienen un código fijo, solo texto libre: el panel adivina el motivo por palabras (firma, inst, vencido,

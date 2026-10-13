@@ -19,6 +19,7 @@ if [ "$(id -u)" = "0" ]; then
 fi
 
 echo "== 1. Programas (PHP $PHPV con SQLite, curl y mbstring)"
+sudo apt-get update -qq < /dev/null > /dev/null 2>&1 || echo "   AVISO: no se pudo actualizar la lista de programas (apt-get update)"
 sudo apt-get install -y "php$PHPV-fpm" "php$PHPV-cli" "php$PHPV-sqlite3" "php$PHPV-curl" "php$PHPV-mbstring" sqlite3 git openssl < /dev/null > /dev/null \
   && echo "   listo" || echo "   AVISO: no se pudieron instalar algunos programas"
 if php -r 'exit(function_exists("sodium_crypto_aead_xchacha20poly1305_ietf_encrypt") ? 0 : 1);'; then
@@ -119,6 +120,9 @@ else
 fi
 
 echo "== 7. Revision cada 15 minutos y respaldo diario (3:40, guarda 14)"
+if ! command -v crontab > /dev/null; then
+  sudo apt-get install -y cron < /dev/null > /dev/null 2>&1 || echo "   AVISO: no se pudo instalar cron"
+fi
 (sudo crontab -u www-data -l 2>/dev/null | grep -v "tukan-central/bin/revisar"; echo "*/15 * * * * php $APP/bin/revisar.php >> /var/log/tukan-central/revisar.log 2>&1") | sudo crontab -u www-data -
 (sudo crontab -l 2>/dev/null | grep -v "tukan-central/deploy/respaldo"; echo "40 3 * * * APP=$APP $APP/deploy/respaldo.sh >> /var/log/tukan-central/respaldo.log 2>&1") | sudo crontab -
 echo "   listo"
