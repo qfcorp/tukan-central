@@ -353,6 +353,20 @@ check('401 inst = ID', 'id', Estado::clasificar(401, '{"ok":false,"error":"inst 
 check('401 nonce = repetido', 'repetido', Estado::clasificar(401, '{"ok":false,"error":"nonce ya usado"}')[0]);
 check('401 otro motivo = rechazado con su texto', true, str_contains(Estado::clasificar(401, '{"ok":false,"error":"no quiero"}')[1], 'no quiero'));
 check('429 = límite', 'limite', Estado::clasificar(429, '')[0]);
+check('429: texto en palabras simples (esperar un minuto)', true, str_contains(Estado::clasificar(429, '')[1], 'Espera un minuto'));
+check('400 = pedido no entendido, con el texto del programa', ['peticion', true], [Estado::clasificar(400, '{"ok":false,"error":"Acción no válida."}')[0], str_contains(Estado::clasificar(400, '{"ok":false,"error":"Acción no válida."}')[1], 'Acción no válida')]);
+// Textos reales de los conectores (TuEvento/TuSalón, TuVocalía, TuGuardería, TuAcademia)
+foreach ([
+    'La firma del enlace no es correcta.' => 'secreto', 'Firma incorrecta' => 'secreto',
+    'Este enlace ya se usó. Vuelve a intentar desde el Panel Tukán.' => 'repetido', 'Token ya usado' => 'repetido',
+    'El enlace ya venció. Vuelve a intentar desde el Panel Tukán.' => 'reloj', 'Token con fecha futura' => 'reloj',
+    'El enlace es de otra instalación.' => 'id', 'El token es para otra instancia' => 'id',
+    'Versión del protocolo no soportada.' => 'version', 'El conector no está configurado.' => 'sin_configurar',
+    'Demasiados pedidos desde esta conexión. Espere un minuto.' => 'limite',
+    'El enlace no es para esta acción.' => 'rechazado',
+] as $txt => $esperado) {
+    check("401 real: \"$txt\" → $esperado", $esperado, Estado::clasificar(401, json_encode(['ok' => false, 'error' => $txt]))[0]);
+}
 check('500 = error del programa', 'error_programa', Estado::clasificar(500, '')[0]);
 check('302 = redirección', 'redirige', Estado::clasificar(302, '')[0]);
 check('Textos sin "null" ni códigos raros', false, str_contains(Estado::clasificar(404, '')[1], 'null'));

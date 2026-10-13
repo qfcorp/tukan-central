@@ -138,7 +138,10 @@ final class Estado
         'reloj'        => 'Reloj desfasado: la hora del servidor del programa (o de este panel) está mal. Hay que corregir la hora del servidor.',
         'repetido'     => 'El programa dice que el token ya se usó. Intenta otra vez.',
         'rechazado'    => 'El programa rechazó el pedido.',
-        'limite'       => 'Demasiados pedidos seguidos: el programa pide esperar un minuto.',
+        'limite'       => 'Demasiados pedidos seguidos: el programa pide esperar un minuto. Espera un minuto y vuelve a probar.',
+        'peticion'     => 'El programa no entendió el pedido (HTTP 400). Puede que su conector esté desactualizado: actualiza ese programa.',
+        'version'      => 'El programa usa otra versión del Protocolo Tukán Central. Actualiza ese programa.',
+        'sin_configurar' => 'El conector del programa está apagado o sin configurar. Pega el comando en el servidor del programa.',
         'error_programa' => 'El programa tuvo un error interno. Revisa el programa.',
         'redirige'     => 'El programa respondió con una redirección. Revisa que la URL sea la correcta (con https y sin rutas de más).',
         'formato'      => 'El programa respondió, pero los datos no tienen el formato del Protocolo Tukán Central.',
@@ -171,6 +174,7 @@ final class Estado
 
         if ($http === 404) return ['no_conectado', self::ERRORES['no_conectado']];
         if ($http === 429) return ['limite', self::ERRORES['limite']];
+        if ($http === 400) return ['peticion', self::ERRORES['peticion'] . $dijo];
         if ($http >= 300 && $http < 400) return ['redirige', self::ERRORES['redirige']];
         if ($http >= 500) return ['error_programa', self::ERRORES['error_programa'] . " (HTTP $http)$dijo"];
         if ($http === 401 || $http === 403) {
@@ -178,12 +182,17 @@ final class Estado
                 return ['reloj', self::ERRORES['reloj'] . ' Diferencia: ' . self::segundos($desfase) . '.'];
             }
             $m = mb_strtolower($msg);
+            // Los conectores no mandan un código fijo, solo texto: se reconoce el motivo por palabras.
+            // El orden importa (ej. "nonce ya usado" es repetido, no un nonce mal formado).
             $codigo = match (true) {
                 $m === '' => 'rechazado',
+                (bool) preg_match('/demasiados pedidos|too many|rate limit/u', $m) => 'limite',
                 (bool) preg_match('/firma|signature|secret|hmac/u', $m) => 'secreto',
-                (bool) preg_match('/venc|expir|futur|reloj|hora|tiempo|time|iat|exp\b/u', $m) => 'reloj',
-                (bool) preg_match('/nonce|usad|reus|repet/u', $m) => 'repetido',
-                (bool) preg_match('/\binst\b|instancia|\bid\b/u', $m) => 'id',
+                (bool) preg_match('/ya se us|usad|reus|repet|replay/u', $m) => 'repetido',
+                (bool) preg_match('/versi[oó]n/u', $m) => 'version',
+                (bool) preg_match('/no est[aá] configurad|sin configurar|not configured/u', $m) => 'sin_configurar',
+                (bool) preg_match('/venc|expir|futur|reloj|hora|tiempo|time|\\biat\\b|\\bexp\\b/u', $m) => 'reloj',
+                (bool) preg_match('/\\binst\\b|instancia|instalaci|\\bid\\b/u', $m) => 'id',
                 default => 'rechazado',
             };
             return [$codigo, self::ERRORES[$codigo] . ($codigo === 'rechazado' || $codigo === 'reloj' ? $dijo : '')];

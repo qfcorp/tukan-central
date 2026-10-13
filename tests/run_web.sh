@@ -3,15 +3,14 @@
 # Levanta el panel con "php -S" y varios PROGRAMAS DE PRUEBA (tests/mock/tukan_central.php) que cumplen el protocolo.
 # Uso: bash tests/run_web.sh          (SIN_CAPTURAS=1 para no sacar las capturas con Playwright)
 set -u
-cd "$(dirname "$0")/.."
-RAIZ=$(pwd)
+cd "$(dirname "$0")/.." || exit 1
 TMP=$(mktemp -d)
 export TZ=America/Guayaquil
 PC=8301                      # panel central
 BASE="http://127.0.0.1:$PC"
 TG=8319                      # Telegram de mentira
 export TUKAN_CENTRAL_DATOS="$TMP/datos"
-export TUKAN_CENTRAL_KEY=$(php -r 'echo bin2hex(random_bytes(32));')
+TUKAN_CENTRAL_KEY=$(php -r "echo bin2hex(random_bytes(32));"); export TUKAN_CENTRAL_KEY
 export TUKAN_CENTRAL_URL="$BASE"
 export TUKAN_CENTRAL_ENV=/no/existe
 export TELEGRAM_BOT_TOKEN=prueba123 TELEGRAM_CHAT_ID=999 TELEGRAM_API_BASE="http://127.0.0.1:$TG"
@@ -182,6 +181,8 @@ agregar tuacademia tuacademia "TuAcademia" "http://127.0.0.1:8315"
 check "Comando exacto de TuAcademia" "sudo bash /var/www/tuacademia/vps/conectar_central.sh tuacademia" "$(echo "$CMD" | awk '{print $1,$2,$3,$4}')"
 curl -s -D "$TMP/cab4.txt" -o /dev/null -b "$JAR" "$BASE/?r=inicio"
 contiene "CSP form-action permite ir a los programas" "$TMP/cab4.txt" "form-action 'self' http://127.0.0.1:8311"
+curl -s -D "$TMP/cab5.txt" -o /dev/null "$BASE/?r=login"
+no_contiene "Sin sesion, la CSP no revela las direcciones de los programas" "$TMP/cab5.txt" "127.0.0.1:8311"
 
 # =====================================================================
 titulo "4. Probar conexion: cada problema explicado en palabras simples"

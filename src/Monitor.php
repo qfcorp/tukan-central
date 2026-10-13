@@ -179,11 +179,11 @@ final class Monitor
                 ->execute([$id, $ahora, $r['http'], $r['ms'], $r['error'], $r['error_detalle'], $fallos, $avisoCaido]);
         }
 
-        // Historial (una marca por minuto como máximo)
-        $st = $this->db->prepare('SELECT max(momento) FROM historial WHERE instancia_id = ?');
+        // Historial: una marca por minuto como máximo, salvo que cambie el estado (caída o vuelta siempre se anotan)
+        $st = $this->db->prepare('SELECT momento, en_linea FROM historial WHERE instancia_id = ? ORDER BY momento DESC LIMIT 1');
         $st->execute([$id]);
-        $ultimo = (int) $st->fetchColumn();
-        if ($ahora - $ultimo >= 60) {
+        $ultimo = $st->fetch() ?: ['momento' => 0, 'en_linea' => -1];
+        if ($ahora - (int) $ultimo['momento'] >= 60 || (int) $ultimo['en_linea'] !== (int) $r['en_linea']) {
             $this->db->prepare('INSERT INTO historial (instancia_id, momento, en_linea, ms) VALUES (?,?,?,?)')
                 ->execute([$id, $ahora, (int) $r['en_linea'], $r['ms']]);
             $this->db->prepare('DELETE FROM historial WHERE momento < ?')->execute([$ahora - 35 * 86400]);

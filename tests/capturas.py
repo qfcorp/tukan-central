@@ -31,6 +31,7 @@ with sync_playwright() as p:
     def foto(nombre, completa=True):
         for ancho, alto, sufijo in ((390, 844, '390'), (1280, 860, 'escritorio')):
             pag.set_viewport_size({'width': ancho, 'height': alto})
+            pag.evaluate('window.scrollTo(0, 0)')
             pag.wait_for_timeout(150)
             ruta = os.path.join(SALIDA, f'{nombre}_{sufijo}.png')
             pag.screenshot(path=ruta, full_page=completa)

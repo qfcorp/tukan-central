@@ -17,6 +17,9 @@ $q = array_filter($f);
   <input type="hidden" name="r" value="auditoria">
   <div class="campo"><label for="f-grupo">Mostrar</label>
     <select id="f-grupo" name="grupo"><?php foreach ($grupos as $k => $v): ?><option value="<?= e($k) ?>" <?= $f['grupo'] === $k ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?></select></div>
+  <div class="campo q"><label for="f-q">Buscar</label><input id="f-q" type="search" name="q" value="<?= e($f['q']) ?>" placeholder="IP, correo o texto"></div>
+  <div class="acciones-form"><button class="btn btn-oscuro" type="submit">Filtrar</button><?php if ($q): ?><a class="btn" href="<?= e(url('auditoria')) ?>">Limpiar</a><?php endif; ?></div>
+  <details class="mas-filtros"<?= ($f['accion'] || $f['usuario'] || $f['instancia'] || $f['desde'] || $f['hasta']) ? ' open' : '' ?>><summary>Más filtros</summary><div>
   <div class="campo"><label for="f-accion">Acción</label>
     <select id="f-accion" name="accion"><option value="">Todas</option><?php foreach (Auditoria::ACCIONES as $k => $v): ?><option value="<?= e($k) ?>" <?= $f['accion'] === $k ? 'selected' : '' ?>><?= e($v) ?></option><?php endforeach; ?></select></div>
   <div class="campo"><label for="f-usuario">Correo</label>
@@ -25,8 +28,7 @@ $q = array_filter($f);
     <select id="f-inst" name="instancia"><option value="">Todos</option><?php foreach ($instancias as $i): ?><option value="<?= e($i) ?>" <?= $f['instancia'] === $i ? 'selected' : '' ?>><?= e($i) ?></option><?php endforeach; ?></select></div>
   <div class="campo"><label for="f-desde">Desde</label><input id="f-desde" type="date" name="desde" value="<?= e($f['desde']) ?>"></div>
   <div class="campo"><label for="f-hasta">Hasta</label><input id="f-hasta" type="date" name="hasta" value="<?= e($f['hasta']) ?>"></div>
-  <div class="campo q"><label for="f-q">Buscar</label><input id="f-q" type="search" name="q" value="<?= e($f['q']) ?>" placeholder="IP, correo o texto"></div>
-  <div class="acciones-form"><button class="btn btn-oscuro" type="submit">Filtrar</button><?php if ($q): ?><a class="btn" href="<?= e(url('auditoria')) ?>">Limpiar</a><?php endif; ?></div>
+  </div></details>
 </form>
 
 <div class="tarjeta">

@@ -68,11 +68,12 @@
         id.value = r.value; id.dataset.sugerido = '1';
       }
       if (sugerir && nombre && (nombre.value === '' || nombre.dataset.sugerido === '1')) {
-        nombre.value = r.getAttribute('data-nombre') + (r.value === 'tuguarderia' ? ' ' : ''); nombre.dataset.sugerido = '1';
+        var cliente = r.value === 'tuguarderia' && id && id.value ? ' ' + id.value.charAt(0).toUpperCase() + id.value.slice(1) : '';
+        nombre.value = r.getAttribute('data-nombre') + cliente; nombre.dataset.sugerido = '1';
       }
     };
     form.addEventListener('change', function (ev) { if (ev.target.name === 'producto') actualizar(true); });
-    if (id) id.addEventListener('input', function () { id.dataset.sugerido = '0'; id.value = id.value.toLowerCase(); });
+    if (id) id.addEventListener('input', function () { id.dataset.sugerido = '0'; id.value = id.value.toLowerCase(); actualizar(true); });
     if (nombre) nombre.addEventListener('input', function () { nombre.dataset.sugerido = '0'; });
     actualizar(false);
   }

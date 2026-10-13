@@ -29,8 +29,6 @@ if (!isset($rutas[$ruta]) || !is_file(RAIZ . "/app/paginas/$ruta.php")) {
 }
 
 try {
-    cabeceras_seguridad($ruta === 'colores_css' ? [] : instancias()->origenes());
-
     // Usuario con sesión completa
     if (!empty($_SESSION['uid']) && !empty($_SESSION['ref'])) {
         $motivo = acceso()->revisarSesion((string) $_SESSION['ref'], (int) $_SESSION['uid']);
@@ -48,6 +46,9 @@ try {
             }, 'info');
         }
     }
+
+    // Cabeceras de seguridad. Las direcciones de los programas (para el botón Entrar) solo con sesión iniciada.
+    cabeceras_seguridad(usuario() && $ruta !== 'colores_css' ? instancias()->origenes() : []);
 
     // Formularios: token CSRF y origen obligatorios
     if (es_post() && $ruta !== 'colores_css') {

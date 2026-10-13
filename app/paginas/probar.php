@@ -18,6 +18,6 @@ if ($r['en_linea']) {
     auditar('probar', "OK en {$r['ms']} ms", $inst['id']);
 } else {
     aviso($r['error_detalle'], 'error');
-    auditar('probar', 'Falló: ' . $r['error'] . ($r['http'] ? " (HTTP {$r['http']})" : ''), $inst['id']);
+    auditar('probar', 'Falló: ' . strtok((string) $r['error_detalle'], ':.') . ($r['http'] ? " (HTTP {$r['http']})" : ''), $inst['id']);
 }
 redirigir('programa', ['id' => $inst['id']]);
