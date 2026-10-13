@@ -1,0 +1,9 @@
+# Configuracion local con la llave TUKAN_CENTRAL_KEY y Telegram (nunca al repositorio)
+config/.env
+# Base de datos, sesiones y respaldos
+datos/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+# Capturas de las pruebas (se regeneran con tests/run_web.sh)
+tests/capturas/
