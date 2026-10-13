@@ -1320,3 +1320,48 @@ funciones compartidas en `app/cuentas_super.php`. Lo que el texto de arriba deja
 13. **`cliente.actualizado`** = último cambio de la fila en la bitácora (o el alta); `ultima_actividad` = último ingreso de un usuario de la cuenta.
     `tipo` puede ser `liga`, `escuela` o `federacion` (filtro `tipo` igual). Filtro extra aceptado: `ids`.
 14. **`planes`** trae además `detalle` (los textos de límites del programa). En modo academia no salen los planes solo de ligas.
+
+---
+
+## Notas de implementación — Panel Central
+
+(Agregado por el Panel Central v2. No cambia el contrato de arriba; dice qué decidió el panel donde el texto no lo
+decía y lo que agregó por su cuenta.)
+
+1. **Tablas extra** (además de §9.2): `sincronizacion(instancia_id, que, momento, huella, datos)` guarda cuándo se trajo
+   cada parte (capacidades, solicitudes, clientes, finanzas) y con qué huella, para que el cron no pida de más; y
+   `operaciones.cuerpo_cif` guarda **cifrado** el cuerpo exacto que se mandó con cada `operacion_id`, para que un
+   reintento sea byte a byte el mismo (el `exp`/`nonce` del token sí son nuevos). Al terminar (`ok`/`error`) los datos
+   que traen claves se limpian (`resultado` sin `clave`, nunca se guarda una contraseña).
+2. **`operacion_id`**: se crea al **abrir** el formulario. "Revisar" (sin respuesta, `en_curso`) reenvía el mismo; un
+   formulario **corregido** después de un `422` lleva uno nuevo (el programa ya guardó el `error` con el anterior).
+   `en_curso` (409) se reintenta dos veces con 3 s de espera antes de mostrar "Revisar".
+3. **`cliente_id`** va arriba en `ejecutar` y también dentro de `datos` cuando el programa lo puso en los `datos` fijos de
+   la acción (el panel no los toca). `datos` vacío sale como `{}`.
+4. **Errores**: primero el `codigo`; sin `codigo`, 400/405 a `capacidades` → el programa es **v1**, y 404 con el estado en
+   línea → v1 también (404 sin estado → "no conectado"). Acción desconocida: TuEvento/TuSalón contestan `400 invalido` y
+   TuVocalía/TuAcademia `403 no_permitido` (`no_disponible`); el panel muestra el texto del programa en los dos casos.
+5. **Solicitudes cerradas fuera del panel**: la que deja de venir en la lista de abiertas queda en la copia local con
+   estado `cerrada` (se ve en "Atendidas"); no se borra hasta 90 días. La primera sincronización de un programa **no**
+   avisa a Telegram (serían avisos viejos).
+6. **`avisar_tipos`** (Ajustes → Avisos): por defecto `registro_nuevo, demo_pedida, comprobante, cambio_plan, soporte,
+   derechos_datos`. Un tipo que el panel no conoce y viene con `categoria = "pedido"` **siempre** avisa (un programa nuevo
+   no queda mudo); los `recordatorio` y `aviso` solo salen en el resumen diario.
+7. **Permisos de operaciones** (§9.3): una operación que el panel no conoce se trata como **cobros** (solo el dueño).
+   `anular_pago` y `guardar_plan` piden además el código de 2FA. `atender_solicitud` lo puede hacer soporte.
+8. **Máscaras**: en pantalla para soporte, teléfono `09•••••67` (2 + 5 + 2) y correo `j•••@dominio`; en Telegram
+   `099•••4567`. El texto libre de las solicitudes también se enmascara (números de 9 o más cifras y correos).
+9. **Recordatorios por WhatsApp** (Clientes → Recordar): se anotan con la **fecha y hora del panel** (America/Guayaquil) y
+   quién lo hizo; el programa no se entera (es un enlace `wa.me`), por eso no hay operación.
+10. **MRR** (Finanzas) = suma de lo que informan los programas para el mes + las **licencias vigentes** de los
+    programas de una sola empresa (TuGuardería), pasadas a mensual.
+11. **Embudo**: "interesados" = cuentas nuevas en el período + pedidos de demo abiertos o descartados; "demos" = demos
+    creadas (desde el panel o por pedido); "pagaron" = demos con al menos un pago.
+12. **Gastos generales** (sin programa): por defecto van aparte; con "Repartir" se reparten entre los programas en
+    proporción a sus ingresos del mes. Los `costos` que informan los programas (comisiones, Google Play) se muestran
+    aparte en Gastos ("lo informa X") y **sí** se restan en la ganancia de ese programa: no hay que anotarlos a mano.
+13. **Descargas**: el Excel (.xlsx) se arma en PHP puro (no necesita `php8.3-zip`) con hojas Resumen, Por programa,
+    Ingresos, Gastos e Ingresos extra; el CSV es **una lista plana de movimientos** (una fila por ingreso o gasto),
+    separada por `;`, coma decimal, con BOM, y las celdas que empiezan con `= + - @` llevan un apóstrofo delante.
+14. **Finanzas** se piden una vez al día (desde las 03:10) y como máximo 24 meses; "Actualizar" en la pantalla las pide
+    al momento. Los gastos fijos del mes se crean solo para el **mes actual** (no se rellenan meses pasados).

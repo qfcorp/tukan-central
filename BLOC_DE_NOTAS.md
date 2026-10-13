@@ -2,7 +2,9 @@
 
 ## Qué es
 Un solo panel (panel.tukanec.com) para que Dimitry entre una vez con 2FA, vea las cifras de todos los programas Tukán
-y entre a cualquiera con un toque (SSO del Protocolo Tukán Central v1, `docs/PROTOCOLO.md`). El ERP QF no participa.
+y entre a cualquiera con un toque (SSO del Protocolo Tukán Central v1, `docs/PROTOCOLO.md`). Desde la v2
+(`docs/PROTOCOLO_V2.md`) también atiende solicitudes, clientes, demos, cobros y finanzas de todos los programas sin
+entrar a cada uno. El ERP QF no participa.
 
 ## Estado (13 oct 2026)
 **Listo y probado en entorno simulado** (no instalado todavía en qfcorp).
@@ -24,17 +26,32 @@ y entre a cualquiera con un toque (SSO del Protocolo Tukán Central v1, `docs/PR
       sin configurar, demasiados pedidos) y 400 / 429 explicados en palabras simples.
 - [x] Instalador probado en un entorno de prueba (dos veces: conserva la llave y Telegram; crea 9 tablas; respaldo OK).
 
+### Versión 2 (13 oct 2026, commit local, sin subir)
+- [x] Base `user_version = 2`: capacidades, clientes, solicitudes, operaciones, demos, recordatorios, finanzas_mes, gastos,
+      ingresos_extra, recurrentes, licencias y sincronizacion. Contactos cifrados.
+- [x] Pedidos v2 firmados (cuerpo con hash, `X-Tukan-Token`), errores por `codigo` (y los v1 por texto), `datos` siempre `{}`,
+      `cliente_id` arriba en `ejecutar`, reintento con el mismo cuerpo byte a byte.
+- [x] Pantallas: Inicio nuevo, Solicitudes (bandeja única + Telegram), Clientes (+ Recordar por WhatsApp), ficha del
+      cliente, Demos, Finanzas (gastos, fijos, otros ingresos, ganancia, Excel/CSV), Vencimientos, Embudo, Más.
+- [x] Formularios genéricos con lo que manda cada programa (`acciones_posibles`); programas v1 siguen igual.
+- [x] Pruebas: `run_tests.php` 511, `run_web.sh` 470 (programa de prueba v2 completo y uno solo v1; 46 capturas),
+      `integracion.sh` 202 con TuEvento, TuSalón y TuVocalía reales (demo + entrar con la clave, alargar, cobrar y
+      reintentar, finanzas, suspender/reactivar, registro nuevo atendido).
+
 ## Pendiente
 1. Crear el repositorio `qfcorp/tukan-central` en GitHub (público, sin `config/.env` ni `datos/`) y subir.
 2. Instalar en qfcorp con la línea del README y agregar la ruta en Cloudflare (panel.tukanec.com → HTTP → localhost:80, Host header).
 3. `crear_admin.php` para Dimitry y activar 2FA. Opcional: Telegram en `config/.env`.
 4. ~~Confirmar las rutas de `conectar_central.sh`~~ (confirmadas el 13 oct; están en `src/Productos.php`).
 5. Conectar cada programa (TuEvento, TuSalón, TuVocalía, TuAcademia y cada TuGuardería) y probar conexión.
-6. TuVocalía, TuAcademia y TuGuardería no están en `tests/integracion.sh` (sus pruebas reinician datos dentro de su
-   propio repo o usan MySQL): se prueban con el programa de prueba (`tests/mock/`) y al conectarlos de verdad.
+6. TuAcademia y TuGuardería no están en `tests/integracion.sh` (TuAcademia usa otro reinicio con simulador; TuGuardería
+   usa MySQL): se prueban con el programa de prueba (`tests/mock/`) y al conectarlos de verdad. TuVocalía sí está.
+8. Al instalar la v2: correr `bin/revisar.php` una vez a mano después de conectar cada programa (trae capacidades,
+   clientes, solicitudes y 24 meses de finanzas) y revisar Ajustes → Avisos de solicitudes.
+9. Probar en el celular de Dimitry la hoja de abajo (formularios) y el botón de WhatsApp con números reales.
 7. Colores elegidos para TuEvento (#8E3B52, vino como su tema) y TuAcademia (#3B6FE0): confirmar con la marca.
 
-## Notas sobre el protocolo (para la versión 2; NO se cambió el contrato)
+## Notas sobre el protocolo v1 (resueltas en la v2: `codigo` en los errores, solicitudes con quién y qué)
 - Los errores 401 no tienen un código fijo, solo texto libre: el panel adivina el motivo por palabras (firma, inst, vencido,
   nonce) y por la cabecera `Date` del programa (reloj desfasado). Sugerencia v2: `{"ok":false,"codigo":"firma|inst|tipo|tiempo|nonce|email","error":"..."}`.
 - `estado` no dice **qué** negocios son nuevos: el aviso de Telegram solo puede decir "N negocios nuevos en X".
@@ -49,3 +66,5 @@ y entre a cualquiera con un toque (SSO del Protocolo Tukán Central v1, `docs/PR
 - La revisión automática usa el correo `revision@panel.tukanec.com` en el token de estado.
 - Las sesiones de PHP se guardan en `datos/sesiones` (Ubuntu borra las de /var/lib/php a los 24 min).
 - Los comandos de consola (bin/, deploy/) escriben sin tildes ni ñ (la app de SSH del celular las daña); las pruebas lo revisan.
+- v2: lo que el panel decidió donde la especificación no lo decía está en `docs/PROTOCOLO_V2.md`, al final
+  ("Notas de implementación — Panel Central").
