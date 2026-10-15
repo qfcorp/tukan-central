@@ -3,6 +3,7 @@ use Tukan\{Estado, Productos};
 
 $notas = [
     'tuevento'    => 'Vive en el servidor qfcorp. Usa como ID <b>tuevento</b> y como dirección <b>https://tuevento.tukanec.com</b>.',
+    'tuplanner'   => 'Vive en el servidor qfcorp. Usa como ID <b>tuplanner</b> y como dirección <b>https://tuplanner.tukanec.com</b>.',
     'tusalon'     => 'Vive en el servidor qfcorp. Usa como ID <b>tusalon</b>.',
     'tuvocalia'   => 'Vive en el VPS de las ligas. Usa como ID <b>tuvocalia</b>.',
     'tuacademia'  => 'Vive en el VPS. Usa como ID <b>tuacademia</b>.',

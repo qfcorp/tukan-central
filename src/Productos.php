@@ -24,6 +24,11 @@ final class Productos
             'para' => 'Salones de eventos, quintas y haciendas',
             'comando' => 'sudo bash /var/www/tuevento/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
         ],
+        'tuplanner' => [
+            'nombre' => 'TuPlanner', 'color' => '#8A3F5C', 'letra' => 'P', 'unico' => false,
+            'para' => 'Wedding planners y organizadores de eventos',
+            'comando' => 'sudo bash /var/www/tuplanner/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
+        ],
         'tusalon' => [
             'nombre' => 'TuSalón', 'color' => '#E0457B', 'letra' => 'S', 'unico' => false,
             'para' => 'Peluquerías y barberías',
