@@ -211,6 +211,22 @@ $bajasT->quitar('guau');
 $ins->eliminar('guau');
 check('revisarPendientes (cron) sin pendientes: nada', [], $bajasT->revisarPendientes($ins, $cvB));
 
+// Conector antiguo o sin conexión: se borra a mano y el panel quita SOLO su dirección de Cloudflare
+$ins->crear(['id' => 'huellitas', 'producto' => 'tuguarderia', 'url' => 'https://huellitas.tukanec.com', 'nombre' => 'Huellitas', 'carpeta' => 'huellitas']);
+$ih = $ins->obtener('huellitas');
+check('Solo Cloudflare sin configurar: null (recordatorio a mano) y no anota nada', [null, null], [$bajasT->soloCloudflare($ih, 'huellitas.tukanec.com'), $bajasT->obtener('huellitas')]);
+Cloudflare::guardar($aj, $cif, $CF_TOKEN, $CF_CUENTA, $CF_TUNEL);
+$r = $bajasT->soloCloudflare($ih, Bajas::hostname($ih));
+check('Solo Cloudflare: quita del túnel y del DNS solo huellitas (el panel sigue)', [true, false, false, true],
+      [$r['ok'], in_array('huellitas.tukanec.com', $cfHosts(), true), in_array('huellitas.tukanec.com', $cfDns(), true), in_array('panel.tukanec.com', $cfHosts(), true)]);
+$bh = $bajasT->obtener('huellitas');
+check('...queda en estado manual con el resultado y la dirección', ['manual', 'huellitas.tukanec.com', true], [$bh['estado'], $bh['hostname'], $bh['cloudflare']['ok'] ?? null]);
+check('...y ya no se avisa su caída por Telegram', true, Bajas::apagando($db, 'huellitas'));
+check('...la revisión de pendientes no la toca', [], $bajasT->revisarPendientes($ins, $cvB));
+$bajasT->quitar('huellitas');
+$ins->eliminar('huellitas');
+Cloudflare::borrarConfig($aj);
+
 proc_terminate($cfProc);
 proc_close($cfProc);
 putenv('CLOUDFLARE_API_BASE');

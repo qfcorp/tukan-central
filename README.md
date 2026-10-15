@@ -236,6 +236,11 @@ la lista abre el botón con ese nombre), y el panel agrega lo que falte:
   pide aparte (`clientes` con `estado`/`filtros.estado` = `papelera`) y guarda solo los que traen `papelera`.
   **Restaurar** (`restaurar_cliente`) los devuelve tal como estaban.
 - **TuGuardería** (una sola empresa): Pausar pausa toda la instalación; Borrar lleva a *Borrar esta instalación* (§9).
+- **Desde Solicitudes**: cada solicitud de un cliente trae **Pausar** y **Borrar cliente** (mismos formularios y permisos).
+  En «la demo terminó sin pagar» / «venció sin renovar» van en la fila principal, con el motivo ya escrito («No pagó después
+  de la demo») y el tipo *Falta de pago*; en las demás, en una fila discreta abajo. Al borrar, la solicitud queda atendida
+  sola (se avisa al programa con su «Marcar atendida» y, si ya no la tiene, en la copia local) y se vuelve a la bandeja con
+  la fecha de la papelera.
 - La ficha muestra la pausa (tipo, motivo, desde, quién), el aviso de papelera y **Pausas y borrados**: quién pausó,
   reactivó, suspendió, borró o restauró, cuándo y por qué (tabla `historial_clientes`, se crea sola).
 
@@ -246,6 +251,15 @@ la lista abre el botón con ese nombre), y el panel agrega lo que falte:
 Para un cliente que ya no se usa (ej. una demo que no se vendió). En la ficha del programa, abajo: **Borrar esta
 instalación** (solo sale si el programa dice `dar_de_baja` en `capacidades`; los programas v1 o v2 sin esa operación siguen
 como siempre: solo *Quitar este programa del panel* y el comando de `borrar_cliente.sh`).
+
+**Dónde:** en Inicio, el menú **⋯** de cada tarjeta (Abrir ficha · Pausar instalación · Borrar programa…) y en Programas el
+enlace **Borrar programa…** llevan a la zona de peligro de la ficha, que el dueño **siempre** ve:
+
+- Con conexión y `dar_de_baja`: el borrado desde el panel (abajo).
+- TuGuardería sin conexión o con conector antiguo: los pasos a mano: (1) el comando para copiar,
+  `cd /home/qf/github/tuguarderia && git pull && sudo bash borrar_cliente.sh CARPETA`; (2) quitar su dirección de Cloudflare
+  (botón **Quitar solo de Cloudflare** si hay token en Ajustes; queda como estado `manual` en la tabla `bajas`); (3) **Quitar del panel** con el ID.
+- Otros programas sin conexión: solo **Quitar del panel**, explicando que no borra nada en su servidor.
 
 1. **Solo el dueño.** Escribe el **ID** del programa y el **código de 2 pasos** de su app. Soporte no ve la zona y si
    intenta mandar el formulario recibe 403 (queda en la auditoría). El botón genérico de la ficha del cliente solo lleva

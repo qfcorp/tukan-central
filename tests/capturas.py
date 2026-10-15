@@ -136,6 +136,43 @@ with sync_playwright() as p:
             hechas.append(f'{nombre}_{sufijo}.png')
             pag.keyboard.press('Escape')
     pag.set_viewport_size({'width': 390, 'height': 844})
+    # Pausar / Borrar cliente desde Solicitudes, menú ⋯ de los programas y zona de peligro sin conexión
+    ir('solicitudes&chip=recordatorios', '30_solicitudes_pausar_borrar')
+    ir('programa&id=dogssy', '31_programa_sin_conexion')
+
+    def parte(selector, nombre):
+        for ancho, alto, sufijo in ((390, 844, '390'), (1280, 860, 'escritorio')):
+            pag.set_viewport_size({'width': ancho, 'height': alto})
+            pag.wait_for_timeout(150)
+            ancho_doc = pag.evaluate('document.documentElement.scrollWidth')
+            if ancho_doc > ancho:
+                errores.append(f'{nombre} a {ancho}px: se sale de la pantalla (ancho {ancho_doc}px)')
+            pag.evaluate("document.querySelectorAll('.barra, .nav-abajo').forEach(n => n.style.position = 'static')")
+            pag.locator(selector).first.screenshot(path=os.path.join(SALIDA, f'{nombre}_{sufijo}.png'))
+            pag.evaluate("document.querySelectorAll('.barra, .nav-abajo').forEach(n => n.style.position = '')")
+            hechas.append(f'{nombre}_{sufijo}.png')
+        pag.set_viewport_size({'width': 390, 'height': 844})
+
+    parte('#baja', '32_zona_peligro_sin_conexion')
+    pag.goto(f'{BASE}/?r=solicitudes&chip=recordatorios')
+    pag.wait_for_load_state('networkidle')
+    parte('article.sol:has(.btn-pausar)', '33_tarjeta_no_pago')
+    parte('article.sol:has(.sol-acc-2)', '34_tarjeta_fila_secundaria')
+    pag.goto(f'{BASE}/?r=inicio')
+    pag.wait_for_load_state('networkidle')
+    pag.click('article.prog[data-inst="dogssy"] .menu-prog summary')
+    parte('article.prog[data-inst="dogssy"]', '35_inicio_menu_programa')
+    for ancho, alto, sufijo in ((390, 844, '390'), (1280, 860, 'escritorio')):
+        pag.set_viewport_size({'width': ancho, 'height': alto})
+        pag.goto(f'{BASE}/?r=solicitudes&chip=recordatorios')
+        pag.wait_for_load_state('networkidle')
+        pag.click('a[data-hoja].btn-peligro[href*="a=borrar_cliente"][href*="de_sol="]')
+        pag.wait_for_selector('#hoja[open] form#form-accion')
+        pag.wait_for_timeout(700)
+        pag.screenshot(path=os.path.join(SALIDA, f'36_hoja_borrar_desde_solicitud_{sufijo}.png'))
+        hechas.append(f'36_hoja_borrar_desde_solicitud_{sufijo}.png')
+        pag.keyboard.press('Escape')
+    pag.set_viewport_size({'width': 390, 'height': 844})
     nav.close()
 
 print(f'{len(hechas)} capturas en {SALIDA}')

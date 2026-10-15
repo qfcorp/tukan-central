@@ -1017,8 +1017,9 @@ cf_hosts() { php -r '$e=json_decode((string)@file_get_contents($argv[1]),true); 
 cf_dns() { php -r '$e=json_decode((string)@file_get_contents($argv[1]),true); foreach(($e["dns"]??[]) as $r) echo $r["name"],"\n";' "$TMP/mock_cf/cf.json"; }
 JAR="$JAR_D2"; IP="198.51.100.11"
 get "r=programa&id=dogssy" > /dev/null
-no_contiene "Dogssy (v2 sin dar_de_baja): no sale la zona Borrar" "$TMP/pag.html" 'id="baja"'
-contiene "Dogssy: sigue Quitar este programa del panel (como antes)" "$TMP/pag.html" "Quitar este programa del panel"
+no_contiene "Dogssy (v2 sin dar_de_baja): no sale el borrado desde el panel" "$TMP/pag.html" 'id="form-baja"'
+contiene "Dogssy: zona de peligro con los pasos a mano (conector antiguo)" "$TMP/pag.html" 'id="baja-manual"'
+contiene "...y sigue Quitar del panel" "$TMP/pag.html" "Quitar del panel"
 agregar tuguarderia guau "TuGuardería Guau" "http://127.0.0.1:8267" "guau"
 SEC_GU=$(echo "$CMD" | awk '{print $6}')
 mock guau 8267 guau "$SEC_GU" tuguarderia MOCK_BAJA=1 MOCK_CLIENTE=Guau MOCK_DOMINIO=guau.tukanec.com
@@ -1299,12 +1300,126 @@ if grep -qiE "fatal|warning|deprecated|notice" "$TMP"/mock_tuvocalia.log "$TMP"/
 else OK=$((OK+1)); echo "  OK    Sin avisos de PHP en los programas de prueba (pausar/borrar)"; fi
 
 # =====================================================================
+titulo "38. Borrar desde Solicitudes (no pagó), menú ⋯ de los programas y zona de peligro sin conexión"
+JAR="$JAR_D2"; IP="198.51.100.11"
+post actualizar_datos --data-urlencode "que=solicitudes" --data-urlencode "volver=/?r=solicitudes" > /dev/null
+check "Bandeja de TuEvento" "200" "$(get 'r=solicitudes&i=tuevento')"
+NOMBRE7=$(sql "SELECT nombre FROM clientes WHERE instancia_id='tuevento' AND cliente_id='7'")
+SID7="seguimiento_prueba:7:terminada"
+SID7U="seguimiento_prueba%3A7%3Aterminada"
+contiene "Demo terminó sin pagar: Pausar en la fila principal" "$TMP/pag.html" "class=\"btn btn-chico btn-pausar\" data-hoja href=\"/?r=accion&amp;i=tuevento&amp;a=pausar&amp;cliente=7&amp;de_sol=$SID7U&amp;"
+contiene "...y Borrar cliente en rojo" "$TMP/pag.html" "class=\"btn btn-chico btn-peligro\" data-hoja href=\"/?r=accion&amp;i=tuevento&amp;a=borrar_cliente&amp;cliente=7&amp;de_sol=$SID7U&amp;"
+contiene "Otras solicitudes de un cliente: en la fila secundaria" "$TMP/pag.html" 'class="sol-acc-2"'
+contiene "...Borrar cliente discreto" "$TMP/pag.html" 'class="btn btn-chico btn-suave btn-borrar-suave" data-hoja href="/?r=accion&amp;i=tuevento&amp;a=borrar_cliente&amp;cliente=[0-9]*&amp;de_sol=[a-z_]*%3A'
+check "Detalle de la solicitud" "200" "$(get "r=solicitud&i=tuevento&id=$SID7")"
+contiene "Detalle: Borrar cliente" "$TMP/pag.html" "a=borrar_cliente&amp;cliente=7&amp;de_sol=$SID7U"
+contiene "...con la explicación" "$TMP/pag.html" "esta solicitud queda atendida"
+# Pausar desde la solicitud: tipo "Falta de pago" y motivo sugerido
+get "r=accion&i=tuevento&a=pausar&cliente=7&de_sol=$SID7U&volver=/?r=solicitudes" > /dev/null
+contiene "Pausar: tipo Falta de pago elegido" "$TMP/pag.html" 'value="falta_pago" selected'
+contiene "...motivo sugerido" "$TMP/pag.html" '>No pagó después de la demo</textarea>'
+contiene "...el mismo formulario (en rojo, Sí estoy seguro)" "$TMP/pag.html" 'name="seguro"'
+# Soporte: Pausar sí, Borrar cliente no
+JAR="$TMP/jar_soporte2"; IP="198.51.100.21"
+get "r=solicitudes&i=tuevento" > /dev/null
+contiene "Soporte: ve Pausar en la solicitud" "$TMP/pag.html" "a=pausar&amp;cliente=7&amp;de_sol="
+no_contiene "Soporte: no ve Borrar cliente" "$TMP/pag.html" 'a=borrar_cliente'
+R=$(curl -s -b "$JAR" -o /dev/null -w '%{http_code} %{redirect_url}' -H "CF-Connecting-IP: $IP" "$BASE/?r=accion&i=tuevento&a=borrar_cliente&cliente=7&de_sol=$SID7U&volver=/?r=solicitudes")
+check "Soporte: abrir Borrar desde la solicitud -> no" "303 /?r=solicitudes" "$(echo "$R" | sed "s#$BASE##")"
+JAR="$JAR_D2"; IP="198.51.100.11"
+# Borrar desde la solicitud: nombre exacto + motivo + 2FA; la solicitud queda atendida y se vuelve a la bandeja
+get "r=accion&i=tuevento&a=borrar_cliente&cliente=7&de_sol=$SID7U&volver=/?r=solicitud%26i=tuevento%26id=$SID7U" > /dev/null
+contiene "Borrar: motivo sugerido" "$TMP/pag.html" '>No pagó después de la demo</textarea>'
+contiene "...avisa que la solicitud queda atendida" "$TMP/pag.html" 'queda <b>atendida</b>'
+contiene "...pide el nombre exacto" "$TMP/pag.html" 'name="campo\[confirmar\]"'
+contiene "...y el código de 2 pasos" "$TMP/pag.html" 'name="codigo"'
+cp "$TMP/pag.html" "$TMP/form_borrar_sol.html"
+R=$(post_form "$TMP/form_borrar_sol.html" "#form-accion" "campo[confirmar]=otro nombre" "seguro=1" "codigo=$(codigo "$SECRETO_D" "$TMP/paso_d")")
+check "Nombre equivocado: no se borra" "422" "${R%% *}"
+check "...la solicitud sigue por atender" "pendiente" "$(sql "SELECT estado FROM solicitudes WHERE instancia_id='tuevento' AND solicitud_id='$SID7'")"
+contiene "...el formulario vuelve sabiendo de qué solicitud viene" "$TMP/post.html" 'queda <b>atendida</b>'
+R=$(post_form "$TMP/form_borrar_sol.html" "#form-accion" "campo[confirmar]=$NOMBRE7" "seguro=1" "codigo=$(codigo "$SECRETO_D" "$TMP/paso_d")")
+check "Borrar desde la solicitud: vuelve a la bandeja" "303 /?r=solicitudes" "$(echo "$R" | sed "s#$BASE##")"
+check "...en el programa: a la papelera con el motivo" "No pagó después de la demo" "$(mockdb tuevento "\$d['clientes']['7']['papelera']['motivo'] ?? ''")"
+check "...la solicitud quedó atendida" "atendida" "$(sql "SELECT estado FROM solicitudes WHERE instancia_id='tuevento' AND solicitud_id='$SID7'")"
+check "...el borrado queda ligado a la solicitud" "1" "$(sql "SELECT count(*) FROM operaciones WHERE accion='borrar_cliente' AND solicitud_id='$SID7' AND estado='ok'")"
+check "...auditoría: solicitud atendida al borrar" "1" "$(sql "SELECT count(*) FROM auditoria WHERE accion='solicitud_atendida' AND detalle LIKE '%atendida al borrar el cliente%'")"
+get "r=solicitudes" > /dev/null
+contiene "Aviso: la fecha de la papelera" "$TMP/pag.html" "Se borra para siempre el $(date -d '+30 days' +%d/%m/%Y)"
+contiene "...y que la solicitud quedó atendida" "$TMP/pag.html" "quedó atendida."
+no_contiene "Ya no sale por atender" "$TMP/pag.html" "data-sol=\"tuevento|$SID7\""
+get "r=solicitud&i=tuevento&id=$SID7" > /dev/null
+contiene "Detalle: lo que se hizo (Borrar cliente)" "$TMP/pag.html" '<strong>Borrar cliente</strong>'
+# Menú ⋯ de cada programa (Inicio) y opciones en Programas
+get "r=inicio" > /dev/null
+contiene "Inicio: menú ⋯ en las tarjetas" "$TMP/pag.html" 'class="menu-prog"'
+contiene "...Abrir ficha" "$TMP/pag.html" '<a href="/?r=programa&amp;id=dogssy"><svg'
+contiene "...Pausar instalación (TuGuardería que sabe pausar)" "$TMP/pag.html" 'href="/?r=accion&amp;i=dogssy&amp;a=pausar&amp;cliente=unico&amp;volver=%2F%3Fr%3Dinicio" data-hoja'
+contiene "...Borrar programa… lleva a la zona de peligro" "$TMP/pag.html" 'href="/?r=programa&amp;id=dogssy#baja" class="peligro"'
+no_contiene "...TuEvento (varios clientes): sin Pausar instalación" "$TMP/pag.html" 'i=tuevento&amp;a=pausar&amp;cliente=unico'
+get "r=programas" > /dev/null
+contiene "Programas: Borrar programa…" "$TMP/pag.html" 'href="/?r=programa&amp;id=dogssy#baja">'
+JAR="$TMP/jar_soporte2"; IP="198.51.100.21"
+get "r=inicio" > /dev/null
+contiene "Soporte: menú con Abrir ficha" "$TMP/pag.html" 'class="menu-prog"'
+no_contiene "...sin Borrar programa" "$TMP/pag.html" 'Borrar programa'
+JAR="$JAR_D2"; IP="198.51.100.11"
+# Zona de peligro sin conexión (TuGuardería con conector antiguo): comando, Cloudflare y Quitar del panel
+get "r=ajustes" > /dev/null
+post ajustes --data-urlencode "accion=cloudflare" --data-urlencode "cf_token=$CF_TOKEN" --data-urlencode "cf_cuenta=$CF_CUENTA" --data-urlencode "cf_tunel=$CF_TUNEL" > /dev/null
+check "Cloudflare guardado otra vez en Ajustes" "1" "$(sql "SELECT count(*) FROM ajustes WHERE clave='cf_token_cif' AND valor <> ''")"
+mock dogssy 8264 dogssy "$SEC_DG" tuguarderia MOCK_DOMINIO=dogssy.tukanec.com
+probar dogssy
+parar dogssy
+get "r=inicio" > /dev/null; post refrescar > /dev/null
+get "r=programa&id=dogssy" > /dev/null
+contiene "Dogssy sin conexión: Sin conexión" "$TMP/pag.html" 'class="estado off">Sin conexión'
+contiene "...caja: no responde o conector antiguo" "$TMP/pag.html" 'Este programa no responde o tiene un conector antiguo. Para borrarlo:'
+contiene "...(1) el comando exacto" "$TMP/pag.html" 'cd /home/qf/github/tuguarderia &amp;&amp; git pull &amp;&amp; sudo bash borrar_cliente.sh dogssy</span>'
+contiene "...con botón Copiar" "$TMP/pag.html" 'data-copiar="#comando-borrar \[data-texto\]"'
+contiene "...(2) Cloudflare: su dirección" "$TMP/pag.html" '<span class="mono">dogssy.tukanec.com</span>'
+contiene "...con el botón para quitar solo de Cloudflare" "$TMP/pag.html" 'Quitar solo de Cloudflare'
+contiene "...(3) Quitar del panel con el ID" "$TMP/pag.html" 'action="/?r=eliminar"'
+no_contiene "...no sale el borrado remoto" "$TMP/pag.html" 'id="form-baja"'
+R=$(post_form "$TMP/pag.html" "boton:Quitar solo de Cloudflare")
+check "Quitar solo de Cloudflare: vuelve a la ficha" "303 /?r=programa&id=dogssy#baja" "$(echo "$R" | sed "s#$BASE##")"
+check "Cloudflare de mentira: dogssy ya no está en el túnel" "0" "$(cf_hosts | grep -c '^dogssy.tukanec.com$')"
+check "...ni en el DNS" "0" "$(cf_dns | grep -c '^dogssy.tukanec.com$')"
+check "...el panel sigue" "1" "$(cf_hosts | grep -c '^panel.tukanec.com$')"
+check "...queda anotado" "manual" "$(sql "SELECT estado FROM bajas WHERE instancia_id='dogssy'")"
+get "r=programa&id=dogssy" > /dev/null
+contiene "...la ficha dice que Cloudflare quedó listo" "$TMP/pag.html" 'id="baja-cloudflare"'
+no_contiene "...y ya no ofrece el botón" "$TMP/pag.html" 'Quitar solo de Cloudflare'
+sql "DELETE FROM bajas WHERE instancia_id='dogssy'" > /dev/null   # para las capturas: otra vez sin hacer
+mock dogssy 8264 dogssy "$SEC_DG" tuguarderia MOCK_DOMINIO=dogssy.tukanec.com
+# Otro programa sin conexión (no TuGuardería): solo Quitar del panel, con la explicación
+agregar tuplanner tuplanner_viejo "TuPlanner viejo" "http://127.0.0.1:8259"
+probar tuplanner_viejo
+get "r=programa&id=tuplanner_viejo" > /dev/null
+contiene "Otro tipo sin conexión: Quitar este programa del panel" "$TMP/pag.html" 'Quitar este programa del panel</h2>'
+contiene "...explica que no borra nada en su servidor" "$TMP/pag.html" 'No borra nada en su servidor'
+no_contiene "...sin el comando de TuGuardería" "$TMP/pag.html" 'borrar_cliente.sh'
+R=$(post_form "$TMP/pag.html" "accion:eliminar" "confirmar=tuplanner")
+check "ID mal escrito: no se quita" "1" "$(sql "SELECT count(*) FROM instancias WHERE id='tuplanner_viejo'")"
+get "r=programa&id=tuplanner_viejo" > /dev/null
+R=$(post_form "$TMP/pag.html" "accion:eliminar" "confirmar=tuplanner_viejo")
+check "Quitar del panel: listo" "0" "$(sql "SELECT count(*) FROM instancias WHERE id='tuplanner_viejo'")"
+JAR="$TMP/jar_soporte2"; IP="198.51.100.21"
+get "r=programa&id=dogssy" > /dev/null
+no_contiene "Soporte: no ve la zona de peligro" "$TMP/pag.html" 'id="baja"'
+R=$(curl -s -b "$JAR" -o /dev/null -w '%{http_code}' -H "CF-Connecting-IP: $IP" --data-urlencode "csrf=$(csrf)" --data-urlencode "id=dogssy" --data-urlencode "accion=cloudflare_manual" "$BASE/?r=baja")
+check "Soporte: quitar de Cloudflare -> 403" "403" "$R"
+JAR="$JAR_D2"; IP="198.51.100.11"
+if grep -qiE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log"; then
+  FALLAS=$((FALLAS+1)); echo "  FALLA Avisos o errores de PHP en el panel (solicitudes/zona de peligro):"; grep -iE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log" | sort | uniq -c | head -20
+else OK=$((OK+1)); echo "  OK    Sin avisos ni errores de PHP en el panel (solicitudes/zona de peligro)"; fi
+
+# =====================================================================
 if [ -z "${SIN_CAPTURAS:-}" ] && python3 -c "import playwright" 2>/dev/null; then
   titulo "37. Capturas de pantalla (Playwright, Chromium)"
   TUKAN_ADMIN_NOMBRE="Dimitry Fierro" TUKAN_ADMIN_EMAIL="capturas@tukan.ec" TUKAN_ADMIN_CLAVE="claveCapturas2026" php bin/crear_admin.php > /dev/null
-  parar dogssy   # una caida para que se vea el estado "sin conexion"
+  parar dogssy   # una caida para que se vea el estado "sin conexion" (tarjeta y zona de peligro de su ficha)
   get "r=inicio" > /dev/null; post refrescar > /dev/null
-  mock dogssy 8264 dogssy "$SEC_DG" tuguarderia   # vuelve, pero la tarjeta muestra la caida hasta actualizar
   mkdir -p tests/capturas
   if PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers BASE="$BASE" python3 tests/capturas.py tests/capturas > "$TMP/capturas.txt" 2>&1; then
     OK=$((OK+1)); echo "  OK    Capturas sin errores de JavaScript: $(tr '\n' ' ' < "$TMP/capturas.txt")"

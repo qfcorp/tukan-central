@@ -19,14 +19,14 @@ function etiqueta_estado(string $estado, ?string $texto = null): string
  * Salen solo si el programa tiene la operación y el usuario el permiso; el formulario lo arma el programa
  * (acciones_posibles de la ficha). TuGuardería (una sola empresa): Borrar lleva a "Borrar esta instalación".
  */
-function botones_pausa_borrar(array $fila): string
+function botones_pausa_borrar(array $fila, array $extra = [], bool $destacar = false, string $textoBorrar = 'Borrar'): string
 {
     $inst = $fila['instancia_id'];
     $id = $fila['cliente_id'];
     $d = $fila['datos'];
     $volver = aqui();
     $link = fn(string $accion, string $texto, string $ico, string $clase) => '<a class="btn btn-chico ' . $clase . '" data-hoja href="'
-        . e(url('accion', ['i' => $inst, 'a' => $accion, 'cliente' => $id, 'volver' => $volver])) . '">' . icono($ico) . ' ' . e($texto) . '</a>';
+        . e(url('accion', ['i' => $inst, 'a' => $accion, 'cliente' => $id] + $extra + ['volver' => $volver])) . '">' . icono($ico) . ' ' . e($texto) . '</a>';
     $h = '';
     if (!empty($d['papelera'])) {
         return puede_operacion($inst, 'restaurar_cliente') ? $link('restaurar_cliente', 'Restaurar', 'restaurar', 'btn-primario') : '';
@@ -34,16 +34,53 @@ function botones_pausa_borrar(array $fila): string
     if ($fila['estado'] === 'suspendido') {
         if (puede_operacion($inst, 'reactivar')) $h .= $link('reactivar', 'Reactivar', 'refrescar', 'btn-suave');
     } elseif (puede_operacion($inst, 'pausar')) {
-        $h .= $link('pausar', 'Pausar', 'pausa', 'btn-suave');
+        $h .= $link('pausar', 'Pausar', 'pausa', $destacar ? 'btn-pausar' : 'btn-suave');
     }
     if ($id === 'unico') {
         if (puede('programas') && Capacidades::puede(capacidades()->datos($inst), 'ejecutar', 'dar_de_baja')) {
-            $h .= '<a class="btn btn-chico btn-peligro" href="' . e(url('programa', ['id' => $inst])) . '#baja">' . icono('basura') . ' Borrar</a>';
+            $h .= '<a class="btn btn-chico btn-peligro" href="' . e(url('programa', ['id' => $inst])) . '#baja">' . icono('basura') . ' ' . e($textoBorrar) . '</a>';
         }
     } elseif (puede_operacion($inst, 'borrar_cliente')) {
-        $h .= $link('borrar_cliente', 'Borrar', 'basura', 'btn-peligro');
+        $h .= $link('borrar_cliente', $textoBorrar, 'basura', $destacar ? 'btn-peligro' : 'btn-suave btn-borrar-suave');
     }
     return $h;
+}
+
+/**
+ * Pausar / Borrar cliente desde una solicitud que es de un cliente (los mismos formularios y permisos que en Clientes).
+ * $destacar: "la demo terminó sin pagar" / "venció sin renovar" → van en la fila principal, en rojo; si no, en una fila
+ * secundaria discreta. El formulario sabe de qué solicitud viene (de_sol): sugiere el motivo y, al borrar, la marca atendida.
+ * @return array{html:string, destacar:bool}
+ */
+function botones_pausa_borrar_sol(array $s): array
+{
+    $cid = (string) ($s['cliente_id'] ?? '');
+    if ($cid === '' || !\Tukan\Clientes::idValido($cid)) return ['html' => '', 'destacar' => false];
+    $fila = clientes()->obtener($s['instancia_id'], $cid) ?? ['estado' => '', 'datos' => []];
+    $fila = ['instancia_id' => $s['instancia_id'], 'cliente_id' => $cid, 'estado' => (string) $fila['estado'], 'datos' => $fila['datos']];
+    $destacar = \Tukan\Solicitudes::motivoSinPagar($s) !== null;
+    return ['html' => botones_pausa_borrar($fila, ['de_sol' => $s['id']], $destacar, 'Borrar cliente'), 'destacar' => $destacar];
+}
+
+/**
+ * Opciones del menú "⋯" de un programa (tarjeta de Inicio y lista de Programas):
+ * Abrir ficha · Pausar instalación (TuGuardería, si el programa sabe y el usuario puede) · Borrar programa… (zona de peligro, solo el dueño).
+ * @return list<array{texto:string, url:string, icono:string, hoja:bool, peligro:bool}>
+ */
+function opciones_programa(array $f): array
+{
+    $o = [['texto' => 'Abrir ficha', 'url' => url('programa', ['id' => $f['id']]), 'icono' => 'flecha', 'hoja' => false, 'peligro' => false]];
+    $unico = Productos::tipo($f['producto'])['unico'] || (capacidades()->datos($f['id'])['unico'] ?? false);
+    if ((int) $f['activo'] && $unico && puede_operacion($f['id'], 'pausar')) {
+        $c = clientes()->obtener($f['id'], 'unico');
+        if (($c['estado'] ?? '') !== 'suspendido' && empty($c['datos']['pausa'])) {
+            $o[] = ['texto' => 'Pausar instalación', 'url' => url('accion', ['i' => $f['id'], 'a' => 'pausar', 'cliente' => 'unico', 'volver' => aqui()]), 'icono' => 'pausa', 'hoja' => true, 'peligro' => false];
+        }
+    }
+    if (puede('programas')) {
+        $o[] = ['texto' => 'Borrar programa…', 'url' => url('programa', ['id' => $f['id']]) . '#baja', 'icono' => 'basura', 'hoja' => false, 'peligro' => true];
+    }
+    return $o;
 }
 
 /** Cuadrito del programa (color + letra). */
@@ -219,4 +256,30 @@ function nombre_programa(string $inst): string
 function datos_de(?int $momento): string
 {
     return $momento ? 'Datos de ' . hace($momento) : 'Todavía sin datos';
+}
+
+/**
+ * Después de borrar un cliente desde una solicitud suya ("la demo terminó sin pagar"): la solicitud queda atendida.
+ * Primero se le avisa al programa con su propio botón "Marcar atendida" (atender_solicitud, con la nota del resultado);
+ * si el programa ya no la tiene (el cliente está en la papelera) o no contesta, se marca en la copia local.
+ * La operación de borrar queda ligada a la solicitud (sale en "Lo que se hizo desde el panel" del detalle).
+ */
+function atender_por_borrado(array $inst, array $fila, string $cid, string $nota, string $opBorrar, string $nombre): void
+{
+    $sid = (string) $fila['solicitud_id'];
+    db()->prepare('UPDATE operaciones SET solicitud_id = ? WHERE operacion_id = ?')->execute([$sid, $opBorrar]);
+    $remoto = false;
+    $s = solicitudes()->completa($fila, true);
+    foreach ($s['acciones'] as $a) {
+        if (($a['accion'] ?? '') !== 'atender_solicitud' || ($a['datos']['resultado'] ?? '') !== 'atendida' || !puede_operacion($inst['id'], 'atender_solicitud')) continue;
+        try {
+            $res = operaciones()->ejecutar($inst, 'atender_solicitud', Operaciones::nuevaId(), $cid, $a['datos'] + ['solicitud_id' => $sid, 'nota' => mb_substr($nota, 0, 300)], usuario_v2(), $nombre ?: null);
+            $remoto = $res['ok'];
+        } catch (\Throwable) {
+            $remoto = false;
+        }
+        break;
+    }
+    solicitudes()->marcarAtendida($inst['id'], $sid);
+    auditar('solicitud_atendida', mb_substr($s['titulo'] . ' → atendida al borrar el cliente' . ($remoto ? '' : ' (marcada en el panel)') . '. ' . $nota, 0, 500), $inst['id']);
 }

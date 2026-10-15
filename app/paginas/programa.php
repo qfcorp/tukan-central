@@ -28,7 +28,13 @@ if (puede('programas')) {
         if ($inst) $baja = bajas()->revisar($inst, cliente_v2(), usuario_v2());
     }
 }
+// Zona de peligro (siempre visible para el dueño): borrar desde el panel, o los pasos a mano si no se puede
+$on = (int) $fila['activo'] && $fila['consultado'] !== null && (int) $fila['en_linea'];
+$hostBaja = Bajas::hostname($fila, is_string($cap['datos']['url_publica'] ?? null) ? (string) parse_url($cap['datos']['url_publica'], PHP_URL_HOST) : null);
+$carpetaBaja = Bajas::carpeta($fila, null);
 vista('programa', [
+    'on' => $on, 'hostBaja' => $hostBaja, 'carpetaBaja' => $carpetaBaja,
+    'comandoBorrar' => 'cd /home/qf/github/tuguarderia && git pull && sudo bash borrar_cliente.sh ' . ($carpetaBaja ?? 'CARPETA'),
     'baja' => $baja, 'bajaDisp' => $bajaDisp, 'urlPublica' => is_string($cap['datos']['url_publica'] ?? null) ? $cap['datos']['url_publica'] : null, 'cfListo' => Cloudflare::configurado(ajustes()), 'opBaja' => Operaciones::nuevaId(),
     'f' => $fila, 'cap' => $cap, 'unico' => $unico, 'licencia' => $unico && puede('finanzas') ? licencias()->obtener($id) : null,
     'disp' => monitor()->disponibilidad($id),

@@ -29,10 +29,12 @@ $detalleUrl = url('solicitud', ['i' => $s['instancia_id'], 'id' => $s['id']]);
       <a class="miniatura" href="<?= e($detalleUrl) ?>"><img src="<?= e(url('adjunto', ['i' => $s['instancia_id'], 'sol' => $s['id'], 'adj' => $img['id']])) ?>" alt="<?= e($img['nombre']) ?>" loading="lazy" width="96" height="64"></a>
     <?php elseif ($s['adjuntos']): ?><span class="chico suave"><?= icono('adjunto') ?> <?= count($s['adjuntos']) ?></span><?php endif; ?>
   </div>
-  <?php if (!$cerrada): ?>
+  <?php if (!$cerrada): $pb = botones_pausa_borrar_sol($s); ?>
   <div class="sol-acc">
     <?= botones_acciones($s['acciones'], ['inst' => $s['instancia_id'], 'sol' => $s['id'], 'cliente_id' => $s['cliente_id'], 'nombre' => $quien, 'volver' => aqui()]) ?>
+    <?php if ($pb['destacar'] && $pb['html'] !== ''): ?><?= $pb['html'] ?><?php endif; ?>
     <a class="btn btn-chico btn-link-btn" href="<?= e($detalleUrl) ?>">Ver detalle</a>
   </div>
+  <?php if (!$pb['destacar'] && $pb['html'] !== ''): ?><div class="sol-acc-2" role="group" aria-label="Más acciones con el cliente"><?= $pb['html'] ?></div><?php endif; ?>
   <?php endif; ?>
 </article>

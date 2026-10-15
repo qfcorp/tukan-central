@@ -9,6 +9,7 @@ use Tukan\{Bajas, ErrorPrograma, Operaciones};
  *   cancelar   → cancelar_baja (mientras no empiece)
  *   revisar    → pregunta al programa cómo va
  *   cloudflare → vuelve a intentar quitar su dirección de Cloudflare
+ *   cloudflare_manual → conector antiguo o sin conexión (se borra a mano con borrar_cliente.sh): quita solo su dirección
  *   quitar     → ya borrada: la quita también del panel (la auditoría se conserva)
  */
 $u = usuario();
@@ -88,6 +89,21 @@ if ($accion === 'cloudflare') {
     $r = bajas()->limpiarCloudflare($inst);
     if ($r === null) aviso('Cloudflare no está configurado (Ajustes → Cloudflare). Quita la dirección a mano.', 'info');
     else aviso(implode(' ', $r['mensajes']), $r['ok'] ? 'ok' : 'error');
+    $volver();
+}
+
+if ($accion === 'cloudflare_manual') {
+    // Conector antiguo o sin conexión: el dueño borra a mano en el servidor y aquí se quita solo su dirección de Cloudflare
+    $on = false;
+    foreach (monitor()->tablero() as $t) if ($t['id'] === $inst['id']) $on = (int) $t['activo'] && $t['consultado'] !== null && (int) $t['en_linea'];
+    if ($on && Bajas::disponible(capacidades()->datos($inst['id']))) {
+        aviso($inst['nombre'] . ' responde y sabe borrarse: usa «Borrar esta instalación» (Cloudflare se limpia solo al terminar).', 'info');
+        $volver();
+    }
+    $host = Bajas::hostname($inst, is_string(capacidades()->datos($inst['id'])['url_publica'] ?? null) ? (string) parse_url(capacidades()->datos($inst['id'])['url_publica'], PHP_URL_HOST) : null);
+    $r = bajas()->soloCloudflare($inst, $host);
+    if ($r === null) aviso('Cloudflare no está configurado (Ajustes → Cloudflare). Quita la dirección a mano.', 'info');
+    else aviso('Cloudflare: ' . implode(' ', $r['mensajes']), $r['ok'] ? 'ok' : 'error');
     $volver();
 }
 

@@ -171,6 +171,6 @@
 
   // Menú "Más" (escritorio): se cierra al tocar fuera
   document.addEventListener('click', function (ev) {
-    document.querySelectorAll('details.menu-mas[open]').forEach(function (d) { if (!d.contains(ev.target)) d.removeAttribute('open'); });
+    document.querySelectorAll('details.menu-mas[open], details.menu-prog[open]').forEach(function (d) { if (!d.contains(ev.target)) d.removeAttribute('open'); });
   });
 })();

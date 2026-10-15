@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use Tukan\{Capacidades, Clientes, ErrorPrograma, Formulario, Operaciones};
+use Tukan\{Capacidades, Clientes, ErrorPrograma, Formulario, Operaciones, Solicitudes};
 
 /**
  * Formulario de un botón (acciones_posibles) de una solicitud o de un cliente.
@@ -67,7 +67,23 @@ if (param('sol') !== '') {
 if (!$a || $a['accion'] !== $accion) $falla('Ese botón ya no está disponible (quizás alguien ya lo atendió). Actualiza la lista.');
 // Pausar pide tipo + motivo; borrar pide el nombre exacto + motivo (aunque el programa no los mande)
 $a = Operaciones::completarCampos($a, $ctx['nombre']);
-$datos = ['inst' => $inst, 'a' => $a, 'ctx' => $ctx, 'valores' => [], 'errores' => [], 'error' => null, 'op' => Operaciones::nuevaId()];
+// Pausar / Borrar cliente desde una solicitud de ese cliente (de_sol): si es "la demo terminó sin pagar" o "venció sin
+// renovar", el motivo viene sugerido (y el tipo "Falta de pago"); al borrar, la solicitud queda atendida (ejecutar.php)
+$valores = [];
+if (param('sol') === '' && param('de_sol') !== '' && in_array($accion, ['pausar', 'borrar_cliente'], true)) {
+    $fs = solicitudes()->obtener($inst['id'], param('de_sol'));
+    if ($fs && (string) $fs['cliente_id'] === (string) $ctx['cliente_id']) {
+        $sd = solicitudes()->completa($fs, ve_contacto());
+        $ctx['solicitud'] = (string) $fs['solicitud_id'];
+        $ctx['solicitud_titulo'] = (string) $sd['titulo'];
+        $motivo = Solicitudes::motivoSinPagar($sd);
+        if ($motivo !== null) {
+            $valores['motivo'] = $motivo;
+            if ($accion === 'pausar') $valores['tipo'] = 'falta_pago';
+        }
+    }
+}
+$datos = ['inst' => $inst, 'a' => $a, 'ctx' => $ctx, 'valores' => $valores, 'errores' => [], 'error' => null, 'op' => Operaciones::nuevaId()];
 if ($parcial) {
     extract($datos);
     require RAIZ . '/app/vistas/_form_accion.php';

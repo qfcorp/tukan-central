@@ -814,3 +814,45 @@ main p > svg, main span.chico > svg, .vacio svg { width: 18px; height: 18px; ver
 .estado-baja.en_curso { background: var(--info-bg); color: #3B6FE0; }
 .estado-baja.borrada { background: var(--bad-bg); color: var(--bad); }
 .aviso > div { min-width: 0; overflow-wrap: anywhere; }
+
+/* Pausar / Borrar cliente desde una solicitud */
+.btn-pausar { background: var(--warn-bg); border-color: color-mix(in srgb, var(--warn) 45%, transparent); color: var(--warn); }
+.btn-pausar:hover { border-color: var(--warn); }
+.btn-borrar-suave { color: var(--bad); }
+.btn-borrar-suave:hover { background: var(--bad-bg); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+.sol-acc-2 { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.sol-acc-2 .btn { min-height: 34px; padding: 5px 10px; font-size: 13px; }
+.sol-acc-2 .btn svg { width: 15px; height: 15px; }
+.acciones-grandes .sol-acc-2 .chico { margin-right: 2px; }
+.acciones-grandes > p.chico svg { width: 16px; height: 16px; vertical-align: -3px; }
+.desde-sol { align-items: center; font-size: 14px; }
+
+/* Menú "⋯" de cada programa (Inicio) y opciones en la lista de Programas */
+.menu-prog { position: relative; flex: none; }
+.menu-prog summary { list-style: none; }
+.menu-prog summary::-webkit-details-marker { display: none; }
+.menu-prog summary svg { width: 20px; height: 20px; }
+.menu-prog[open] summary { background: var(--surface-2); }
+.menu-prog-lista { position: absolute; right: 0; bottom: calc(100% + 8px); background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+  box-shadow: var(--shadow-lg); padding: 6px; min-width: 220px; z-index: 20; display: flex; flex-direction: column; }
+.menu-prog-lista a { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 10px; text-decoration: none; color: var(--ink); font-weight: 500; font-size: 15px; }
+.menu-prog-lista a:hover, .menu-prog-lista a:focus-visible { background: var(--surface-2); }
+.menu-prog-lista a svg { width: 18px; height: 18px; color: var(--ink-soft); flex: none; }
+.menu-prog-lista a.peligro { color: var(--bad); border-top: 1px solid var(--line); border-radius: 0 0 10px 10px; margin-top: 4px; }
+.menu-prog-lista a.peligro svg { color: var(--bad); }
+.prog { overflow: visible; }
+.prog::before { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+.prog-acc > .btn-ancho { flex: 1; width: auto; }
+.opciones-prog { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.opciones-prog .btn svg { width: 15px; height: 15px; }
+@media (max-width: 699px) { .opciones-prog { justify-content: flex-start; } }
+
+/* Zona de peligro: borrar a mano (conector antiguo o sin conexión) y quitar del panel */
+.pasos-baja { margin-top: 4px; }
+.pasos-baja .comando { font-size: 13px; }
+.pasos-baja > li::before { background: var(--bad-bg); color: var(--bad); }
+.form-quitar .campo { max-width: 360px; }
+.quitar-solo { border-top: 1px solid var(--line); padding-top: 12px; }
+.quitar-solo summary { cursor: pointer; font-weight: 700; color: var(--ink-soft); }
+.zona-peligro .error-campo { display: block; }
+.menu-prog-lista a.peligro:hover, .menu-prog-lista a.peligro:focus-visible { background: var(--bad-bg); }

@@ -1429,6 +1429,16 @@ decía y lo que agregó por su cuenta.)
     - Programa de prueba (`tests/mock/`): sabe `pausar`, `borrar_cliente` (30 días, copia en `respaldos/borrados/`),
       `restaurar_cliente` y la papelera en `clientes` (acepta `estado`, `filtros.estado` o `estados`); `MOCK_SIN_PAUSA=1`
       imita un programa sin el Anexo A.
+17. **Pausar / Borrar cliente desde Solicitudes** (15 oct 2026): en cada solicitud con `cliente_id` cuyo programa declara
+    `pausar` / `borrar_cliente`, el panel agrega esos botones (los mismos formularios y permisos de Clientes; abren `accion`
+    con `de_sol=<solicitud_id>`). Si es `seguimiento_prueba` con `detalle.etapa = terminada` o `renovacion` con
+    `etapa = vencida` (o, sin etapa, un título tipo «La demo terminó sin pagar» / «No renovó»), van en la fila principal y
+    el motivo viene sugerido (`tipo = falta_pago` al pausar). La solicitud va firmada en `meta`; tras un `borrar_cliente`
+    correcto, el panel manda el `atender_solicitud` (resultado `atendida`) de esa solicitud con `nota` = el resultado y, si
+    el programa ya no la tiene, la marca atendida en la copia local; la operación de borrar queda con su `solicitud_id`.
+    **Zona de peligro** de la ficha (siempre para el dueño): con conexión y `dar_de_baja` → nota 15; TuGuardería sin
+    conexión o sin `dar_de_baja` → comando `borrar_cliente.sh`, *Quitar solo de Cloudflare* (`baja` → `cloudflare_manual`,
+    fila `bajas` en estado `manual`, sin avisos de caída) y *Quitar del panel*; otros programas → solo *Quitar del panel*.
 
 ---
 

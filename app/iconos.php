@@ -56,7 +56,8 @@ function icono(string $nombre): string
         'abajo'     => '<path d="m6 9 6 6 6-6"/>',
         'check'     => '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
         'cruz'      => '<path d="M6 6l12 12M18 6 6 18"/>',
-        'nota'      => '<path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 12h8M8 16h6"/>',
+        'nube'      => '<path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.1 4.7 4.7 0 0 0 7 18.5z"/>',
+        'nota'      =>'<path d="M5 3h10l4 4v14H5z"/><path d="M14 3v5h5M8 12h8M8 16h6"/>',
     ];
     $d = $trazos[$nombre] ?? $trazos['info'];
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . $d . '</svg>';

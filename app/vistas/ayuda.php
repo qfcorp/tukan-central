@@ -78,6 +78,9 @@ $notas = [
     <details><summary>¿Y si lo borro por error?</summary><div>
       <p><b>Borrar</b> pide el nombre exacto, el motivo y tu código de 2 pasos. El programa guarda una copia y lo deja <b>30 días en la Papelera</b> (filtro arriba de la lista); ahí tocas <b>Restaurar</b> y vuelve tal como estaba. Pasados los 30 días se borra para siempre (la copia se guarda 1 año).</p>
       <p>En la ficha, <b>Pausas y borrados</b> dice quién lo hizo, cuándo y por qué.</p></div></details>
+    <details><summary>Una demo terminó y no pagó: ¿lo borro desde Solicitudes?</summary><div>
+      <p>Sí. En los avisos «La demo terminó sin pagar» o «Plan vencido sin renovar» salen <b>Pausar</b> y <b>Borrar cliente</b> junto a los otros botones (en las demás solicitudes de un cliente están abajo, más discretos). Son los mismos formularios de Clientes, con el motivo ya escrito («No pagó después de la demo») y, al pausar, el tipo <b>Falta de pago</b>.</p>
+      <p>Al borrar, la solicitud queda <b>atendida</b> sola y vuelves a la bandeja con el día en que se borra para siempre (hasta entonces se puede restaurar desde la Papelera).</p></div></details>
   </div>
   <div class="tarjeta preguntas" id="ayuda-borrar">
     <h2>Borrar la instalación de un cliente (TuGuardería)</h2>
@@ -86,8 +89,11 @@ $notas = [
       <p>El servidor del cliente espera unos <b>5 minutos</b> (puedes tocar <b>Cancelar el borrado</b>), guarda una <b>copia final completa</b> en <span class="mono">/var/backups/borrados/</span> y luego borra el programa, la base de datos, las fotos y los respaldos automáticos.</p>
       <p>Cuando el programa deja de contestar, el panel lo marca <b>Borrado terminado</b>. Ahí puedes tocar <b>Quitar también del panel</b> (su historial sigue en Auditoría).</p>
       <p>Solo el dueño puede hacerlo. Si la copia final falla, no se borra nada y el panel te lo dice.</p></div></details>
+    <details><summary>¿Dónde borro un programa (por ejemplo Dogssy)?</summary><div>
+      <p>En <a href="<?= e(url('inicio')) ?>">Inicio</a>, en su tarjeta, toca <b>⋯</b> → <b>Borrar programa…</b> (o en <a href="<?= e(url('programas')) ?>">Programas</a>, el enlace <b>Borrar programa…</b>). Te lleva a la zona de peligro de su ficha.</p>
+      <p>Si no responde o tiene un conector antiguo, la ficha te da los 3 pasos: (1) el comando para copiar y pegar en su servidor, <span class="mono">cd /home/qf/github/tuguarderia &amp;&amp; git pull &amp;&amp; sudo bash borrar_cliente.sh CARPETA</span>; (2) quitar su dirección en Cloudflare (con el token de Ajustes, el botón <b>Quitar solo de Cloudflare</b> lo hace); (3) <b>Quitar del panel</b> escribiendo su ID.</p></div></details>
     <details><summary>No me sale el botón de borrar</summary><div>
-      <p>Ese cliente todavía no tiene la versión nueva. En el servidor corre (cambia DOMINIO y CARPETA):</p>
+      <p>Ese cliente todavía no tiene la versión nueva (mientras tanto, usa los pasos a mano de arriba). Para tenerlo, en el servidor corre (cambia DOMINIO y CARPETA):</p>
       <p class="comando">cd /home/qf/github/tuguarderia &amp;&amp; git pull &amp;&amp; sudo bash instalar.sh DOMINIO CARPETA</p>
       <p>Luego toca <b>Probar conexión</b> en el panel.</p></div></details>
     <details><summary>Me arrepentí: ¿cómo recupero un cliente borrado?</summary><div>

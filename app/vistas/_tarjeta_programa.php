@@ -87,6 +87,15 @@ $kv = array_slice($kv, 0, 6, true);
       <?php else: ?>
         <a class="btn btn-ancho" href="<?= e(url('programa', ['id' => $f['id']])) ?>">Ver detalles</a>
       <?php endif; ?>
+      <?php $ops = opciones_programa($f); ?>
+      <details class="menu-prog">
+        <summary class="btn btn-grande btn-icono" title="Más opciones" aria-label="Más opciones de <?= e($f['nombre']) ?>"><?= icono('mas_menu') ?></summary>
+        <div class="menu-prog-lista">
+          <?php foreach ($ops as $o): ?>
+            <a href="<?= e($o['url']) ?>"<?= $o['hoja'] ? ' data-hoja' : '' ?><?= $o['peligro'] ? ' class="peligro"' : '' ?>><?= icono($o['icono']) ?> <?= e($o['texto']) ?></a>
+          <?php endforeach; ?>
+        </div>
+      </details>
     </div>
   </div>
 </article>

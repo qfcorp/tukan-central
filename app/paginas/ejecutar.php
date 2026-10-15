@@ -55,6 +55,16 @@ $meta = json_decode($metaJ, true) ?: [];
 $a = Formulario::limpiarAccion(['accion' => $accion, 'etiqueta' => $meta['etiqueta'] ?? Operaciones::nombre($accion), 'estilo' => $meta['estilo'] ?? 'normal',
                                 'confirmar' => $meta['confirmar'] ?? null, 'datos' => $fijos, 'campos' => json_decode($defJ, true) ?: []]);
 $ctx = ['volver' => $volver, 'cliente_id' => $cid ?: null, 'nombre' => mb_substr(campo('nombre'), 0, 120)];
+// Pausar / Borrar cliente abierto desde una solicitud de ese cliente (va firmado en meta)
+$solOrigen = null;
+if (in_array($accion, ['pausar', 'borrar_cliente'], true) && is_string($meta['solicitud'] ?? null) && $cid !== '') {
+    $fs = solicitudes()->obtener($inst['id'], $meta['solicitud']);
+    if ($fs && (string) $fs['cliente_id'] === $cid) {
+        $solOrigen = $fs;
+        $ctx['solicitud'] = (string) $fs['solicitud_id'];
+        $ctx['solicitud_titulo'] = (string) $fs['titulo'];
+    }
+}
 [$valores, $errores] = Formulario::leer($campos, campos_post());
 
 // Formulario otra vez (con el error junto al campo)
@@ -94,6 +104,16 @@ if ($res['ok']) {
         $b = Operaciones::datosBorrado($r);
         if ($b['borrar_definitivo_el'] !== null && !str_contains($mensaje, $b['borrar_definitivo_el'])) $mensaje .= ' Se borra para siempre el ' . fecha_dm($b['borrar_definitivo_el'], true) . ' (hasta entonces se puede restaurar).';
         if ($b['copia'] !== null && !str_contains($mensaje, $b['copia'])) $mensaje .= ' Copia: ' . $b['copia'];
+        if ($solOrigen !== null) {
+            // Borrado desde una solicitud ("no pagó"): la solicitud queda atendida, con el resultado, y se vuelve a la bandeja
+            $nota = 'Cliente borrado desde el Panel Tukán (papelera' . ($b['borrar_definitivo_el'] !== null ? ' hasta el ' . fecha_dm($b['borrar_definitivo_el'], true) : '')
+                . '). Motivo: ' . mb_substr((string) ($valores['motivo'] ?? ''), 0, 200);
+            atender_por_borrado($inst, $solOrigen, $cid, $nota, $op, $ctx['nombre']);
+            $mensaje .= ' La solicitud «' . $solOrigen['titulo'] . '» quedó atendida.';
+            aviso($mensaje, 'ok');
+            header('Location: ' . (str_starts_with($volver, '/?r=solicitudes') ? $volver : '/?r=solicitudes'), true, 303);
+            exit;
+        }
     }
     aviso(($r['repetida'] ?? false) ? 'Ya estaba hecho: ' . $mensaje : $mensaje, 'ok');
     // Desde una solicitud que ya quedó atendida, se vuelve a la bandeja

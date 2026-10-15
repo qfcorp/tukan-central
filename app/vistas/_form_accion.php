@@ -9,6 +9,8 @@ $def = json_encode($a['campos'], JSON_UNESCAPED_UNICODE);
 $meta = ['etiqueta' => $a['etiqueta'], 'estilo' => $a['estilo'], 'confirmar' => $a['confirmar']];
 // Borrar: el nombre exacto que hay que escribir va firmado (el panel lo revisa antes de mandar)
 if ($a['accion'] === 'borrar_cliente' && (string) ($ctx['nombre'] ?? '') !== '') $meta['nombre_exacto'] = (string) $ctx['nombre'];
+// Abierto desde una solicitud de ese cliente: al borrar, el panel la marca atendida
+if (!empty($ctx['solicitud'])) $meta['solicitud'] = (string) $ctx['solicitud'];
 $meta = json_encode($meta, JSON_UNESCAPED_UNICODE);
 $cid = (string) ($a['datos']['cliente_id'] ?? $ctx['cliente_id'] ?? '');
 $cotiza = (bool) array_filter($a['campos'], fn($c) => $c['cotizar']);
@@ -25,6 +27,9 @@ if ($a['accion'] === 'registrar_pago') $confirmar = '¿Registrar este pago de ' 
     <div><h2><?= e($a['etiqueta']) ?></h2><?php if ($nombre !== ''): ?><p class="sub"><?= e($nombre) ?> · <?= e($inst['nombre']) ?></p><?php endif; ?></div>
     <button type="button" class="btn btn-icono btn-chico cerrar-hoja" data-cerrar aria-label="Cerrar"><?= icono('cruz') ?></button>
   </div>
+  <?php if (!empty($ctx['solicitud']) && $a['accion'] === 'borrar_cliente'): ?>
+    <p class="aviso info mb desde-sol"><?= icono('bandeja') ?><span>Al borrarlo, la solicitud<?= !empty($ctx['solicitud_titulo']) ? ' «' . e($ctx['solicitud_titulo']) . '»' : '' ?> queda <b>atendida</b>.</span></p>
+  <?php endif; ?>
   <?php if ($error): ?><div class="aviso error mb" role="alert"><?= icono('error') ?><p><?= e($error) ?></p></div><?php endif; ?>
   <?= campo_csrf() ?>
   <input type="hidden" name="i" value="<?= e($inst['id']) ?>"><input type="hidden" name="accion" value="<?= e($a['accion']) ?>">

@@ -306,6 +306,32 @@ final class Solicitudes
         return ['filas' => $filas, 'pestanas' => $pestanas, 'chips' => $chips, 'pestana' => $pestana, 'chip' => $chip];
     }
 
+    /**
+     * ¿Es un recordatorio de "la demo terminó sin pagar" o "el plan venció sin renovar"?
+     * Devuelve el motivo sugerido para pausar o borrar al cliente (o null si es otra cosa).
+     * Se mira la etapa (seguimiento_prueba: terminada · renovacion: vencida) y, si el programa no la manda, el título.
+     */
+    public static function motivoSinPagar(array $s): ?string
+    {
+        $tipo = (string) ($s['tipo'] ?? '');
+        $etapa = (string) ($s['detalle']['etapa'] ?? '');
+        if ($tipo === 'seguimiento_prueba' && in_array($etapa, ['terminada', 'vencida', 'sin_pagar'], true)) return 'No pagó después de la demo';
+        if ($tipo === 'renovacion' && in_array($etapa, ['vencida', 'sin_pagar'], true)) return 'No pagó la renovación del plan';
+        if (!in_array($tipo, ['seguimiento_prueba', 'renovacion'], true) && ($s['categoria'] ?? '') !== 'recordatorio') return null;
+        $t = mb_strtolower((string) ($s['titulo'] ?? ''));
+        if (preg_match('/(demo|prueba)\s+(termin[oó]|terminada|vencida|venci[oó])\s+sin\s+pagar/u', $t)) return 'No pagó después de la demo';
+        if (preg_match('/(vencid[oa]|venci[oó])\s+sin\s+(renovar|pagar)|no\s+renov[oó]/u', $t)) return 'No pagó la renovación del plan';
+        return null;
+    }
+
+    /** La marca atendida en la copia local (cuando el programa ya no la tiene, p. ej. porque se borró el cliente). */
+    public function marcarAtendida(string $inst, string $id, ?int $ahora = null): bool
+    {
+        $st = $this->db->prepare("UPDATE solicitudes SET estado = 'atendida', ultima_vez = ?, avisada = 1 WHERE instancia_id = ? AND solicitud_id = ?");
+        $st->execute([$ahora ?? time(), $inst, $id]);
+        return $st->rowCount() > 0;
+    }
+
     /** Número rojo del menú: solicitudes por atender. */
     public function porAtender(): int
     {

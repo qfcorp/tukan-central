@@ -34,10 +34,16 @@ $verAdj = ve_contacto() || $s['tipo'] === 'soporte';
   <div class="aviso info mb"><?= icono('info') ?><p><?= e($inst['nombre']) ?> no respondió ahora (<?= e($problema->getMessage()) ?>). Se muestran los datos guardados <?= e(hace((int) $s['ultima_vez'])) ?>.</p></div>
 <?php endif; ?>
 
-<?php if (!$cerrada && $s['acciones']): ?>
+<?php $pb = $cerrada ? ['html' => '', 'destacar' => false] : botones_pausa_borrar_sol($s); ?>
+<?php if (!$cerrada && ($s['acciones'] || $pb['html'] !== '')): ?>
 <div class="tarjeta acciones-grandes">
   <h2>¿Qué hacemos?</h2>
-  <div class="sol-acc grande"><?= botones_acciones($s['acciones'], ['inst' => $s['instancia_id'], 'sol' => $s['id'], 'cliente_id' => $s['cliente_id'], 'nombre' => $quien, 'volver' => aqui()]) ?></div>
+  <div class="sol-acc grande"><?= botones_acciones($s['acciones'], ['inst' => $s['instancia_id'], 'sol' => $s['id'], 'cliente_id' => $s['cliente_id'], 'nombre' => $quien, 'volver' => aqui()]) ?><?= $pb['destacar'] ? $pb['html'] : '' ?></div>
+  <?php if ($pb['html'] !== '' && $pb['destacar']): ?>
+    <p class="chico suave mt"><?= icono('info') ?> ¿No va a pagar? <b>Pausar</b> le corta el acceso con el motivo a la vista; <b>Borrar cliente</b> lo manda 30 días a la papelera (se puede restaurar) y esta solicitud queda atendida.</p>
+  <?php elseif ($pb['html'] !== ''): ?>
+    <div class="sol-acc-2" role="group" aria-label="Más acciones con el cliente"><span class="chico suave">Con el cliente:</span><?= $pb['html'] ?></div>
+  <?php endif; ?>
 </div>
 <?php endif; ?>
 

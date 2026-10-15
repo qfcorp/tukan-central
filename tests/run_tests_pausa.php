@@ -6,7 +6,7 @@ declare(strict_types=1);
  * (usa $db, $cif, $ins, $uid). La parte de punta a punta corre contra el PROGRAMA DE PRUEBA (tests/mock/) con "php -S".
  */
 
-use Tukan\{Acceso, Capacidades, ClienteV2, Clientes, Formulario, Historial, Operaciones};
+use Tukan\{Acceso, Capacidades, ClienteV2, Clientes, Formulario, Historial, Operaciones, Solicitudes};
 
 // ---------------------------------------------------------------------------
 titulo('25. Pausar y borrar clientes (Anexo A): permisos, estilos y campos');
@@ -164,3 +164,28 @@ $ins->eliminar('quintas');
 $ins->eliminar('pap_logica');
 foreach (glob("$mkDir/*") ?: [] as $f) @unlink($f);
 @rmdir($mkDir);
+
+// ---------------------------------------------------------------------------
+titulo('28. Solicitudes: pausar / borrar al cliente que no pagó');
+check('Demo terminó sin pagar (etapa terminada): motivo sugerido', 'No pagó después de la demo', Solicitudes::motivoSinPagar(['tipo' => 'seguimiento_prueba', 'detalle' => ['etapa' => 'terminada']]));
+check('Plan vencido sin renovar (etapa vencida)', 'No pagó la renovación del plan', Solicitudes::motivoSinPagar(['tipo' => 'renovacion', 'detalle' => ['etapa' => 'vencida']]));
+check('Avisos antes de vencer: no (faltan_2, vence_hoy, vence_pronto)', [null, null, null],
+      [Solicitudes::motivoSinPagar(['tipo' => 'seguimiento_prueba', 'detalle' => ['etapa' => 'faltan_2']]), Solicitudes::motivoSinPagar(['tipo' => 'seguimiento_prueba', 'detalle' => ['etapa' => 'vence_hoy']]),
+       Solicitudes::motivoSinPagar(['tipo' => 'renovacion', 'detalle' => ['etapa' => 'vence_pronto']])]);
+check('Sin etapa: por el título (TuVocalía «La demo terminó sin pagar: X», «No renovó: X»)', ['No pagó después de la demo', 'No pagó la renovación del plan'],
+      [Solicitudes::motivoSinPagar(['tipo' => 'seguimiento_prueba', 'titulo' => 'La demo terminó sin pagar: Liga Norte', 'detalle' => []]),
+       Solicitudes::motivoSinPagar(['tipo' => 'renovacion', 'titulo' => 'No renovó: Liga Norte', 'detalle' => []])]);
+check('Otros tipos: no (comprobante, soporte, registro nuevo)', [null, null, null],
+      [Solicitudes::motivoSinPagar(['tipo' => 'comprobante', 'categoria' => 'pedido', 'titulo' => 'Comprobante', 'detalle' => []]),
+       Solicitudes::motivoSinPagar(['tipo' => 'soporte', 'categoria' => 'pedido', 'titulo' => 'Ticket: la demo terminó sin pagar', 'detalle' => []]),
+       Solicitudes::motivoSinPagar(['tipo' => 'registro_nuevo', 'categoria' => 'pedido', 'titulo' => 'Se registró solo', 'detalle' => []])]);
+check('Recordatorio de un programa nuevo con ese título: sí', 'No pagó después de la demo',
+      Solicitudes::motivoSinPagar(['tipo' => 'aviso_demo', 'categoria' => 'recordatorio', 'titulo' => 'Prueba terminada sin pagar', 'detalle' => []]));
+$ins->crear(['id' => 'sol_borrar', 'producto' => 'tuevento', 'url' => 'https://solb.ejemplo.ec', 'nombre' => 'Sol borrar']);
+$solB = new Solicitudes($db, $cif);
+$solB->guardarUna('sol_borrar', Solicitudes::limpiar(['id' => 'seguimiento_prueba:5:terminada', 'tipo' => 'seguimiento_prueba', 'categoria' => 'recordatorio', 'titulo' => 'Prueba terminada sin pagar',
+    'fecha' => date('c'), 'cliente_id' => '5', 'estado' => 'pendiente', 'detalle' => ['etapa' => 'terminada'], 'acciones_posibles' => []]), null, false);
+check('Marcar atendida en la copia local (el programa ya no la tiene)', [true, 'atendida', false],
+      [$solB->marcarAtendida('sol_borrar', 'seguimiento_prueba:5:terminada'), $solB->obtener('sol_borrar', 'seguimiento_prueba:5:terminada')['estado'], $solB->marcarAtendida('sol_borrar', 'no-existe')]);
+check('...ya no cuenta por atender', 0, (int) ($solB->porPrograma()['sol_borrar'] ?? 0));
+$ins->eliminar('sol_borrar');

@@ -12,6 +12,7 @@ use PDO;
  *
  * Estados (tabla "bajas", se crea sola):
  *   programada → en_curso → borrada        (o error / cancelada)
+ *   manual: conector antiguo o sin conexión; el dueño borró a mano y el panel solo quitó su dirección de Cloudflare
  * "borrada" = el programa dejó de contestar después de la hora programada (dos revisiones seguidas, con al menos
  * $confirmarSeg segundos entre la primera y la última). Entonces, si Cloudflare está configurado en Ajustes, se quita
  * su dirección del túnel y su DNS. La auditoría del programa se conserva aunque se quite del panel.
@@ -54,7 +55,7 @@ final class Bajas
     public static function apagando(PDO $db, string $inst): bool
     {
         self::tabla($db);
-        $st = $db->prepare("SELECT 1 FROM bajas WHERE instancia_id = ? AND estado IN ('programada','en_curso','borrada')");
+        $st = $db->prepare("SELECT 1 FROM bajas WHERE instancia_id = ? AND estado IN ('programada','en_curso','borrada','manual')");
         $st->execute([$inst]);
         return (bool) $st->fetchColumn();
     }
@@ -254,6 +255,24 @@ final class Bajas
         $this->poner($inst['id'], ['cloudflare' => $res + ['momento' => time()]]);
         $this->anotar('cloudflare', ($res['ok'] ? 'Listo: ' : 'Con problemas: ') . implode(' ', $res['mensajes']), $inst['id']);
         return $res;
+    }
+
+    /**
+     * Borrado a mano (conector antiguo o sin conexión: el dueño corre borrar_cliente.sh en el servidor): quita SOLO su
+     * dirección de Cloudflare. Deja la fila en estado "manual" con el resultado (y sin avisos de caída por Telegram).
+     * @return array|null el resultado, o null si Cloudflare no está configurado
+     */
+    public function soloCloudflare(array $inst, ?string $hostname): ?array
+    {
+        $b = $this->obtener($inst['id']);
+        if ($b && in_array($b['estado'], self::ACTIVAS, true)) {
+            return ['ok' => false, 'tunel' => 'error', 'dns' => 'error', 'mensajes' => ['Hay un borrado en marcha: Cloudflare se limpia solo al terminar.']];
+        }
+        if (!Cloudflare::configurado(new Ajustes($this->db))) return null;
+        $campos = ['hostname' => $hostname, 'carpeta' => $inst['carpeta'] ?? null];
+        if (!$b || $b['estado'] !== 'borrada') $campos += ['estado' => 'manual', 'mensaje' => 'Borrado a mano (comando en el servidor).', 'revisada' => time()];
+        $this->poner($inst['id'], $campos);
+        return $this->limpiarCloudflare($inst);
     }
 
     public function quitar(string $inst): void

@@ -40,7 +40,11 @@
             </td>
             <td data-t="Versión"><span class="mono"><?= e($f['datos']['version'] ?? '—') ?></span></td>
             <td data-t="7 días"><?= $dp['pct'] === null ? '—' : e(str_replace('.', ',', (string) $dp['pct'])) . ' %' ?></td>
-            <td class="nowrap"><a class="btn btn-chico" href="<?= e(url('programa', ['id' => $f['id']])) ?>">Abrir ficha</a></td>
+            <td class="c-opciones"><div class="opciones-prog">
+              <?php foreach (opciones_programa($f) as $o): ?>
+                <a class="btn btn-chico<?= $o['peligro'] ? ' btn-suave btn-borrar-suave' : ($o['hoja'] ? ' btn-suave' : '') ?>" href="<?= e($o['url']) ?>"<?= $o['hoja'] ? ' data-hoja' : '' ?>><?= $o['icono'] !== 'flecha' ? icono($o['icono']) . ' ' : '' ?><?= e($o['texto']) ?></a>
+              <?php endforeach; ?>
+            </div></td>
           </tr>
         <?php endforeach; ?>
         </tbody>
