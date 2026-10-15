@@ -1391,3 +1391,40 @@ decía y lo que agregó por su cuenta.)
     con el resto igual, y se vuelve a leer para verificar) y el CNAME si apunta a `<túnel>.cfargotunnel.com`. El
     hostname es el de la URL del programa en el panel, o el `dominio` que devolvió `dar_de_baja` si la URL es una IP.
     Nunca se toca el hostname del panel. `CLOUDFLARE_API_BASE` cambia la dirección de la API (pruebas).
+
+---
+
+## Anexo A (15 oct 2026) — Pausar y borrar clientes desde el Panel Central
+
+Pedido de Dimitry: "en clientes se debería poder borrar o pausar por algún motivo".
+
+### A.1 Operaciones nuevas de `ejecutar` (programas con varios clientes: TuEvento, TuSalón, TuPlanner, TuVocalía, TuAcademia)
+- `pausar` — igual que `suspender` pero **el motivo es obligatorio** (`datos.motivo`, 3–300 caracteres) y se elige un tipo:
+  `datos.tipo` ∈ `falta_pago`, `pedido_cliente`, `revision`, `abuso`, `otro`. El cliente, al entrar, ve una pantalla clara
+  "Tu cuenta está pausada" con el motivo visible (salvo `abuso`/`revision`, que muestran texto genérico) y el WhatsApp de Tukán.
+  Sus clientes finales (portales públicos) ven "temporalmente no disponible". `reactivar` la quita. Si el programa ya tiene
+  `suspender`, `pausar` puede reutilizarlo pero debe guardar tipo y motivo y mostrarlos.
+- `borrar_cliente` — **borrado en dos pasos con papelera**:
+  1. `datos.confirmar` debe ser igual al nombre exacto del cliente (o su id) y `datos.motivo` obligatorio.
+  2. El programa guarda **una copia completa de ese cliente** (todas sus filas, exportadas a un archivo JSON/SQL
+     fuera de la carpeta pública, p. ej. `respaldos/borrados/<id>_<fecha>.json.gz`) y lo marca `eliminado` (borrado lógico):
+     no puede entrar, no aparece en listas ni cifras (`estado`, `clientes`, `finanzas` de meses futuros), sus portales públicos dan 404.
+  3. Queda **30 días en la papelera**: `restaurar_cliente` lo devuelve tal cual. Pasados 30 días una tarea automática
+     del programa borra sus datos de verdad (la copia del paso 2 se conserva 1 año).
+  - Respuesta: `{ok, mensaje, copia: "<ruta en el servidor>", borrar_definitivo_el: "AAAA-MM-DD"}`.
+- `restaurar_cliente` — solo mientras está en la papelera.
+- `clientes` acepta `filtros.estado = "papelera"` para listarlos; cada cliente en papelera trae `papelera: {desde, hasta, motivo}`.
+- `acciones_posibles` de cada cliente incluye `pausar` / `reactivar` / `borrar_cliente` / `restaurar_cliente` según su estado,
+  con sus `campos` (tipo, motivo, confirmar).
+- Todo idempotente con `operacion_id` y auditado en el programa.
+
+### A.2 TuGuardería (una sola empresa)
+- `pausar` / `reactivar` de **toda la instalación** con tipo y motivo: el personal y los dueños de mascotas ven "Servicio pausado"
+  con el motivo (salvo abuso/revision) y el WhatsApp de Tukán; el acceso que viene del Panel Central sigue funcionando.
+- Borrar = `dar_de_baja` (ya existe).
+
+### A.3 Panel Central
+- En **Clientes** (lista y ficha): botones **Pausar** / **Reactivar** y **Borrar**; filtro **Papelera** con **Restaurar**.
+  Pausar pide tipo + motivo. Borrar pide escribir el nombre exacto + motivo + código de 2 pasos (solo dueño).
+- En la ficha se ve el historial: quién pausó/borró, cuándo y por qué.
+- Para TuGuardería la fila muestra Pausar y Borrar (Borrar lleva a "Borrar esta instalación").
