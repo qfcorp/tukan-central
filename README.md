@@ -150,12 +150,13 @@ src/                     Totp, Qr, Cifrado, Token (protocolo v1 y v2), Productos
                          Acceso (ingreso, 2FA, bloqueo, sesiones, roles), Auditoria, Ajustes, Telegram, Db,
                          v2: ClienteV2 (pedidos firmados), ErrorPrograma, Capacidades, Formulario, Clientes,
                          Solicitudes, Operaciones (ejecutar idempotente), Contacto, Finanzas, Licencias,
-                         Sincronizador (cron), Analisis (embudo, vencimientos), Xlsx, Exportar
+                         Sincronizador (cron), Analisis (embudo, vencimientos), Xlsx, Exportar,
+                         Bajas (borrar una instalación), Cloudflare (quitar su dirección del túnel y DNS)
 bin/                     crear_admin.php, quitar_2fa.php, revisar.php (cron)
 deploy/                  instalar.sh, respaldo.sh
 datos/                   central.sqlite y sesiones (no va a GitHub)
-tests/                   run_tests.php (+ run_tests_v2.php), run_web.sh (punta a punta), integracion.sh
-                         (conectores reales), mock/ (programa de prueba v1 y v2), form.php, capturas.py
+tests/                   run_tests.php (+ run_tests_v2.php, run_tests_bajas.php), run_web.sh (punta a punta), integracion.sh
+                         (conectores reales), mock/ (programa de prueba v1 y v2, Cloudflare de mentira), form.php, capturas.py
 ```
 
 ## 7. Pruebas
@@ -178,8 +179,9 @@ bash tests/integracion.sh     # con los conectores REALES de TuEvento y TuSalón
 (`MOCK_V1=400` o `404`). Capturas a 390 px y en escritorio (Chromium de `/opt/pw-browsers`), sin errores de consola y
 sin nada que se salga a lo ancho.
 
-Puertos que usan las pruebas: 8260-8269 (`run_web.sh`) y 8240-8249 (`integracion.sh`: 8240 panel, 8241 TuEvento,
-8242 TuSalón, 8243 TuVocalía).
+Puertos que usan las pruebas: 8260-8269 (`run_web.sh`; 8267 y 8269 TuGuarderías que se pueden borrar, 8268 Cloudflare
+de mentira), 8258 (`run_tests.php`: Cloudflare de mentira) y 8240-8249 (`integracion.sh`: 8240 panel, 8241 TuEvento,
+8242 TuSalón, 8243 TuVocalía). Las pruebas **nunca** hablan con el Cloudflare real (`tests/mock/cloudflare.php`).
 
 ---
 
@@ -217,3 +219,38 @@ el código de 2FA.
 (aviso a Telegram con el teléfono enmascarado, respetando el horario de silencio; más de 5 → un solo resumen); clientes
 cada hora; finanzas una vez al día (desde las 03:10); resumen diario por Telegram (07:30–12:00) y los gastos fijos del
 mes. No hace falta otra tarea de cron ni la extensión zip de PHP (el Excel se arma en PHP puro).
+
+---
+
+## 9. Borrar la instalación de un cliente (TuGuardería)
+
+Para un cliente que ya no se usa (ej. una demo que no se vendió). En la ficha del programa, abajo: **Borrar esta
+instalación** (solo sale si el programa dice `dar_de_baja` en `capacidades`; los programas v1 o v2 sin esa operación siguen
+como siempre: solo *Quitar este programa del panel* y el comando de `borrar_cliente.sh`).
+
+1. **Solo el dueño.** Escribe el **ID** del programa y el **código de 2 pasos** de su app. Soporte no ve la zona y si
+   intenta mandar el formulario recibe 403 (queda en la auditoría). El botón genérico de la ficha del cliente solo lleva
+   a esta zona (no manda nada).
+2. El panel manda `ejecutar` → `dar_de_baja` con `datos.confirmar` = la carpeta (la guardada en el programa, o la que
+   dice su ficha). El programa contesta **"Programada"** y dónde queda la **copia final** (`/var/backups/borrados/`).
+3. Estados: **Borrado programado** (se puede *Cancelar el borrado*) → **Borrado en curso** → **Borrado terminado**.
+   La página se recarga sola cada 10 s y pregunta al programa (`cliente` → `baja`); también lo hace la revisión de cada
+   15 min. "Terminado" = después de la hora programada el programa **dejó de contestar dos veces seguidas** (404, sin
+   conexión, 502…). Un error del propio conector (firma, límite…) no cuenta. Mientras tanto no salen avisos de caída
+   por Telegram.
+4. Al terminar: si en **Ajustes → Cloudflare** hay un token, el panel quita **solo esa dirección** del túnel (lee las
+   rutas, quita las de ese hostname, guarda y vuelve a leer para verificar) y su **CNAME** si apunta al túnel. Nunca toca
+   la dirección del panel. Sin token, muestra un recordatorio claro con los pasos para hacerlo a mano.
+5. **Quitar también del panel**: lo saca de Programas; su historial queda en la Auditoría.
+
+**Token de Cloudflare** (opcional, Ajustes → Cloudflare): se guarda **cifrado** con `TUKAN_CENTRAL_KEY`, nunca se vuelve
+a mostrar ni va a la auditoría. Permisos: *Account → Cloudflare Tunnel → Edit*, *Zone → DNS → Edit* y *Zone → Zone → Read*
+(solo tu dominio). Además: ID de la cuenta e ID del túnel. Pasos en **Ayuda**.
+
+En cada servidor de TuGuardería hay que tener la versión nueva **una vez** (crea la carpeta de pedidos y la tarea de root):
+
+```
+cd /home/qf/github/tuguarderia && git pull && sudo bash instalar.sh DOMINIO CARPETA
+```
+
+y luego tocar **Probar conexión** en el panel.

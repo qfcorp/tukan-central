@@ -26,6 +26,11 @@ if ($accion === 'crear_demo') {
     aviso('Las demos se crean desde la pantalla Demos.', 'info');
     redirigir('demo_nueva', ['i' => $inst['id']]);
 }
+if (in_array($accion, Operaciones::DE_LA_FICHA, true)) {
+    auditar('permiso_negado', "ejecutar $accion fuera de la ficha del programa", $inst['id']);
+    aviso('Borrar la instalación se hace desde la ficha del programa (zona de peligro).', 'info');
+    redirigir('programa', ['id' => $inst['id']]);
+}
 $op = campo('op');
 $cid = campo('cliente_id');
 $fijosJ = campo('fijos', '{}');

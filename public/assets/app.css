@@ -776,3 +776,14 @@ li.pausado { opacity: .7; }
 main p > svg, main span.chico > svg, .vacio svg { width: 18px; height: 18px; vertical-align: -4px; flex: none; }
 .migas svg { width: 16px; height: 16px; vertical-align: -3px; }
 @media (max-width: 599px) { .resultado .acciones-form > *, .form-demo .acciones-form > * { flex: 1 1 100%; } .resultado .acciones-form .btn, .form-demo .acciones-form .btn { width: 100%; } }
+
+/* Borrar una instalación (zona de peligro de la ficha del programa) */
+.zona-peligro { border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+.zona-peligro h2 { display: flex; align-items: center; gap: 8px; color: var(--bad); }
+.zona-peligro h2 svg { width: 20px; height: 20px; flex: none; }
+.estado-baja { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--ink-soft); }
+.estado-baja::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.estado-baja.programada { background: var(--warn-bg); color: var(--warn); }
+.estado-baja.en_curso { background: var(--info-bg); color: #3B6FE0; }
+.estado-baja.borrada { background: var(--bad-bg); color: var(--bad); }
+.aviso > div { min-width: 0; overflow-wrap: anywhere; }

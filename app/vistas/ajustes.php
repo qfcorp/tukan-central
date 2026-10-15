@@ -2,7 +2,7 @@
 <div class="cabeza">
   <div>
     <h1>Ajustes</h1>
-    <p class="sub">Avisos por Telegram, mensajes de WhatsApp y finanzas.</p>
+    <p class="sub">Avisos por Telegram, mensajes de WhatsApp, finanzas y Cloudflare.</p>
   </div>
 </div>
 <div class="rejilla dos">
@@ -67,3 +67,29 @@
   <label class="check mb"><input type="checkbox" name="repartir_gastos_generales" value="1" <?= ajustes()->si('repartir_gastos_generales') ? 'checked' : '' ?>> <span><b>Repartir los gastos generales</b> (los que no son de un programa) según lo que gana cada programa en el mes</span></label>
   <button class="btn btn-primario" type="submit">Guardar</button>
 </form>
+
+<div class="tarjeta seccion" id="cloudflare">
+  <h2>Cloudflare (opcional)</h2>
+  <p class="suave mb">Al <b>borrar una instalación</b> desde su ficha, el panel puede quitar solo su dirección del túnel (Public Hostname) y su DNS.
+    Si no lo configuras, te recuerda hacerlo a mano. Cómo crear el token: <a href="<?= e(url('ayuda')) ?>#ayuda-cloudflare">Ayuda</a>.</p>
+  <p class="mb"><?= $cloudflare ? '<span class="estado on">Configurado</span>' : '<span class="estado">Sin configurar</span>' ?></p>
+  <form method="post" action="<?= e(url('ajustes')) ?>">
+    <?= campo_csrf() ?><input type="hidden" name="accion" value="cloudflare">
+    <div class="campo"><label for="cf-token">Token de la API</label>
+      <input id="cf-token" name="cf_token" type="password" autocomplete="off" spellcheck="false" maxlength="200" placeholder="<?= $cfToken ? 'Guardado (cifrado). Déjalo vacío para no cambiarlo.' : 'Pega aquí el token' ?>"></div>
+    <div class="fila-campos">
+      <div class="campo"><label for="cf-cuenta">ID de la cuenta</label><input id="cf-cuenta" name="cf_cuenta" class="mono" autocomplete="off" spellcheck="false" maxlength="32" value="<?= e(ajustes()->valor('cf_cuenta')) ?>"></div>
+      <div class="campo"><label for="cf-tunel">ID del túnel</label><input id="cf-tunel" name="cf_tunel" class="mono" autocomplete="off" spellcheck="false" maxlength="36" value="<?= e(ajustes()->valor('cf_tunel')) ?>"></div>
+    </div>
+    <p class="chico suave mb">El token se guarda cifrado y nunca se vuelve a mostrar. Solo se quita la dirección exacta de la instalación borrada.</p>
+    <button class="btn btn-primario" type="submit">Guardar</button>
+  </form>
+  <div class="acciones-form mt">
+    <form method="post" action="<?= e(url('ajustes')) ?>"><?= campo_csrf() ?><input type="hidden" name="accion" value="probar_cloudflare">
+      <button class="btn" type="submit" <?= $cloudflare ? '' : 'disabled' ?>>Probar</button></form>
+    <?php if ($cfToken): ?>
+    <form method="post" action="<?= e(url('ajustes')) ?>" data-confirmar="¿Borrar el token de Cloudflare guardado?"><?= campo_csrf() ?><input type="hidden" name="accion" value="borrar_cloudflare">
+      <button class="btn btn-peligro" type="submit">Borrar token</button></form>
+    <?php endif; ?>
+  </div>
+</div>

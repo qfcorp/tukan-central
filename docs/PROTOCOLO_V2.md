@@ -1231,6 +1231,21 @@ function tc2_validar(string $accion): array
 4. **`solicitudes_huella`** sin solicitudes = primeros 16 hex de `sha256("")` (`e3b0c44298fc1c14`).
 5. **Tabla `tukan_central_operaciones`** en MariaDB usa `DATETIME` en `creado`/`terminado` (no `TIMESTAMP`, para evitar
    los valores por defecto automáticos de MariaDB).
+6. **Operaciones `dar_de_baja` y `cancelar_baja`** (agregadas, no están en §6.2): borrar la instalación desde el panel.
+   - `dar_de_baja`: `datos.confirmar` debe ser la CARPETA de la instalación (sale de su ruta `/var/www/CARPETA`, nunca
+     del pedido; sin confirmar o distinta → `422 invalido`, `campo: "datos.confirmar"`). Deja el pedido
+     `/var/lib/tukan_bajas/CARPETA.pedido` (JSON: `carpeta`, `operacion_id`, `quien`, `nombre`, `pedido`, `borrar_desde`,
+     `borrar_desde_ts`, `dominio`) y el ajuste `tukan_baja = operacion_id`. Espera para cancelar: 300 s (`TUKAN_BAJAS_ESPERA`).
+     `resultado`: `estado: "programada"`, `carpeta`, `dominio`, `borrar_desde`, `espera_segundos`, `copia_en`,
+     `se_puede_cancelar`. Ya hay uno → `409 conflicto` (`motivo: ya_programada`; si ya empezó, `ya_empezo`).
+     Sin la carpeta de pedidos → `403 no_permitido` (`sin_preparar`); la tarea de root no marcó `.vivo` en 5 min →
+     `403 no_permitido` (`sin_tarea`).
+   - `cancelar_baja`: quita el pedido; nada programado → `sin_cambios: true`; ya empezó → `409 conflicto` (`ya_empezo`).
+   - La ficha (`cliente`) trae `baja`: `{estado: null|"programada"|"en_curso"|"error", carpeta, borrar_desde, texto…}` y en
+     `acciones_posibles` sale `dar_de_baja` (estilo `peligro`, campo `confirmar`) o `cancelar_baja`.
+   - Quien borra de verdad es `borrar_cliente.sh --pendientes` (root, cada minuto): revisa que el `operacion_id` del pedido
+     sea el de `tukan_baja` en la base de esa instalación, hace la copia final y solo entonces borra. Resultado en
+     `CARPETA.hecho` o `CARPETA.error` (si la copia falla no se borra nada).
 
 ---
 
@@ -1365,3 +1380,14 @@ decía y lo que agregó por su cuenta.)
     separada por `;`, coma decimal, con BOM, y las celdas que empiezan con `= + - @` llevan un apóstrofo delante.
 14. **Finanzas** se piden una vez al día (desde las 03:10) y como máximo 24 meses; "Actualizar" en la pantalla las pide
     al momento. Los gastos fijos del mes se crean solo para el **mes actual** (no se rellenan meses pasados).
+15. **Borrar una instalación** (`dar_de_baja` / `cancelar_baja`, nota 6 de TuGuardería): permiso `programas` (solo el
+    dueño), siempre desde la ficha del programa con el ID escrito y el código de 2 pasos (página `baja`); el formulario
+    genérico (`ejecutar`, `accion`) no las manda. Tabla `bajas` (se crea sola, sin cambiar `user_version`):
+    `programada → en_curso → borrada` (o `error` / `cancelada`). "Borrada" = después de `borrar_desde`, dos revisiones
+    seguidas sin respuesta del conector (al menos `TUKAN_BAJAS_CONFIRMAR_SEG`, 20 s, entre la primera y la última); un
+    error con `codigo` del conector (salvo `sin_configurar`) dice que sigue vivo. Mientras está programada, en curso o
+    borrada no se avisa la caída por Telegram. Al quedar borrada, si hay token de Cloudflare (Ajustes, cifrado con
+    contexto `cloudflare:token`), se quita del túnel solo la regla con ese hostname exacto (`PUT .../configurations`
+    con el resto igual, y se vuelve a leer para verificar) y el CNAME si apunta a `<túnel>.cfargotunnel.com`. El
+    hostname es el de la URL del programa en el panel, o el `dominio` que devolvió `dar_de_baja` si la URL es una IP.
+    Nunca se toca el hostname del panel. `CLOUDFLARE_API_BASE` cambia la dirección de la API (pruebas).

@@ -42,6 +42,12 @@ final class Auditoria
         'licencia'            => 'Licencia de un programa',
         'exportar'            => 'Descargó las finanzas',
         'actualizar_datos'    => 'Trajo solicitudes, clientes o finanzas',
+        // Borrar una instalación desde el panel (TuGuardería)
+        'baja_programada'     => 'Programó el borrado de una instalación',
+        'baja_cancelada'      => 'Canceló el borrado de una instalación',
+        'baja_estado'         => 'Borrado de una instalación: cambió el estado',
+        'baja_rechazada'      => 'Borrado de una instalación: no se hizo',
+        'cloudflare'          => 'Cloudflare (túnel y DNS)',
     ];
 
     public function __construct(private PDO $db) {}
@@ -77,7 +83,8 @@ final class Auditoria
             $grupos = [
                 'acceso'    => ['login_ok', 'login_fallido', 'login_bloqueado', '2fa_fallido', '2fa_activado', '2fa_respaldo', '2fa_quitado', 'salir', 'sesion_vencida', 'sesiones_cerradas', 'codigos_nuevos', 'clave_cambiada'],
                 'fallos'    => ['login_fallido', 'login_bloqueado', '2fa_fallido', 'csrf_rechazado', 'permiso_negado'],
-                'programas' => ['entrar', 'probar', 'instancia_agregada', 'instancia_editada', 'instancia_eliminada', 'secreto_cambiado', 'ejecutar'],
+                'programas' => ['entrar', 'probar', 'instancia_agregada', 'instancia_editada', 'instancia_eliminada', 'secreto_cambiado', 'ejecutar',
+                                'baja_programada', 'baja_cancelada', 'baja_estado', 'baja_rechazada', 'cloudflare'],
                 'clientes'  => ['ejecutar', 'recordatorio'],
                 'plata'     => ['gasto', 'ingreso_extra', 'licencia', 'exportar'],
                 'cambios'   => ['instancia_agregada', 'instancia_editada', 'instancia_eliminada', 'secreto_cambiado', 'usuario_creado', 'usuario_editado', 'ajustes', 'clave_cambiada', '2fa_quitado', 'cli'],

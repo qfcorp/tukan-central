@@ -39,6 +39,9 @@ $res = $sin->revisar(null, $email, $nombre, true);
 $avisadas = $sin->avisarSolicitudes($urlCentral);
 $resumen = $sin->resumenDiario();
 $fijos = $sin->fijosDelMes();
+// Instalaciones que se están borrando desde el panel: ¿ya terminó? (y quitar su dirección de Cloudflare)
+$bajasRev = (new Tukan\Bajas(db(), null, fn(string $a, string $d, string $i) => (new Tukan\Auditoria(db()))->registrar($a, $d, $i, null, 'cron', 'revisar.php')))
+    ->revisarPendientes(instancias(), cliente_v2(), ['email' => $email, 'nombre' => $nombre, 'rol' => 'dueno']);
 flock($candado, LOCK_UN);
 fclose($candado);
 
@@ -49,4 +52,5 @@ foreach ($res as $id => $r) {
 }
 decir(date('Y-m-d H:i') . " revision: $ok en linea" . ($mal ? ', ' . count($mal) . ' sin conexion (' . implode('; ', $mal) . ')' : '') . (count($res) ? '' : ' (no hay programas activos)'));
 if ($sin->registro) decir('  v2: ' . implode(' | ', $sin->registro));
+if ($bajasRev) decir('  borrados: ' . implode(' | ', $bajasRev));
 if ($avisadas || $resumen || $fijos) decir("  avisos: $avisadas solicitudes" . ($resumen ? ', resumen diario' : '') . ($fijos ? ", $fijos fijos del mes creados" : ''));

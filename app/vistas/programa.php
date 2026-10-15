@@ -153,6 +153,69 @@ $on = $activo && $f['consultado'] !== null && (int) $f['en_linea'];
   </div>
 </div>
 
+<?php if ($bajaDisp || $baja): $be = $baja['estado'] ?? null; $host = $baja['hostname'] ?? \Tukan\Bajas::hostname($f, $urlPublica ? (string) parse_url($urlPublica, PHP_URL_HOST) : null); $copia = $baja['copia_en'] ?? '/var/backups/borrados/'; ?>
+<section class="tarjeta seccion zona-peligro" id="baja"<?= in_array($be, \Tukan\Bajas::ACTIVAS, true) ? ' data-recargar="10"' : '' ?>>
+  <h2><?= icono('basura') ?> Borrar esta instalación</h2>
+  <?php if ($be === 'programada'): $desde = (int) $baja['borrar_desde']; ?>
+    <p class="mb"><span class="estado-baja programada" id="baja-estado">Borrado programado</span></p>
+    <p>Se borra <?= $desde > time() ? 'desde las <b>' . e(date('H:i', $desde)) . '</b> (faltan ' . e((string) max(1, (int) ceil(($desde - time()) / 60))) . ' min)' : '<b>en menos de 1 minuto</b>' ?>.
+      La tarea del servidor revisa cada minuto y antes de borrar guarda una copia final en <span class="mono"><?= e($copia) ?></span>.</p>
+    <?php if ($baja['mensaje']): ?><p class="chico suave mt"><?= e($baja['mensaje']) ?></p><?php endif; ?>
+    <div class="acciones-form mt">
+      <form method="post" action="<?= e(url('baja')) ?>"><?= campo_csrf() ?><input type="hidden" name="id" value="<?= e($f['id']) ?>"><input type="hidden" name="accion" value="cancelar"><input type="hidden" name="op" value="<?= e($opBaja) ?>">
+        <button class="btn btn-primario" type="submit">Cancelar el borrado</button></form>
+      <form method="post" action="<?= e(url('baja')) ?>"><?= campo_csrf() ?><input type="hidden" name="id" value="<?= e($f['id']) ?>"><input type="hidden" name="accion" value="revisar">
+        <button class="btn" type="submit">Revisar ahora</button></form>
+    </div>
+  <?php elseif ($be === 'en_curso'): ?>
+    <p class="mb"><span class="estado-baja en_curso" id="baja-estado">Borrado en curso</span></p>
+    <p>El servidor está guardando la copia final (<span class="mono"><?= e($copia) ?></span>) y borrando. Ya no se puede cancelar.</p>
+    <?php if ($baja['mensaje']): ?><p class="chico suave mt"><?= e($baja['mensaje']) ?></p><?php endif; ?>
+    <form method="post" action="<?= e(url('baja')) ?>" class="mt"><?= campo_csrf() ?><input type="hidden" name="id" value="<?= e($f['id']) ?>"><input type="hidden" name="accion" value="revisar">
+      <button class="btn" type="submit">Revisar ahora</button></form>
+  <?php elseif ($be === 'borrada'): $cfr = $baja['cloudflare']; ?>
+    <p class="mb"><span class="estado-baja borrada" id="baja-estado">Borrado terminado</span></p>
+    <p>La instalación <span class="mono"><?= e((string) $baja['carpeta']) ?></span> ya no responde<?= $baja['terminada'] ? ' (' . e(fecha_hora((int) $baja['terminada'])) . ')' : '' ?>.
+      La copia final quedó en <span class="mono"><?= e($copia) ?></span> del servidor del cliente.</p>
+    <?php if (is_array($cfr)): ?>
+      <div class="aviso <?= $cfr['ok'] ? '' : 'error' ?> mt" id="baja-cloudflare"><?= icono($cfr['ok'] ? 'check' : 'info') ?><div><p><b>Cloudflare:</b></p><?php foreach ($cfr['mensajes'] as $m): ?><p><?= e($m) ?></p><?php endforeach; ?></div></div>
+    <?php endif; ?>
+    <?php if (!is_array($cfr) || !$cfr['ok']): ?>
+      <div class="aviso alerta mt" id="baja-recordatorio"><?= icono('info') ?><div><p><b>Falta quitar <?= e($host ?: 'su dirección') ?> en Cloudflare.</b></p>
+        <p>Zero Trust → Networks → Tunnels → tu túnel → Public Hostname → borra <span class="mono"><?= e($host ?: '…') ?></span>. Luego, en el dominio → DNS, borra su registro CNAME.</p>
+        <?php if (!$cfListo): ?><p>O guarda un token de Cloudflare en <a href="<?= e(url('ajustes')) ?>#cloudflare">Ajustes</a> y el panel lo hace solo.</p><?php endif; ?></div></div>
+      <?php if ($cfListo): ?>
+        <form method="post" action="<?= e(url('baja')) ?>" class="mt"><?= campo_csrf() ?><input type="hidden" name="id" value="<?= e($f['id']) ?>"><input type="hidden" name="accion" value="cloudflare">
+          <button class="btn" type="submit">Quitar de Cloudflare otra vez</button></form>
+      <?php endif; ?>
+    <?php endif; ?>
+    <form method="post" action="<?= e(url('baja')) ?>" class="mt" data-confirmar="¿Quitar <?= e($f['nombre']) ?> del panel? Su historial sigue en Auditoría.">
+      <?= campo_csrf() ?><input type="hidden" name="id" value="<?= e($f['id']) ?>"><input type="hidden" name="accion" value="quitar">
+      <button class="btn btn-peligro" type="submit">Quitar también del panel</button>
+      <p class="chico suave mt">La auditoría de <?= e($f['nombre']) ?> se conserva.</p>
+    </form>
+  <?php else: ?>
+    <?php if ($be === 'error'): ?><div class="aviso error mb" id="baja-error"><?= icono('info') ?><p>El último borrado no se hizo: <?= e((string) $baja['mensaje']) ?></p></div><?php endif; ?>
+    <?php if ($be === 'cancelada'): ?><div class="aviso info mb"><?= icono('info') ?><p><?= e((string) ($baja['mensaje'] ?: 'El último borrado se canceló.')) ?></p></div><?php endif; ?>
+    <?php if (!$bajaDisp): ?>
+      <p class="suave">Este programa ya no dice que se pueda borrar desde el panel. Toca <b>Probar conexión</b>.</p>
+    <?php else: ?>
+      <p>Borra <b>todo</b> lo de este cliente en su servidor: el programa, la base de datos, las fotos y los respaldos automáticos.
+        Antes se guarda una <b>copia final completa</b> en <span class="mono"><?= e($copia) ?></span> (se puede recuperar). Después de pedirlo tienes unos minutos para cancelar.</p>
+      <p class="chico suave mt"><?= $cfListo ? 'Al terminar, el panel quita ' . e($host ?: 'su dirección') . ' de Cloudflare (túnel y DNS).' : 'Al terminar te recordaremos quitar ' . e($host ?: 'su dirección') . ' en Cloudflare (o configúralo en Ajustes y se hace solo).' ?></p>
+      <form method="post" action="<?= e(url('baja')) ?>" class="mt" id="form-baja" data-confirmar="¿Borrar la instalación de <?= e($f['nombre']) ?>? Se guarda una copia final y luego se borra todo." data-dos-veces>
+        <?= campo_csrf() ?><input type="hidden" name="id" value="<?= e($f['id']) ?>"><input type="hidden" name="accion" value="programar"><input type="hidden" name="op" value="<?= e($opBaja) ?>">
+        <div class="fila-campos">
+          <div class="campo"><label for="baja-id">Escribe el ID: <b class="mono"><?= e($f['id']) ?></b></label><input id="baja-id" name="confirmar" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" required></div>
+          <div class="campo"><label for="baja-codigo">Código de 2 pasos (de tu app)</label><input id="baja-codigo" name="codigo" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" required></div>
+        </div>
+        <button class="btn btn-peligro" type="submit"><?= icono('basura') ?> Borrar esta instalación</button>
+      </form>
+    <?php endif; ?>
+  <?php endif; ?>
+</section>
+<?php endif; ?>
+
 <details class="tarjeta seccion">
   <summary><b>Quitar este programa del panel</b></summary>
   <p class="suave mt">El programa sigue funcionando; solo deja de aparecer aquí y ya no se podrá entrar desde el panel. Para confirmar, escribe su ID: <b class="mono"><?= e($f['id']) ?></b></p>

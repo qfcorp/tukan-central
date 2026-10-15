@@ -11,12 +11,16 @@ BASE="http://127.0.0.1:$PC"
 TG=8261                      # Telegram de mentira
 # Programas de prueba: 8262 TuEvento (v2) · 8263 TuSalón (v1, contesta 400) · 8264 Dogssy (TuGuardería v2, una sola empresa)
 #                     8265 TuVocalía (v2 completo) · 8266 TuAcademia (v1 que contesta 404)
+#                     8267 Guau y 8269 Miau (TuGuardería que se puede borrar desde el panel) · 8268 Cloudflare de mentira
 export TUKAN_CENTRAL_DATOS="$TMP/datos"
 TUKAN_CENTRAL_KEY=$(php -r "echo bin2hex(random_bytes(32));"); export TUKAN_CENTRAL_KEY
 export TUKAN_CENTRAL_URL="$BASE"
 export TUKAN_CENTRAL_ENV=/no/existe
 export TELEGRAM_BOT_TOKEN=prueba123 TELEGRAM_CHAT_ID=999 TELEGRAM_API_BASE="http://127.0.0.1:$TG"
 export TUKAN_REVISAR_ESPERA=0
+# Borrar instalaciones: Cloudflare DE MENTIRA (tests/mock/cloudflare.php en 8268) y sin esperar entre revisiones
+CF=8268
+export CLOUDFLARE_API_BASE="http://127.0.0.1:$CF/client/v4" TUKAN_BAJAS_CONFIRMAR_SEG=0
 OK=0; FALLAS=0
 PIDS=()
 
@@ -1003,8 +1007,158 @@ if cat "$TMP"/mock_*.log | grep -qiE "fatal|warning|deprecated|notice"; then
 else OK=$((OK+1)); echo "  OK    Sin avisos de PHP en los programas de prueba"; fi
 
 # =====================================================================
+titulo "35. Borrar una instalación desde el panel (TuGuardería): ID + 2FA, programado, en curso, borrado, Cloudflare"
+CF_TOKEN="tok_$(php -r 'echo bin2hex(random_bytes(16));')"; CF_CUENTA=$(php -r 'echo bin2hex(random_bytes(16));'); CF_TUNEL="1a2b3c4d-1111-2222-3333-444455556666"
+mkdir -p "$TMP/mock_cf"
+env -i PATH="$PATH" MOCK_DIR="$TMP/mock_cf" CF_TOKEN="$CF_TOKEN" CF_CUENTA="$CF_CUENTA" CF_TUNEL="$CF_TUNEL" php -S "127.0.0.1:$CF" tests/mock/cloudflare.php > "$TMP/cloudflare.log" 2>&1 &
+PIDS+=($!)
+for _ in $(seq 1 30); do curl -s -o /dev/null "http://127.0.0.1:$CF/" && break; sleep 0.1; done
+cf_hosts() { php -r '$e=json_decode((string)@file_get_contents($argv[1]),true); foreach(($e["config"]["ingress"]??[]) as $r) if(isset($r["hostname"])) echo $r["hostname"],"\n";' "$TMP/mock_cf/cf.json"; }
+cf_dns() { php -r '$e=json_decode((string)@file_get_contents($argv[1]),true); foreach(($e["dns"]??[]) as $r) echo $r["name"],"\n";' "$TMP/mock_cf/cf.json"; }
+JAR="$JAR_D2"; IP="198.51.100.11"
+get "r=programa&id=dogssy" > /dev/null
+no_contiene "Dogssy (v2 sin dar_de_baja): no sale la zona Borrar" "$TMP/pag.html" 'id="baja"'
+contiene "Dogssy: sigue Quitar este programa del panel (como antes)" "$TMP/pag.html" "Quitar este programa del panel"
+agregar tuguarderia guau "TuGuardería Guau" "http://127.0.0.1:8267" "guau"
+SEC_GU=$(echo "$CMD" | awk '{print $6}')
+mock guau 8267 guau "$SEC_GU" tuguarderia MOCK_BAJA=1 MOCK_CLIENTE=Guau MOCK_DOMINIO=guau.tukanec.com
+probar guau
+contiene "Guau (con dar_de_baja): zona Borrar esta instalación" "$TMP/pag.html" 'id="baja"'
+contiene "...pide escribir el ID" "$TMP/pag.html" 'Escribe el ID: <b class="mono">guau</b>'
+contiene "...y el código de 2 pasos" "$TMP/pag.html" 'id="baja-codigo"'
+contiene "...dice que antes guarda una copia final" "$TMP/pag.html" "/var/backups/borrados/"
+contiene "...sin Cloudflare: avisa que recordará quitar la dirección" "$TMP/pag.html" "te recordaremos quitar guau.tukanec.com"
+cp "$TMP/pag.html" "$TMP/form_baja.html"
+get "r=cliente&i=guau&id=unico" > /dev/null
+contiene "Ficha del cliente: Borrar lleva a la zona de peligro del programa" "$TMP/pag.html" 'href="/?r=programa&amp;id=guau#baja"'
+no_contiene "...y no al formulario genérico" "$TMP/pag.html" 'a=dar_de_baja'
+R=$(curl -s -b "$JAR" -o /dev/null -w '%{http_code} %{redirect_url}' --data-urlencode "csrf=$(csrf)" --data-urlencode "i=guau" --data-urlencode "accion=dar_de_baja" --data-urlencode "op=$(php -r 'echo bin2hex(random_bytes(16));')" "$BASE/?r=ejecutar")
+check "ejecutar genérico con dar_de_baja: no se manda (va a la ficha)" "303 /?r=programa&id=guau" "$(echo "$R" | sed "s#$BASE##")"
+check "...el programa no recibió nada" "0" "$(cat "$TMP/mock_guau/bajas.log" 2>/dev/null | wc -l)"
+# Soporte: ni ve ni puede
+JAR="$TMP/jar_soporte2"; IP="198.51.100.21"
+get "r=programa&id=guau" > /dev/null
+no_contiene "Soporte: no ve la zona Borrar" "$TMP/pag.html" 'id="baja"'
+R=$(curl -s -b "$JAR" -o /dev/null -w '%{http_code}' -H "CF-Connecting-IP: $IP" --data-urlencode "csrf=$(csrf)" --data-urlencode "id=guau" --data-urlencode "accion=programar" --data-urlencode "confirmar=guau" --data-urlencode "codigo=123456" --data-urlencode "op=$(php -r 'echo bin2hex(random_bytes(16));')" "$BASE/?r=baja")
+check "Soporte: programar el borrado -> 403" "403" "$R"
+check "...anotado como permiso negado" "1" "$(sql "SELECT count(*) FROM auditoria WHERE accion='permiso_negado' AND email='soporte@tukan.ec' AND detalle LIKE '%baja%'")"
+JAR="$JAR_D2"; IP="198.51.100.11"
+# ID mal escrito y código malo
+get "r=programa&id=guau" > /dev/null
+R=$(post_form "$TMP/form_baja.html" "#form-baja" "confirmar=dogssy" "codigo=123456")
+get "r=programa&id=guau" > /dev/null
+contiene "ID mal escrito: no se borra y lo dice" "$TMP/pag.html" "escribe el ID exacto del programa (guau)"
+R=$(post_form "$TMP/form_baja.html" "#form-baja" "confirmar=guau" "codigo=000000")
+get "r=programa&id=guau" > /dev/null
+contiene "Código de 2 pasos malo: no se borra" "$TMP/pag.html" "código de 2 pasos no es correcto"
+check "...2fa_fallido en la auditoría" "1" "$(sql "SELECT count(*) FROM auditoria WHERE accion='2fa_fallido' AND detalle LIKE '%borrar la instalación de TuGuardería Guau%'")"
+check "...el programa no recibió ningún pedido de borrado" "0" "$(cat "$TMP/mock_guau/bajas.log" 2>/dev/null | wc -l)"
+check "...baja_rechazada anotado 2 veces" "2" "$(audit_n baja_rechazada)"
+# Programar y cancelar
+R=$(post_form "$TMP/form_baja.html" "#form-baja" "confirmar=guau" "codigo=$(codigo "$SECRETO_D" "$TMP/paso_d")")
+check "ID + código bueno: programado" "303 /?r=programa&id=guau#baja" "$(echo "$R" | sed "s#$BASE##")"
+check "...el programa recibió dar_de_baja con la carpeta, el correo y el rol dueño" "programada|guau|dimitryfierro@gmail.com|dueno" "$(cut -d'|' -f1,2,4,5 "$TMP/mock_guau/bajas.log" | tail -1)"
+get "r=programa&id=guau" > /dev/null
+contiene "...aviso: Programada + copia final" "$TMP/pag.html" "Programada: la instalación guau se borrará en unos 5 minutos"
+contiene "Estado: Borrado programado" "$TMP/pag.html" 'id="baja-estado">Borrado programado'
+contiene "...con botón Cancelar el borrado" "$TMP/pag.html" ">Cancelar el borrado</button>"
+contiene "...y la página se recarga sola" "$TMP/pag.html" 'data-recargar="10"'
+check "Copia local: programada" "programada|guau|guau.tukanec.com" "$(sql "SELECT estado || '|' || carpeta || '|' || hostname FROM bajas WHERE instancia_id='guau'")"
+check "Auditoría: baja_programada" "1" "$(audit_n baja_programada)"
+R=$(post_form "$TMP/pag.html" "boton:Cancelar el borrado")
+check "Cancelar el borrado" "303" "${R%% *}"
+check "...el programa recibió cancelar_baja" "cancelada|guau" "$(cut -d'|' -f1,2 "$TMP/mock_guau/bajas.log" | tail -1)"
+get "r=programa&id=guau" > /dev/null
+contiene "...aviso: cancelado" "$TMP/pag.html" "Borrado cancelado"
+contiene "...vuelve a salir el formulario" "$TMP/pag.html" 'id="form-baja"'
+check "Auditoría: baja_cancelada" "1" "$(audit_n baja_cancelada)"
+# Cloudflare en Ajustes (token cifrado)
+get "r=ajustes" > /dev/null
+contiene "Ajustes: sección Cloudflare" "$TMP/pag.html" 'id="cloudflare"'
+R=$(post ajustes --data-urlencode "accion=cloudflare" --data-urlencode "cf_token=corto" --data-urlencode "cf_cuenta=$CF_CUENTA" --data-urlencode "cf_tunel=$CF_TUNEL")
+get "r=ajustes" > /dev/null
+contiene "Token raro: no se guarda" "$TMP/pag.html" "el token no parece de Cloudflare"
+R=$(post ajustes --data-urlencode "accion=cloudflare" --data-urlencode "cf_token=$CF_TOKEN" --data-urlencode "cf_cuenta=$CF_CUENTA" --data-urlencode "cf_tunel=$CF_TUNEL")
+get "r=ajustes" > /dev/null
+contiene "Cloudflare guardado" "$TMP/pag.html" "Cloudflare guardado"
+no_contiene "...el token no se vuelve a mostrar" "$TMP/pag.html" "$CF_TOKEN"
+check "...el token no está en claro en la base" "0" "$(sql "SELECT count(*) FROM ajustes WHERE valor LIKE '%$CF_TOKEN%'")"
+check "...ni en la auditoría" "0" "$(sql "SELECT count(*) FROM auditoria WHERE detalle LIKE '%$CF_TOKEN%'")"
+R=$(post ajustes --data-urlencode "accion=probar_cloudflare")
+get "r=ajustes" > /dev/null
+contiene "Probar Cloudflare: lee el túnel" "$TMP/pag.html" "túnel «servidorqf»"
+get "r=programa&id=guau" > /dev/null
+contiene "Con Cloudflare: dice que quitará la dirección sola" "$TMP/pag.html" "el panel quita guau.tukanec.com de Cloudflare"
+cp "$TMP/pag.html" "$TMP/form_baja.html"
+R=$(post_form "$TMP/form_baja.html" "#form-baja" "confirmar=guau" "codigo=$(codigo "$SECRETO_D" "$TMP/paso_d")")
+check "Programado otra vez" "programada" "$(sql "SELECT estado FROM bajas WHERE instancia_id='guau'")"
+# En curso (lo que haría la tarea de root del servidor)
+echo "en_curso" > "$TMP/mock_guau/baja_estado"
+get "r=programa&id=guau" > /dev/null
+R=$(post_form "$TMP/pag.html" "boton:Revisar ahora")
+get "r=programa&id=guau" > /dev/null
+contiene "Revisar: Borrado en curso" "$TMP/pag.html" 'id="baja-estado">Borrado en curso'
+no_contiene "...ya no se puede cancelar" "$TMP/pag.html" ">Cancelar el borrado</button>"
+# Borrado: el programa deja de contestar después de la hora
+parar guau
+sql "UPDATE bajas SET borrar_desde = strftime('%s','now') - 5 WHERE instancia_id='guau'" > /dev/null
+R=$(post_form "$TMP/pag.html" "boton:Revisar ahora")
+get "r=programa&id=guau" > /dev/null
+contiene "Primera vez sin respuesta: todavía en curso (se confirma)" "$TMP/pag.html" "se confirma en la próxima revisión"
+R=$(post_form "$TMP/pag.html" "boton:Revisar ahora")
+get "r=programa&id=guau" > /dev/null
+contiene "Segunda vez: Borrado terminado" "$TMP/pag.html" 'id="baja-estado">Borrado terminado'
+contiene "...con la copia final" "$TMP/pag.html" "/var/backups/borrados/"
+contiene "...Cloudflare: quitado del túnel" "$TMP/pag.html" "Se quitó guau.tukanec.com del túnel (2 rutas)"
+contiene "...Cloudflare: DNS borrado" "$TMP/pag.html" "Se borró el DNS de guau.tukanec.com"
+no_contiene "...sin recordatorio (ya se hizo)" "$TMP/pag.html" 'id="baja-recordatorio"'
+check "Cloudflare de mentira: guau ya no está en el túnel" "0" "$(cf_hosts | grep -c '^guau.tukanec.com$')"
+check "...las demás rutas siguen (panel, dogssy, huellitas)" "panel.tukanec.com dogssy.tukanec.com huellitas.tukanec.com" "$(cf_hosts | tr '\n' ' ' | sed 's/ $//')"
+check "...DNS: solo se borró el de guau" "panel.tukanec.com dogssy.tukanec.com huellitas.tukanec.com ajeno.tukanec.com" "$(cf_dns | tr '\n' ' ' | sed 's/ $//')"
+check "...un solo PUT y un solo DELETE" "1 1" "$(grep -c '^PUT ' "$TMP/mock_cf/cf.log") $(grep -c '^DELETE ' "$TMP/mock_cf/cf.log")"
+check "...siempre con el token (ningún pedido a la API sin él)" "0" "$(grep -c '^[A-Z]* /client/v4.*token malo' "$TMP/mock_cf/cf.log")"
+check "Auditoría: terminado y Cloudflare" "1 1" "$(sql "SELECT count(*) FROM auditoria WHERE accion='baja_estado' AND detalle LIKE 'Terminado%' AND instancia_id='guau'") $(sql "SELECT count(*) FROM auditoria WHERE accion='cloudflare' AND detalle LIKE 'Listo:%'")"
+N_AUD=$(sql "SELECT count(*) FROM auditoria WHERE instancia_id='guau'")
+R=$(post_form "$TMP/pag.html" "boton:Quitar también del panel")
+check "Quitar también del panel" "303 /?r=programas" "$(echo "$R" | sed "s#$BASE##")"
+check "...ya no está en el panel" "0" "$(sql "SELECT count(*) FROM instancias WHERE id='guau'")"
+check "...la auditoría se conserva" "1" "$(sql "SELECT count(*) >= $N_AUD FROM auditoria WHERE instancia_id='guau'")"
+check "...instancia_eliminada: después de borrar su instalación" "1" "$(sql "SELECT count(*) FROM auditoria WHERE accion='instancia_eliminada' AND detalle LIKE '%después de borrar su instalación%'")"
+get "r=auditoria&grupo=programas" > /dev/null
+contiene "Auditoría (Programas): textos del borrado" "$TMP/pag.html" "Programó el borrado de una instalación"
+# Sin Cloudflare: el recordatorio
+get "r=ajustes" > /dev/null
+post ajustes --data-urlencode "accion=borrar_cloudflare" > /dev/null
+check "Borrar el token de Cloudflare" "" "$(sql "SELECT valor FROM ajustes WHERE clave='cf_token_cif'")"
+agregar tuguarderia miau "TuGuardería Miau" "http://127.0.0.1:8269" "miau"
+SEC_MI=$(echo "$CMD" | awk '{print $6}')
+mock miau 8269 miau "$SEC_MI" tuguarderia MOCK_BAJA=1 MOCK_CLIENTE=Miau MOCK_DOMINIO=miau.tukanec.com MOCK_BAJA_ESPERA=0
+probar miau
+cp "$TMP/pag.html" "$TMP/form_baja.html"
+R=$(post_form "$TMP/form_baja.html" "#form-baja" "confirmar=miau" "codigo=$(codigo "$SECRETO_D" "$TMP/paso_d")")
+get "r=programa&id=miau" > /dev/null
+contiene "Sin espera: se borrará en menos de 1 minuto" "$TMP/pag.html" "en menos de 1 minuto"
+parar miau
+R=$(post_form "$TMP/pag.html" "boton:Revisar ahora"); R=$(post_form "$TMP/pag.html" "boton:Revisar ahora")
+get "r=programa&id=miau" > /dev/null
+contiene "Miau: Borrado terminado" "$TMP/pag.html" 'id="baja-estado">Borrado terminado'
+contiene "Sin Cloudflare: recordatorio claro de quitar la dirección" "$TMP/pag.html" "Falta quitar miau.tukanec.com en Cloudflare"
+contiene "...con el enlace a Ajustes" "$TMP/pag.html" 'href="/?r=ajustes#cloudflare"'
+check "...y no se pidió nada a Cloudflare" "0" "$(grep -c 'miau' "$TMP/mock_cf/cf.log")"
+check "Mientras se borraba no hubo aviso de caída por Telegram" "0" "$(tg | grep -c 'Miau\|Guau')"
+R=$(post_form "$TMP/pag.html" "boton:Quitar también del panel")
+get "r=programas" > /dev/null
+contiene "Al quitarla recuerda Cloudflare" "$TMP/pag.html" "No olvides quitar miau.tukanec.com en Cloudflare"
+if grep -qiE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log"; then
+  FALLAS=$((FALLAS+1)); echo "  FALLA Avisos o errores de PHP en el panel (borrar):"; grep -iE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log" | sort | uniq -c | head -20
+else OK=$((OK+1)); echo "  OK    Sin avisos ni errores de PHP en el panel (borrar)"; fi
+if grep -qiE "fatal|warning|deprecated|notice" "$TMP/cloudflare.log" "$TMP"/mock_guau.log "$TMP"/mock_miau.log; then
+  FALLAS=$((FALLAS+1)); echo "  FALLA Avisos de PHP en los programas de prueba o en Cloudflare de mentira"; grep -iE "fatal|warning|deprecated|notice" "$TMP/cloudflare.log" "$TMP"/mock_guau.log "$TMP"/mock_miau.log | head
+else OK=$((OK+1)); echo "  OK    Sin avisos de PHP en Guau, Miau ni en Cloudflare de mentira"; fi
+
+# =====================================================================
 if [ -z "${SIN_CAPTURAS:-}" ] && python3 -c "import playwright" 2>/dev/null; then
-  titulo "35. Capturas de pantalla (Playwright, Chromium)"
+  titulo "36. Capturas de pantalla (Playwright, Chromium)"
   TUKAN_ADMIN_NOMBRE="Dimitry Fierro" TUKAN_ADMIN_EMAIL="capturas@tukan.ec" TUKAN_ADMIN_CLAVE="claveCapturas2026" php bin/crear_admin.php > /dev/null
   parar dogssy   # una caida para que se vea el estado "sin conexion"
   get "r=inicio" > /dev/null; post refrescar > /dev/null

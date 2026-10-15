@@ -17,10 +17,14 @@ declare(strict_types=1);
  *   MOCK_LENTO     segundos que tarda en responder (todo)
  *   MOCK_ROTO=1    "estado" responde JSON dañado
  *   MOCK_LIMITE    pedidos por minuto por IP (por defecto 120; rechazados: 30)
+ *   MOCK_BAJA=1    (tuguarderia) sabe borrarse desde el panel: dar_de_baja / cancelar_baja
+ *   MOCK_CARPETA   (tuguarderia) carpeta de la instalación (por defecto el ID) · MOCK_DOMINIO su dirección pública
+ *   MOCK_BAJA_ESPERA segundos de espera antes de borrar (por defecto 300)
  * Archivos de control en MOCK_DIR (se pueden crear durante la prueba):
  *   total          cambia negocios.total del "estado" (para probar el aviso de negocio nuevo)
  *   lento_ejecutar segundos que tarda "ejecutar" DESPUÉS de hacer la operación (para probar "no respondió" + Revisar)
  *   en_curso       N: las próximas N veces "ejecutar" contesta 409 conflicto en_curso
+ *   baja_estado    "en_curso" o "error:texto": cómo va el borrado (lo que haría la tarea de root del servidor)
  */
 
 $id = (string) getenv('TUKAN_CENTRAL_ID');
@@ -30,6 +34,7 @@ $ahora = time() + (int) getenv('MOCK_DESFASE');
 $v1 = (string) getenv('MOCK_V1');
 $producto = (string) (getenv('MOCK_PRODUCTO') ?: 'tuevento');
 $unico = $producto === 'tuguarderia';
+$conBaja = $unico && getenv('MOCK_BAJA') === '1';
 date_default_timezone_set('America/Guayaquil');
 if ((int) getenv('MOCK_DESFASE') !== 0) header('Date: ' . gmdate('D, d M Y H:i:s', $ahora) . ' GMT');
 
@@ -545,8 +550,9 @@ function cliente_detalle(array $db, array $c): array
                 'pagos' => ['total' => 0.0, 'cantidad' => 0, 'primer_pago' => null, 'ultimo_pago' => null, 'ultimo_monto' => null], 'mensual_estimado' => 0.0,
                 'origen' => 'super', 'vendedor' => null, 'uso' => ['Mascotas activas' => 86, 'Usuarios' => 6], 'ir' => '/admin?usuarios', 'ir_trabajar' => null,
                 'notas_admin' => '', 'usuarios' => 6, 'pagos_detalle' => [], 'solicitudes' => [], 'registro' => [], 'mensajes_sugeridos' => [],
-                'acciones_posibles' => [['accion' => 'nueva_clave_dueno', 'etiqueta' => 'Nueva clave del administrador', 'estilo' => 'normal', 'confirmar' => '¿Crear una contraseña nueva para el administrador?', 'datos' => ['cliente_id' => 'unico'], 'campos' => []],
-                                        ['accion' => 'abrir', 'etiqueta' => 'Ver usuarios', 'ir' => '/admin?usuarios']]];
+                'acciones_posibles' => array_merge([['accion' => 'nueva_clave_dueno', 'etiqueta' => 'Nueva clave del administrador', 'estilo' => 'normal', 'confirmar' => '¿Crear una contraseña nueva para el administrador?', 'datos' => ['cliente_id' => 'unico'], 'campos' => []],
+                                        ['accion' => 'abrir', 'etiqueta' => 'Ver usuarios', 'ir' => '/admin?usuarios']], acciones_baja($db))]
+               + ($GLOBALS['conBaja'] ? ['baja' => baja_de($db) + ['carpeta' => carpeta_mock()]] : []);
     }
     $r = cliente_resumen($c);
     $plan = planes_lista()[$c['plan']];
@@ -579,14 +585,38 @@ function cliente_detalle(array $db, array $c): array
 // Acciones de lectura
 // =====================================================================
 
+function carpeta_mock(): string { return (string) (getenv('MOCK_CARPETA') ?: getenv('TUKAN_CENTRAL_ID')); }
+
+/** Cómo va el borrado (como lo leería el conector de TuGuardería en /var/lib/tukan_bajas). */
+function baja_de(array $db): array
+{
+    $b = $db['baja'] ?? null;
+    if ($b === null) return ['estado' => null];
+    $f = $GLOBALS['dir'] . '/baja_estado';
+    $ctl = is_file($f) ? trim((string) file_get_contents($f)) : '';
+    if ($ctl === 'en_curso') return ['estado' => 'en_curso', 'texto' => 'Borrando ahora (primero la copia final).', 'borrar_desde' => date('c', $b['desde']), 'copia_en' => '/var/backups/borrados/'];
+    if (str_starts_with($ctl, 'error:')) return ['estado' => 'error', 'texto' => substr($ctl, 6), 'momento' => date('c')];
+    return ['estado' => 'programada', 'texto' => 'Borrado programado.', 'borrar_desde' => date('c', $b['desde']), 'segundos' => max(0, $b['desde'] - $GLOBALS['ahora']), 'quien' => $b['quien'], 'copia_en' => '/var/backups/borrados/'];
+}
+
+function acciones_baja(array $db): array
+{
+    if (!$GLOBALS['conBaja']) return [];
+    $e = baja_de($db)['estado'];
+    if ($e === 'programada') return [['accion' => 'cancelar_baja', 'etiqueta' => 'Cancelar el borrado', 'estilo' => 'normal', 'confirmar' => '¿Cancelar?', 'datos' => ['cliente_id' => 'unico'], 'campos' => []]];
+    if ($e === 'en_curso') return [];
+    return [['accion' => 'dar_de_baja', 'etiqueta' => 'Borrar esta instalación', 'estilo' => 'peligro', 'confirmar' => '¿Seguro?', 'datos' => ['cliente_id' => 'unico'],
+             'campos' => [['campo' => 'confirmar', 'etiqueta' => 'Escriba la carpeta (' . carpeta_mock() . ') para confirmar', 'tipo' => 'texto', 'requerido' => true]]]];
+}
+
 function capacidades(): array
 {
     global $producto, $NOMBRES, $unico;
     if ($unico) {
         return ['revision' => 1, 'producto' => $producto, 'nombre' => $NOMBRES[$producto], 'version' => '57ed3ce', 'unico' => true, 'moneda' => 'USD',
-                'zona_horaria' => 'America/Guayaquil', 'url_publica' => 'https://dogssy.ejemplo.ec',
+                'zona_horaria' => 'America/Guayaquil', 'url_publica' => getenv('MOCK_DOMINIO') ? 'https://' . getenv('MOCK_DOMINIO') : 'https://dogssy.ejemplo.ec',
                 'acciones' => ['capacidades', 'estado', 'sso', 'cliente', 'ejecutar'], 'sso_ir' => true, 'rutas_sso' => ['/admin'],
-                'ejecutar' => ['nueva_clave_dueno'], 'tipos_solicitud' => [], 'estados_detalle' => [], 'periodos' => [], 'meses_libres' => false,
+                'ejecutar' => $GLOBALS['conBaja'] ? ['nueva_clave_dueno', 'dar_de_baja', 'cancelar_baja'] : ['nueva_clave_dueno'], 'tipos_solicitud' => [], 'estados_detalle' => [], 'periodos' => [], 'meses_libres' => false,
                 'metodos_pago' => [], 'planes_editar' => false, 'filtros_clientes' => [], 'formularios' => ['crear_demo' => []],
                 'limites' => ['por_pagina_max' => 1, 'meses_finanzas_max' => 1, 'dias_prueba_max' => 1]];
     }
@@ -982,6 +1012,33 @@ function hacer(array &$db, string $accion, ?string $cid, array $d, array $quien,
 {
     global $unico, $NOMBRES, $producto;
     $sid = isset($d['solicitud_id']) ? (string) $d['solicitud_id'] : null;
+    if ($unico && $accion === 'dar_de_baja') {
+        $c = carpeta_mock();
+        $conf = $d['confirmar'] ?? null;
+        if (!is_string($conf) || trim($conf) === '') fallo('invalido', "Para confirmar escriba el nombre de la carpeta ($c).", 422, 'datos.confirmar');
+        if (trim($conf) !== $c) fallo('invalido', "No coincide: la carpeta de esta instalación es $c. No se borró nada.", 422, 'datos.confirmar');
+        $e = baja_de($db)['estado'];
+        if ($e === 'programada') fallo('conflicto', 'Ya hay un borrado programado para esta instalación.', 409, null, ['motivo' => 'ya_programada']);
+        if ($e === 'en_curso') fallo('conflicto', 'El borrado ya está en curso.', 409, null, ['motivo' => 'ya_empezo']);
+        @unlink($GLOBALS['dir'] . '/baja_estado');
+        $espera = (int) (getenv('MOCK_BAJA_ESPERA') !== false && getenv('MOCK_BAJA_ESPERA') !== '' ? getenv('MOCK_BAJA_ESPERA') : 300);
+        $db['baja'] = ['desde' => $GLOBALS['ahora'] + $espera, 'quien' => $quien['email'], 'op' => $op];
+        registrar('bitacora.log', "{$quien['email']}|unico|Borrado programado de $c|$op");
+        registrar('bajas.log', "programada|$c|$op|{$quien['email']}|{$quien['rol']}");
+        $dom = (string) (getenv('MOCK_DOMINIO') ?: '');
+        return ['mensaje' => "Programada: la instalación $c se borrará " . ($espera < 60 ? 'en menos de 1 minuto' : 'en unos ' . round($espera / 60) . ' minutos') . '. Antes se guarda una copia final en /var/backups/borrados/',
+                'resultado' => ['estado' => 'programada', 'carpeta' => $c, 'dominio' => $dom !== '' ? $dom : null, 'borrar_desde' => date('c', $GLOBALS['ahora'] + $espera),
+                                'espera_segundos' => $espera, 'copia_en' => '/var/backups/borrados/', 'se_puede_cancelar' => $espera >= 60],
+                'cliente' => cliente_detalle($db, ['unico' => true])];
+    }
+    if ($unico && $accion === 'cancelar_baja') {
+        $e = baja_de($db)['estado'];
+        if ($e === 'en_curso') fallo('conflicto', 'El borrado ya empezó: no se puede cancelar.', 409, null, ['motivo' => 'ya_empezo']);
+        if ($e !== 'programada') return ['sin_cambios' => true, 'mensaje' => 'No había ningún borrado programado.', 'resultado' => ['estado' => null]];
+        $db['baja'] = null;
+        registrar('bajas.log', "cancelada|" . carpeta_mock() . "|$op|{$quien['email']}");
+        return ['mensaje' => 'Borrado cancelado: la instalación sigue igual.', 'resultado' => ['estado' => 'cancelada', 'carpeta' => carpeta_mock()]];
+    }
     if ($unico) {
         $clave = substr(str_shuffle('abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'), 0, 10);
         registrar('bitacora.log', "{$quien['email']}|unico|Clave nueva del administrador|$op");

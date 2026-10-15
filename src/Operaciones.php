@@ -19,7 +19,11 @@ final class Operaciones
         'extender_prueba' => 'demos', 'crear_demo' => 'demos', 'nueva_clave_dueno' => 'demos', 'nota_interna' => 'demos',
         'registrar_pago' => 'cobros', 'aprobar_comprobante' => 'cobros', 'rechazar_comprobante' => 'cobros', 'anular_pago' => 'cobros',
         'suspender' => 'cobros', 'reactivar' => 'cobros', 'cambiar_plan' => 'cobros', 'guardar_plan' => 'cobros', 'cancelar' => 'cobros',
+        // Borrar la instalación: solo el dueño, y solo desde la ficha del programa (zona de peligro, con el ID y el código de 2 pasos)
+        'dar_de_baja' => 'programas', 'cancelar_baja' => 'programas',
     ];
+    /** Se hacen desde la ficha del programa (página "baja"), nunca con el formulario genérico. */
+    public const DE_LA_FICHA = ['dar_de_baja', 'cancelar_baja'];
     /** Raras y delicadas: piden otra vez el código de 2 pasos. */
     public const PIDEN_2FA = ['anular_pago', 'guardar_plan'];
 
@@ -28,6 +32,7 @@ final class Operaciones
         'aprobar_comprobante' => 'Aprobar comprobante', 'rechazar_comprobante' => 'Rechazar comprobante', 'suspender' => 'Suspender', 'reactivar' => 'Reactivar',
         'cambiar_plan' => 'Cambiar plan', 'nueva_clave_dueno' => 'Nueva clave del dueño', 'nota_interna' => 'Nota interna',
         'atender_solicitud' => 'Atender solicitud', 'guardar_plan' => 'Guardar plan', 'responder_ticket' => 'Responder ticket', 'cancelar' => 'Cancelar cuenta',
+        'dar_de_baja' => 'Borrar la instalación', 'cancelar_baja' => 'Cancelar el borrado',
     ];
 
     /** Segundos de espera cuando el programa dice que la operación sigue "en curso" (§7.1). */

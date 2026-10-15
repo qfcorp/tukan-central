@@ -157,6 +157,18 @@
     if (s && s.form) s.form.submit();
   });
 
+  // Borrado de una instalación en marcha: la ficha se recarga sola (<section data-recargar="10">), sin molestar si se está escribiendo
+  var recargar = document.querySelector('[data-recargar]');
+  if (recargar) {
+    var seg = parseInt(recargar.getAttribute('data-recargar'), 10) || 15;
+    var otraVez = function () {
+      var a = document.activeElement;
+      if (document.hidden || (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) { setTimeout(otraVez, seg * 1000); return; }
+      window.location.reload();
+    };
+    setTimeout(otraVez, seg * 1000);
+  }
+
   // Menú "Más" (escritorio): se cierra al tocar fuera
   document.addEventListener('click', function (ev) {
     document.querySelectorAll('details.menu-mas[open]').forEach(function (d) { if (!d.contains(ev.target)) d.removeAttribute('open'); });

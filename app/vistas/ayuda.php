@@ -68,3 +68,34 @@ $notas = [
     <details><summary>¿Qué son las barritas de colores?</summary><div><p>La disponibilidad de los últimos 7 días, en tramos de 6 horas: verde = siempre en línea, amarillo = falló alguna vez, rojo = caído, gris = sin datos.</p></div></details>
   </div>
 </div>
+
+<div class="rejilla dos seccion">
+  <div class="tarjeta preguntas" id="ayuda-borrar">
+    <h2>Borrar la instalación de un cliente (TuGuardería)</h2>
+    <details><summary>¿Cómo borro una instalación que ya no se usa?</summary><div>
+      <p>Abre el programa en <a href="<?= e(url('programas')) ?>">Programas</a> y baja hasta <b>Borrar esta instalación</b>. Escribe su ID y el código de 2 pasos de tu app.</p>
+      <p>El servidor del cliente espera unos <b>5 minutos</b> (puedes tocar <b>Cancelar el borrado</b>), guarda una <b>copia final completa</b> en <span class="mono">/var/backups/borrados/</span> y luego borra el programa, la base de datos, las fotos y los respaldos automáticos.</p>
+      <p>Cuando el programa deja de contestar, el panel lo marca <b>Borrado terminado</b>. Ahí puedes tocar <b>Quitar también del panel</b> (su historial sigue en Auditoría).</p>
+      <p>Solo el dueño puede hacerlo. Si la copia final falla, no se borra nada y el panel te lo dice.</p></div></details>
+    <details><summary>No me sale el botón de borrar</summary><div>
+      <p>Ese cliente todavía no tiene la versión nueva. En el servidor corre (cambia DOMINIO y CARPETA):</p>
+      <p class="comando">cd /home/qf/github/tuguarderia &amp;&amp; git pull &amp;&amp; sudo bash instalar.sh DOMINIO CARPETA</p>
+      <p>Luego toca <b>Probar conexión</b> en el panel.</p></div></details>
+    <details><summary>Me arrepentí: ¿cómo recupero un cliente borrado?</summary><div>
+      <p>La copia final está en el servidor del cliente, en <span class="mono">/var/backups/borrados/CARPETA_FECHA.tar.gz</span>. Trae la base de datos (<span class="mono">base_CARPETA.sql</span>), los archivos, las fotos, la configuración de nginx y las credenciales. Pídele ayuda a Claude para restaurarla.</p></div></details>
+  </div>
+  <div class="tarjeta preguntas" id="ayuda-cloudflare">
+    <h2>Cloudflare: quitar la dirección sola</h2>
+    <details><summary>¿Cómo creo el token de Cloudflare?</summary><div>
+      <ol class="pasos mt">
+        <li><div><p>Entra a <b>dash.cloudflare.com</b> → arriba a la derecha tu perfil → <b>My Profile</b> → <b>API Tokens</b> → <b>Create Token</b> → <b>Create Custom Token</b>.</p></div></li>
+        <li><div><p>Ponle un nombre (ej. <span class="mono">Panel Tukan</span>) y estos permisos: <b>Account → Cloudflare Tunnel → Edit</b>, <b>Zone → DNS → Edit</b> y <b>Zone → Zone → Read</b>.</p></div></li>
+        <li><div><p>En <b>Zone Resources</b> elige <b>Include → Specific zone →</b> tu dominio (ej. tukanec.com). Toca <b>Continue to summary</b> y <b>Create Token</b>. Copia el token (se ve una sola vez).</p></div></li>
+        <li><div><p>El <b>ID de la cuenta</b> sale en la página de tu dominio (columna derecha, «Account ID»). El <b>ID del túnel</b> sale en Zero Trust → Networks → Tunnels (columna «Tunnel ID»).</p></div></li>
+        <li><div><p>Pégalos en <a href="<?= e(url('ajustes')) ?>#cloudflare">Ajustes → Cloudflare</a>, toca <b>Guardar</b> y luego <b>Probar</b>.</p></div></li>
+      </ol></div></details>
+    <details><summary>¿Qué toca el panel en Cloudflare?</summary><div>
+      <p>Solo la dirección <b>exacta</b> de la instalación borrada: lee las rutas del túnel, quita la de esa dirección, las guarda y las vuelve a leer para revisar. Después borra su registro DNS (CNAME) solo si apunta a tu túnel. Nunca toca la dirección de este panel ni las de otros clientes.</p>
+      <p>Si no configuras el token, el panel te recuerda quitarla a mano: Zero Trust → Networks → Tunnels → tu túnel → Public Hostname → borrar, y en DNS borrar el CNAME.</p></div></details>
+  </div>
+</div>

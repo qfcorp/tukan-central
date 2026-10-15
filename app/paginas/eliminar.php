@@ -9,6 +9,7 @@ if (campo('confirmar') !== $inst['id']) {
     redirigir('programa', ['id' => $inst['id']]);
 }
 instancias()->eliminar($inst['id']);
+bajas()->quitar($inst['id']);
 auditar('instancia_eliminada', $inst['nombre'] . ' · ' . $inst['url'], $inst['id']);
 if (($inst['producto'] ?? '') === 'tuguarderia' && !empty($inst['carpeta'])) {
     aviso($inst['nombre'] . ' se quitó del panel. Para borrar también la instalación del cliente (con copia final de respaldo), pega en el servidor: sudo bash /home/qf/github/tuguarderia/borrar_cliente.sh ' . $inst['carpeta'] . ' — y luego quita su dirección en Cloudflare.', 'info');

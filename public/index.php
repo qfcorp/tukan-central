@@ -21,11 +21,11 @@ $rutas = [
     'finanzas' => 'finanzas', 'gastos' => 'finanzas', 'ingresos_extra' => 'finanzas', 'exportar' => 'finanzas', 'licencias' => 'finanzas',
     // Solo el dueño
     'programa_nuevo' => 'programas', 'programa_editar' => 'programas', 'programa_comando' => 'programas',
-    'rotar' => 'programas', 'eliminar' => 'programas',
+    'rotar' => 'programas', 'eliminar' => 'programas', 'baja' => 'programas',
     'usuarios' => 'usuarios', 'auditoria' => 'auditoria', 'ajustes' => 'ajustes',
 ];
 // Rutas que solo aceptan POST (cambian algo)
-$soloPost = ['refrescar', 'actualizar_datos', 'entrar', 'probar', 'rotar', 'eliminar', 'salir', 'ejecutar', 'recordar', 'licencias'];
+$soloPost = ['refrescar', 'actualizar_datos', 'entrar', 'probar', 'rotar', 'eliminar', 'baja', 'salir', 'ejecutar', 'recordar', 'licencias'];
 
 $ruta = param('r', 'inicio');
 if (!isset($rutas[$ruta]) || !is_file(RAIZ . "/app/paginas/$ruta.php")) {

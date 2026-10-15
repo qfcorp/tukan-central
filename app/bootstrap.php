@@ -26,7 +26,7 @@ spl_autoload_register(function (string $clase): void {
     }
 });
 
-use Tukan\{Acceso, Auditoria, Db, Instancias, Monitor, Telegram, Ajustes, Capacidades, ClienteV2, Clientes, Solicitudes, Finanzas, Licencias,
+use Tukan\{Acceso, Auditoria, Bajas, Db, Instancias, Monitor, Telegram, Ajustes, Capacidades, ClienteV2, Clientes, Solicitudes, Finanzas, Licencias,
             Operaciones, Sincronizador, Sincronizacion};
 
 require RAIZ . '/app/iconos.php';
@@ -168,6 +168,13 @@ function operaciones(): Operaciones
 {
     static $o = null;
     return $o ??= new Operaciones(db(), cliente_v2());
+}
+
+/** Borrar instalaciones desde el panel (lo que pasa queda en la auditoría con el usuario de la sesión). */
+function bajas(): Bajas
+{
+    static $b = null;
+    return $b ??= new Bajas(db(), null, fn(string $accion, string $detalle, string $inst) => auditar($accion, $detalle, $inst));
 }
 
 function sincronizacion(): Sincronizacion

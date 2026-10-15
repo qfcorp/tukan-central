@@ -168,7 +168,7 @@ final class Monitor
                                   fallos_seguidos = 0, aviso_caido = excluded.aviso_caido')
                 ->execute([$id, $ahora, $r['http'], $r['ms'], $r['aviso'], json_encode($r['datos'], JSON_UNESCAPED_UNICODE), $ahora, $avisoCaido]);
         } else {
-            if ($fallos >= self::FALLOS_PARA_AVISO && !$avisoCaido) {
+            if ($fallos >= self::FALLOS_PARA_AVISO && !$avisoCaido && !Bajas::apagando($this->db, $id)) {
                 $avisos[] = "🔴 $nombre está sin conexión. " . $r['error_detalle'];
                 $avisoCaido = 1;
             }

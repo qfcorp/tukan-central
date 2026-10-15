@@ -91,6 +91,12 @@ function botones_acciones(array $acciones, array $ctx): string
         $params = ['i' => $inst, 'a' => $a['accion'], 'n' => (string) $i, 'volver' => $ctx['volver'] ?? aqui()];
         if (!empty($ctx['sol'])) $params['sol'] = $ctx['sol'];
         if (!empty($ctx['cliente_id'])) $params['cliente'] = $ctx['cliente_id'];
+        if (in_array($a['accion'], Operaciones::DE_LA_FICHA, true)) {
+            // Borrar / cancelar el borrado: en la zona de peligro de la ficha del programa (ID + código de 2 pasos)
+            $html .= '<a class="' . $clase . '" href="' . e(url('programa', ['id' => $inst])) . '#baja">' . e($a['etiqueta']) . '</a>';
+            $n++;
+            continue;
+        }
         if ($a['accion'] === 'crear_demo') {
             $html .= '<a class="' . $clase . '" href="' . e(url('demo_nueva', ['i' => $inst] + (!empty($ctx['sol']) ? ['sol' => $ctx['sol']] : []))) . '">' . icono('demo') . e($a['etiqueta']) . '</a>';
             $n++;

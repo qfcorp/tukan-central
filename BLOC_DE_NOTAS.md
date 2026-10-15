@@ -38,7 +38,19 @@ entrar a cada uno. El ERP QF no participa.
       `integracion.sh` 202 con TuEvento, TuSalón y TuVocalía reales (demo + entrar con la clave, alargar, cobrar y
       reintentar, finanzas, suspender/reactivar, registro nuevo atendido).
 
+### Borrar una instalación desde el panel (15 oct 2026)
+- [x] Ficha del programa → **Borrar esta instalación** (TuGuardería con `dar_de_baja`): solo el dueño, con el ID escrito y
+      el código de 2 pasos. Estados programado → en curso → terminado (se recarga sola), cancelar, quitar también del panel
+      (la auditoría se conserva). Programas sin `dar_de_baja` siguen como antes.
+- [x] Cloudflare opcional (Ajustes, token cifrado + cuenta + túnel): al terminar quita solo ese hostname del túnel y su
+      CNAME, y verifica. Sin token: recordatorio con los pasos. Ayuda explica cómo crear el token.
+- [x] `src/Bajas.php`, `src/Cloudflare.php`, `app/paginas/baja.php`; tabla `bajas` se crea sola (sigue `user_version = 2`).
+- [x] Pruebas: `run_tests.php` 581 (Cloudflare contra un servidor de mentira), `run_web.sh` 540 (programas de prueba que se
+      pueden borrar, 2FA, soporte sin permiso, ID mal escrito, estados, Cloudflare de mentira).
+
 ## Pendiente
+10. En el servidor de cada TuGuardería, una vez: `git pull` y `instalar.sh` de cada cliente (crea `/var/lib/tukan_bajas`
+    y la tarea `/etc/cron.d/tukan_bajas`). Luego **Probar conexión** en el panel. Opcional: token de Cloudflare en Ajustes.
 1. Crear el repositorio `qfcorp/tukan-central` en GitHub (público, sin `config/.env` ni `datos/`) y subir.
 2. Instalar en qfcorp con la línea del README y agregar la ruta en Cloudflare (panel.tukanec.com → HTTP → localhost:80, Host header).
 3. `crear_admin.php` para Dimitry y activar 2FA. Opcional: Telegram en `config/.env`.
