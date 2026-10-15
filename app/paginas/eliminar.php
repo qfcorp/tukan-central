@@ -10,5 +10,9 @@ if (campo('confirmar') !== $inst['id']) {
 }
 instancias()->eliminar($inst['id']);
 auditar('instancia_eliminada', $inst['nombre'] . ' · ' . $inst['url'], $inst['id']);
-aviso($inst['nombre'] . ' se quitó del panel. El programa sigue funcionando; para apagar su conector, borra TUKAN_CENTRAL_SECRET en su servidor.', 'info');
+if (($inst['producto'] ?? '') === 'tuguarderia' && !empty($inst['carpeta'])) {
+    aviso($inst['nombre'] . ' se quitó del panel. Para borrar también la instalación del cliente (con copia final de respaldo), pega en el servidor: sudo bash /home/qf/github/tuguarderia/borrar_cliente.sh ' . $inst['carpeta'] . ' — y luego quita su dirección en Cloudflare.', 'info');
+} else {
+    aviso($inst['nombre'] . ' se quitó del panel. El programa sigue funcionando; para apagar su conector, borra TUKAN_CENTRAL_SECRET en su servidor.', 'info');
+}
 redirigir('programas');
