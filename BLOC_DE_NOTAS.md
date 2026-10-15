@@ -48,6 +48,16 @@ entrar a cada uno. El ERP QF no participa.
 - [x] Pruebas: `run_tests.php` 581 (Cloudflare contra un servidor de mentira), `run_web.sh` 540 (programas de prueba que se
       pueden borrar, 2FA, soporte sin permiso, ID mal escrito, estados, Cloudflare de mentira).
 
+### Pausar y borrar clientes (15 oct 2026, Anexo A)
+- [x] Clientes: Pausar / Reactivar y Borrar en cada fila, filtro **Papelera** con Restaurar. Pausar pide tipo + motivo
+      (soporte también puede); Borrar pide el nombre exacto + motivo + código de 2 pasos (solo el dueño).
+- [x] Ficha: pausa con tipo y motivo, aviso de papelera (se borra para siempre el…, copia) e historial *Pausas y borrados*.
+- [x] TuGuardería: Pausar toda la instalación; Borrar lleva a *Borrar esta instalación*.
+- [x] `src/Historial.php` (tabla `historial_clientes`, se crea sola); papelera en la copia local; programa de prueba con
+      las operaciones nuevas (`MOCK_SIN_PAUSA=1` para uno sin ellas). TuPlanner: comando revisado contra su script.
+- [x] Pruebas: `run_tests.php` 637, `run_web.sh` 621 (capturas 24–29: lista, papelera, fichas y las hojas de Pausar y Borrar).
+- [ ] Al actualizar cada programa con el Anexo A: **Probar conexión** en el panel (para que vea los botones).
+
 ## Pendiente
 10. En el servidor de cada TuGuardería, una vez: `git pull` y `instalar.sh` de cada cliente (crea `/var/lib/tukan_bajas`
     y la tarea `/etc/cron.d/tukan_bajas`). Luego **Probar conexión** en el panel. Opcional: token de Cloudflare en Ajustes.

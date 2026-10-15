@@ -116,6 +116,26 @@ with sync_playwright() as p:
     ir('embudo', '21_embudo')
     ir('demos', '22_demos')
     ir('mas', '23_mas')
+    # Anexo A: pausar y borrar clientes (lista con los botones, papelera, fichas y las hojas de los formularios)
+    ir('clientes', '24_clientes_pausar_borrar')
+    ir('clientes&estado=papelera', '25_clientes_papelera')
+    ir('cliente&i=tuvocalia&id=7', '26_ficha_pausada')
+    ir('cliente&i=tuvocalia&id=2', '27_ficha_papelera')
+    for accion, cliente, nombre in (('pausar', '3', '28_hoja_pausar'), ('borrar_cliente', '3', '29_hoja_borrar')):
+        for ancho, alto, sufijo in ((390, 844, '390'), (1280, 860, 'escritorio')):
+            pag.set_viewport_size({'width': ancho, 'height': alto})
+            pag.goto(f'{BASE}/?r=clientes')
+            pag.wait_for_load_state('networkidle')
+            pag.click(f'a[data-hoja][href*="i=tuvocalia&a={accion}&cliente={cliente}&"]')
+            pag.wait_for_selector('#hoja[open] form#form-accion')
+            pag.wait_for_timeout(700)
+            ancho_doc = pag.evaluate('document.documentElement.scrollWidth')
+            if ancho_doc > ancho:
+                errores.append(f'{nombre} a {ancho}px: se sale de la pantalla (ancho {ancho_doc}px)')
+            pag.screenshot(path=os.path.join(SALIDA, f'{nombre}_{sufijo}.png'))
+            hechas.append(f'{nombre}_{sufijo}.png')
+            pag.keyboard.press('Escape')
+    pag.set_viewport_size({'width': 390, 'height': 844})
     nav.close()
 
 print(f'{len(hechas)} capturas en {SALIDA}')

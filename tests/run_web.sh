@@ -575,7 +575,7 @@ contiene "Programa v1 que contesta 404 -> protocolo v1" "$TMP/pag.html" "Usa el 
 check "Capacidades guardadas: TuVocalía v2, TuSalón v1, TuAcademia v1, Dogssy v2" "dogssy|2 tuacademia|1 tuevento|2 tusalon|1 tuvocalia|2" "$(sql "SELECT instancia_id || '|' || protocolo FROM capacidades ORDER BY instancia_id" | tr '\n' ' ' | sed 's/ $//')"
 get "r=programa&id=tuvocalia" > /dev/null
 contiene "Ficha: Qué puede hacer desde el panel" "$TMP/pag.html" "Qué puede hacer desde el panel"
-check "Ficha TuVocalía: todo con ✔ (10)" "10" "$(grep -c '<li class="si">' "$TMP/pag.html")"
+check "Ficha TuVocalía: todo con ✔ (12, con pausar y borrar clientes)" "12" "$(grep -c '<li class="si">' "$TMP/pag.html")"
 get "r=programa&id=tuevento" > /dev/null
 contiene "Ficha TuEvento: sin aprobar comprobantes (no lo declara)" "$TMP/pag.html" '<li class="no"><svg[^>]*>.*</svg> Aprobar comprobantes'
 contiene "Ficha TuEvento: actualiza para tenerlo" "$TMP/pag.html" "actualiza TuEvento para tener esto"
@@ -1157,8 +1157,150 @@ if grep -qiE "fatal|warning|deprecated|notice" "$TMP/cloudflare.log" "$TMP"/mock
 else OK=$((OK+1)); echo "  OK    Sin avisos de PHP en Guau, Miau ni en Cloudflare de mentira"; fi
 
 # =====================================================================
+titulo "36. Pausar y borrar clientes (Anexo A): lista, ficha, papelera con Restaurar, 2FA y soporte"
+JAR="$JAR_D2"; IP="198.51.100.11"
+check "Abre Clientes" "200" "$(get 'r=clientes')"
+contiene "Filtro Papelera (vacía)" "$TMP/pag.html" 'Papelera <b>0</b>'
+contiene "Fila: botón Pausar (abre el formulario del programa)" "$TMP/pag.html" 'href="/?r=accion&amp;i=tuvocalia&amp;a=pausar&amp;cliente=7&amp;'
+contiene "Fila: botón Borrar" "$TMP/pag.html" 'href="/?r=accion&amp;i=tuvocalia&amp;a=borrar_cliente&amp;cliente=7&amp;'
+contiene "Fila de un suspendido: Reactivar" "$TMP/pag.html" 'a=reactivar&amp;cliente=8&amp;'
+contiene "TuGuardería (una sola empresa): Pausar toda la instalación" "$TMP/pag.html" 'href="/?r=accion&amp;i=dogssy&amp;a=pausar&amp;cliente=unico&amp;'
+no_contiene "...y sin Borrar si no sabe borrarse (dar_de_baja)" "$TMP/pag.html" 'id=dogssy#baja'
+no_contiene "TuGuardería: nunca borrar_cliente (se borra la instalación)" "$TMP/pag.html" 'a=borrar_cliente&amp;cliente=unico'
+# Pausar (tipo + motivo)
+get "r=accion&i=tuvocalia&a=pausar&cliente=7&volver=/?r=clientes" > /dev/null
+contiene "Pausar: elegir el tipo" "$TMP/pag.html" 'name="campo\[tipo\]"'
+contiene "...con las 5 opciones (uso indebido)" "$TMP/pag.html" 'value="abuso"'
+contiene "...y el motivo" "$TMP/pag.html" 'name="campo\[motivo\]"'
+contiene "...en rojo: pide marcar que está seguro" "$TMP/pag.html" 'name="seguro"'
+contiene "...con el nombre del cliente" "$TMP/pag.html" 'Liga Carcelén · TuVocalía'
+cp "$TMP/pag.html" "$TMP/form_pausa.html"
+R=$(post_form "$TMP/form_pausa.html" "#form-accion" "campo[tipo]=falta_pago" "campo[motivo]=ab" "seguro=1")
+check "Motivo de 2 letras: vuelve con el error" "422" "${R%% *}"
+check "...el programa no recibió nada" "0" "$(grep -c '|pausar|' "$TMP/mock_tuvocalia/ejecutar.log")"
+R=$(post_form "$TMP/form_pausa.html" "#form-accion" "campo[tipo]=falta_pago" "campo[motivo]=No pagó septiembre ni octubre" "seguro=1")
+check "Pausar: listo y vuelve a Clientes" "303 /?r=clientes" "$(echo "$R" | sed "s#$BASE##")"
+check "...en el programa: tipo y motivo" "falta_pago|No pagó septiembre ni octubre" "$(mockdb tuvocalia "\$d['clientes']['7']['pausa']['tipo'] . '|' . \$d['clientes']['7']['pausa']['motivo']")"
+check "...con el correo de quien lo hizo (auditoría del programa)" "1" "$(grep -c 'dimitryfierro@gmail.com|7|Pausó la cuenta (Falta de pago)' "$TMP/mock_tuvocalia/bitacora.log")"
+check "Auditoría del panel: Pausar · Liga Carcelén · Falta de pago" "1" "$(sql "SELECT count(*) FROM auditoria WHERE accion='ejecutar' AND detalle LIKE 'Pausar · Liga Carcelén · Falta de pago → listo%'")"
+get "r=clientes" > /dev/null
+contiene "Lista: etiqueta Pausado con el tipo" "$TMP/pag.html" '<span class="pausa-motivo">Falta de pago</span>'
+contiene "...y ahora Reactivar" "$TMP/pag.html" 'a=reactivar&amp;cliente=7&amp;'
+get "r=cliente&i=tuvocalia&id=7" > /dev/null
+contiene "Ficha: estado Pausado" "$TMP/pag.html" 'class="ec-estado">Pausado'
+contiene "...con el tipo y el motivo" "$TMP/pag.html" '<strong>Falta de pago</strong>: No pagó septiembre ni octubre'
+contiene "Ficha: historial Pausas y borrados" "$TMP/pag.html" 'Pausas y borrados'
+contiene "...quién y por qué" "$TMP/pag.html" 'Pausó · Falta de pago'
+contiene "...con el motivo" "$TMP/pag.html" '«No pagó septiembre ni octubre»'
+contiene "...y quién (usuario del panel)" "$TMP/pag.html" '· Dimitry Fierro</span>'
+contiene "Ficha: botón Reactivar (un toque)" "$TMP/pag.html" ">Reactivar</button>"
+# Soporte: pausa, pero no reactiva ni borra
+JAR="$TMP/jar_soporte2"; IP="198.51.100.21"
+get "r=clientes" > /dev/null
+contiene "Soporte: ve Pausar" "$TMP/pag.html" 'a=pausar&amp;cliente=5&amp;'
+no_contiene "Soporte: no ve Borrar" "$TMP/pag.html" 'a=borrar_cliente'
+no_contiene "Soporte: no ve Reactivar (devolver el servicio lo decide el dueño)" "$TMP/pag.html" 'a=reactivar&amp;'
+get "r=accion&i=tuvocalia&a=pausar&cliente=5&volver=/?r=clientes" > /dev/null
+R=$(post_form "$TMP/pag.html" "#form-accion" "campo[tipo]=revision" "campo[motivo]=Revisar pagos con tarjeta" "seguro=1")
+check "Soporte: pausar sí se puede" "revision" "$(mockdb tuvocalia "\$d['clientes']['5']['pausa']['tipo'] ?? ''")"
+R=$(curl -s -b "$JAR" -o /dev/null -w '%{http_code} %{redirect_url}' -H "CF-Connecting-IP: $IP" "$BASE/?r=accion&i=tuvocalia&a=borrar_cliente&cliente=9&volver=/?r=clientes")
+check "Soporte: abrir Borrar -> no (vuelve con aviso)" "303 /?r=clientes" "$(echo "$R" | sed "s#$BASE##")"
+check "...anotado como permiso negado" "1" "$(sql "SELECT count(*) FROM auditoria WHERE accion='permiso_negado' AND email='soporte@tukan.ec' AND detalle LIKE '%borrar_cliente%'")"
+JAR="$JAR_D2"; IP="198.51.100.11"
+get "r=cliente&i=tuvocalia&id=5" > /dev/null
+contiene "Revisión: el panel avisa que el cliente ve un texto general" "$TMP/pag.html" "El cliente ve un texto general"
+R=$(post_form "$TMP/pag.html" "boton:Reactivar")
+check "Dueño: reactivar lo que pausó soporte" "null" "$(mockdb tuvocalia "json_encode(\$d['clientes']['5']['pausa'] ?? null)")"
+get "r=cliente&i=tuvocalia&id=5" > /dev/null
+contiene "...historial: Reactivó" "$TMP/pag.html" 'Reactivó'
+# Borrar: nombre exacto + motivo + código de 2 pasos
+get "r=accion&i=tuvocalia&a=borrar_cliente&cliente=9&volver=/?r=clientes" > /dev/null
+contiene "Borrar: escribir el nombre exacto" "$TMP/pag.html" 'name="campo\[confirmar\]"'
+no_contiene "...que no viene escrito" "$TMP/pag.html" 'name="campo\[confirmar\]" value="Liga Solanda"'
+contiene "...el motivo" "$TMP/pag.html" 'name="campo\[motivo\]"'
+contiene "...el código de 2 pasos" "$TMP/pag.html" 'name="codigo"'
+contiene "...y marcar que está seguro" "$TMP/pag.html" 'name="seguro"'
+cp "$TMP/pag.html" "$TMP/form_borrar.html"
+N_EJ=$(grep -c '|borrar_cliente|' "$TMP/mock_tuvocalia/ejecutar.log")
+R=$(post_form "$TMP/form_borrar.html" "#form-accion" "campo[confirmar]=liga solanda" "campo[motivo]=Cerró la liga" "seguro=1" "codigo=$(codigo "$SECRETO_D" "$TMP/paso_d")")
+check "Nombre con otras mayúsculas: no se borra" "422" "${R%% *}"
+contiene "...dice cuál es el nombre exacto" "$TMP/post.html" 'No coincide: escribe el nombre exacto («Liga Solanda»)'
+R=$(post_form "$TMP/form_borrar.html" "#form-accion" "campo[confirmar]=Liga Solanda" "campo[motivo]=Cerró la liga" "seguro=1" "codigo=000000")
+check "Código de 2 pasos malo: no se borra" "422" "${R%% *}"
+check "...el programa no recibió ningún borrar" "$N_EJ" "$(grep -c '|borrar_cliente|' "$TMP/mock_tuvocalia/ejecutar.log")"
+check "...2fa_fallido anotado" "1" "$(sql "SELECT count(*) FROM auditoria WHERE accion='2fa_fallido' AND detalle LIKE '%borrar_cliente%'")"
+R=$(post_form "$TMP/form_borrar.html" "#form-accion" "campo[confirmar]=Liga Solanda" "campo[motivo]=Cerró la liga" "seguro=1" "codigo=$(codigo "$SECRETO_D" "$TMP/paso_d")")
+check "Borrar: listo y vuelve a Clientes" "303 /?r=clientes" "$(echo "$R" | sed "s#$BASE##")"
+check "...en el programa: en la papelera 30 días" "$(date -d '+30 days' +%Y-%m-%d)" "$(mockdb tuvocalia "\$d['clientes']['9']['papelera']['hasta'] ?? ''")"
+get "r=clientes" > /dev/null
+contiene "Aviso: cuándo se borra para siempre" "$TMP/pag.html" "Se borra para siempre el $(date -d '+30 days' +%d/%m/%Y)"
+contiene "...y dónde quedó la copia" "$TMP/pag.html" 'Copia: /var/www/tuvocalia/respaldos/borrados/9_'
+no_contiene "Ya no sale en la lista normal" "$TMP/pag.html" 'data-cliente="tuvocalia|9"'
+contiene "Papelera con 1" "$TMP/pag.html" 'Papelera <b>1</b>'
+check "Auditoría: Borrar cliente · Liga Solanda" "1" "$(sql "SELECT count(*) FROM auditoria WHERE accion='ejecutar' AND detalle LIKE 'Borrar cliente · Liga Solanda → listo%'")"
+get "r=clientes&estado=papelera" > /dev/null
+check "Filtro Papelera: solo el borrado" "1" "$(grep -c 'data-cliente=' "$TMP/pag.html")"
+contiene "...Liga Solanda" "$TMP/pag.html" 'data-cliente="tuvocalia|9"'
+contiene "...cuándo se borra para siempre" "$TMP/pag.html" "$(date -d '+30 days' +%d/%m/%Y) · faltan 30 días"
+contiene "...el motivo" "$TMP/pag.html" 'Cerró la liga'
+contiene "...con Restaurar" "$TMP/pag.html" 'a=restaurar_cliente&amp;cliente=9&amp;'
+contiene "...y explica la papelera" "$TMP/pag.html" 'Cada programa los guarda <strong>30 días</strong>'
+get "r=cliente&i=tuvocalia&id=9" > /dev/null
+contiene "Ficha: Está en la papelera" "$TMP/pag.html" 'Está en la papelera'
+contiene "...con la copia" "$TMP/pag.html" 'Copia de sus datos: /var/www/tuvocalia/respaldos/borrados/9_'
+contiene "...historial: Borró (a la papelera)" "$TMP/pag.html" 'Borró (a la papelera)'
+contiene "...con el motivo" "$TMP/pag.html" '«Cerró la liga»'
+contiene "...botón Restaurar" "$TMP/pag.html" '>Restaurar</button>'
+no_contiene "...y nada más (no se cobra a uno borrado)" "$TMP/pag.html" 'a=registrar_pago'
+# Restaurar
+R=$(post_form "$TMP/pag.html" "boton:Restaurar")
+check "Restaurar: vuelve en el programa" "null" "$(mockdb tuvocalia "json_encode(\$d['clientes']['9']['papelera'] ?? null)")"
+get "r=clientes" > /dev/null
+contiene "...y en la lista normal" "$TMP/pag.html" 'data-cliente="tuvocalia|9"'
+contiene "...papelera vacía" "$TMP/pag.html" 'Papelera <b>0</b>'
+get "r=cliente&i=tuvocalia&id=9" > /dev/null
+contiene "...historial: Restauró de la papelera" "$TMP/pag.html" 'Restauró de la papelera'
+# Uno que se queda en la papelera (para las capturas)
+get "r=accion&i=tuvocalia&a=borrar_cliente&cliente=2&volver=/?r=clientes" > /dev/null
+R=$(post_form "$TMP/pag.html" "#form-accion" "campo[confirmar]=Escuela Fútbol Kids" "campo[motivo]=Pidió darse de baja por correo" "seguro=1" "codigo=$(codigo "$SECRETO_D" "$TMP/paso_d")")
+check "Borrar otro (queda en la papelera)" "303" "${R%% *}"
+# TuGuardería: pausar toda la instalación; Borrar lleva a "Borrar esta instalación"
+get "r=accion&i=dogssy&a=pausar&cliente=unico&volver=/?r=clientes" > /dev/null
+R=$(post_form "$TMP/pag.html" "#form-accion" "campo[tipo]=pedido_cliente" "campo[motivo]=Vacaciones del negocio hasta el lunes" "seguro=1")
+check "TuGuardería: pausada" "pedido_cliente" "$(mockdb dogssy "\$d['unico']['pausa']['tipo'] ?? ''")"
+get "r=cliente&i=dogssy&id=unico" > /dev/null
+contiene "...ficha: Pausado con el motivo" "$TMP/pag.html" '<strong>A pedido del cliente</strong>: Vacaciones del negocio hasta el lunes'
+R=$(post_form "$TMP/pag.html" "boton:Reactivar")
+check "...reactivada" "null" "$(mockdb dogssy "json_encode(\$d['unico']['pausa'] ?? null)")"
+agregar tuguarderia patitas "TuGuardería Patitas" "http://127.0.0.1:8267" "patitas"
+SEC_PA=$(echo "$CMD" | awk '{print $6}')
+mock patitas 8267 patitas "$SEC_PA" tuguarderia MOCK_BAJA=1 MOCK_CLIENTE=Patitas
+probar patitas
+get "r=clientes" > /dev/null; post actualizar_datos --data-urlencode "que=clientes" --data-urlencode "volver=/?r=clientes" > /dev/null
+get "r=clientes" > /dev/null
+contiene "TuGuardería que sabe borrarse: Borrar lleva a Borrar esta instalación" "$TMP/pag.html" 'href="/?r=programa&amp;id=patitas#baja"'
+# Programa sin el Anexo A: no salen los botones
+mock tuevento 8262 tuevento "$SEC_TE" tuevento MOCK_SIN_PAUSA=1
+probar tuevento
+get "r=clientes" > /dev/null
+no_contiene "Programa sin pausar/borrar: no salen esos botones" "$TMP/pag.html" 'i=tuevento&amp;a=pausar'
+no_contiene "...ni Borrar" "$TMP/pag.html" 'i=tuevento&amp;a=borrar_cliente'
+R=$(curl -s -b "$JAR" -o /dev/null -w '%{http_code} %{redirect_url}' -H "CF-Connecting-IP: $IP" "$BASE/?r=accion&i=tuevento&a=pausar&cliente=3&volver=/?r=clientes")
+check "...y pedirlo a mano no sirve" "303 /?r=clientes" "$(echo "$R" | sed "s#$BASE##")"
+get "r=programa&id=tuevento" > /dev/null
+contiene "Ficha del programa: Pausar clientes con ✖" "$TMP/pag.html" '<li class="no"><svg[^>]*>.*</svg> Pausar clientes'
+mock tuevento 8262 tuevento "$SEC_TE" tuevento
+probar tuevento
+if grep -qiE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log"; then
+  FALLAS=$((FALLAS+1)); echo "  FALLA Avisos o errores de PHP en el panel (pausar/borrar):"; grep -iE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log" | sort | uniq -c | head -20
+else OK=$((OK+1)); echo "  OK    Sin avisos ni errores de PHP en el panel (pausar/borrar)"; fi
+if grep -qiE "fatal|warning|deprecated|notice" "$TMP"/mock_tuvocalia.log "$TMP"/mock_dogssy.log "$TMP"/mock_patitas.log "$TMP"/mock_tuevento.log; then
+  FALLAS=$((FALLAS+1)); echo "  FALLA Avisos de PHP en los programas de prueba (pausar/borrar)"; grep -iE "fatal|warning|deprecated|notice" "$TMP"/mock_*.log | head
+else OK=$((OK+1)); echo "  OK    Sin avisos de PHP en los programas de prueba (pausar/borrar)"; fi
+
+# =====================================================================
 if [ -z "${SIN_CAPTURAS:-}" ] && python3 -c "import playwright" 2>/dev/null; then
-  titulo "36. Capturas de pantalla (Playwright, Chromium)"
+  titulo "37. Capturas de pantalla (Playwright, Chromium)"
   TUKAN_ADMIN_NOMBRE="Dimitry Fierro" TUKAN_ADMIN_EMAIL="capturas@tukan.ec" TUKAN_ADMIN_CLAVE="claveCapturas2026" php bin/crear_admin.php > /dev/null
   parar dogssy   # una caida para que se vea el estado "sin conexion"
   get "r=inicio" > /dev/null; post refrescar > /dev/null

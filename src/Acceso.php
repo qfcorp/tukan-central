@@ -28,9 +28,11 @@ final class Acceso
      * Lo que puede hacer cada rol. El dueño puede todo (PROTOCOLO_V2 §9.3):
      *   ver (solicitudes, clientes sin contacto, vencimientos, demos, embudo), atender (atender_solicitud, responder_ticket)
      *   solo dueño: contacto (teléfono, correo, WhatsApp), demos (crear_demo, extender_prueba, nueva_clave_dueno, nota_interna),
-     *   cobros (registrar_pago, comprobantes, anular_pago, suspender, reactivar, cambiar_plan, guardar_plan), finanzas.
+     *   cobros (registrar_pago, comprobantes, anular_pago, suspender, reactivar, cambiar_plan, guardar_plan), finanzas,
+     *   borrar_clientes (borrar_cliente y restaurar_cliente, Anexo A).
+     *   Soporte también puede pausar (Anexo A): devolver el servicio (reactivar) lo decide el dueño.
      */
-    private const PERMISOS_SOPORTE = ['ver', 'entrar', 'probar', 'actualizar', 'mi_cuenta', 'atender'];
+    private const PERMISOS_SOPORTE = ['ver', 'entrar', 'probar', 'actualizar', 'mi_cuenta', 'atender', 'pausar'];
 
     private ?Cifrado $cifrado;
 

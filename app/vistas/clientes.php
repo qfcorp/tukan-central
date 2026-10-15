@@ -43,16 +43,26 @@ $hayFiltro = $f['buscar'] !== '' || $f['inst'] !== '' || $f['plan'] !== '' || $f
   <?php foreach (Clientes::ESTADOS as $k => $t): ?>
     <a role="listitem" class="chip c-<?= e($k) ?><?= $estado === $k ? ' activo' : '' ?>" href="<?= e(url_aqui(['estado' => $k])) ?>"><?= e($t) ?> <b><?= $contadores[$k] ?></b></a>
   <?php endforeach; ?>
+  <?php if ($ver_papelera): ?>
+    <a role="listitem" class="chip c-papelera<?= $f['papelera'] ? ' activo' : '' ?>" href="<?= e(url_aqui(['estado' => 'papelera'])) ?>"><?= icono('basura') ?> Papelera <b><?= (int) $en_papelera ?></b></a>
+  <?php endif; ?>
 </div>
+<?php if ($f['papelera']): ?>
+  <div class="aviso info mt" role="note"><?= icono('info') ?><p>Aquí están los clientes borrados. Cada programa los guarda <strong>30 días</strong> y luego los borra para siempre (la copia de sus datos se guarda 1 año). Mientras tanto se pueden <strong>restaurar</strong> tal como estaban.</p></div>
+<?php endif; ?>
 
 <?php if (!$filas): ?>
-  <div class="tarjeta vacia"><p class="vacio grande"><?= icono('info') ?> <?= $insts ? 'No hay clientes con estos filtros.' : 'Todavía ningún programa manda su lista de clientes.' ?></p></div>
+  <div class="tarjeta vacia"><p class="vacio grande"><?= icono('info') ?> <?= $f['papelera'] ? 'La papelera está vacía.' : ($insts ? 'No hay clientes con estos filtros.' : 'Todavía ningún programa manda su lista de clientes.') ?></p></div>
 <?php else: ?>
 <div class="tarjeta lista-clientes">
-  <p class="chico suave mb"><?= $total ?> <?= $total === 1 ? 'cliente' : 'clientes' ?> · los que vencen primero arriba</p>
+  <p class="chico suave mb"><?= $total ?> <?= $total === 1 ? 'cliente' : 'clientes' ?><?= $f['papelera'] ? ' en la papelera' : ' · los que vencen primero arriba' ?></p>
   <div class="tabla-env">
   <table class="tabla apilable clientes" id="tabla-clientes">
+    <?php if ($f['papelera']): ?>
+    <thead><tr><th>Cliente</th><th>Borrado</th><th>Se borra para siempre</th><th>Motivo</th><th></th></tr></thead>
+    <?php else: ?>
     <thead><tr><th>Cliente</th><th>Estado</th><th>Plan</th><th>Vence</th><th>Último uso</th><th>Pagado</th><th></th></tr></thead>
+    <?php endif; ?>
     <tbody>
     <?php foreach ($filas as $c): $rec = $recordados[$c['instancia_id'] . '|' . $c['cliente_id']] ?? null; $ct = $c['contacto'] ?? [];
           $msg = $mensaje($c); $d = $c['datos']; $dias = $c['vence'] ? dias_hasta($c['vence']) : null; ?>
@@ -62,19 +72,29 @@ $hayFiltro = $f['buscar'] !== '' || $f['inst'] !== '' || $f['plan'] !== '' || $f
           <span class="url"><?= e($c['programa']) ?><?= !empty($d['ciudad']) ? ' · ' . e($d['ciudad']) : '' ?></span>
           <?php if ($rec): ?><span class="recordado"><?= icono('check') ?> Recordado <?= e(hace($rec['momento'])) ?><?= $rec['quien'] ? ' por ' . e(explode(' ', $rec['quien'])[0]) : '' ?></span><?php endif; ?>
         </div></div></td>
-        <td data-t="Estado"><?= etiqueta_estado($c['estado']) ?><?= !empty($d['en_gracia']) ? ' <span class="chico suave">en gracia</span>' : '' ?></td>
+        <?php if ($f['papelera']): $pp = $d['papelera']; $dp = !empty($pp['hasta']) ? dias_hasta($pp['hasta']) : null; ?>
+        <td data-t="Borrado" class="nowrap"><?= e(fecha_dm($pp['desde'] ?? null, true)) ?><?= !empty($pp['quien']) ? ' <span class="chico suave">por ' . e(explode(' ', (string) $pp['quien'])[0]) . '</span>' : '' ?></td>
+        <td data-t="Se borra" class="nowrap<?= $dp !== null && $dp <= 7 ? ' urgente-suave' : '' ?>"><?= !empty($pp['hasta']) ? e(fecha_dm($pp['hasta'], true)) . ' · ' . e(falta($dp)) : '—' ?></td>
+        <td data-t="Motivo" class="c-motivo"><?= e((string) ($pp['motivo'] ?? '—')) ?><?php if (!empty($pp['copia']) && ve_contacto()): ?><span class="copia mono">Copia: <?= e($pp['copia']) ?></span><?php endif; ?></td>
+        <?php else: ?>
+        <td data-t="Estado"><?= !empty($d['pausa']) ? '<span class="etiqueta e-pausado">Pausado</span>' : etiqueta_estado($c['estado']) ?><?= !empty($d['en_gracia']) ? ' <span class="chico suave">en gracia</span>' : '' ?>
+          <?php if (!empty($d['pausa'])): ?><span class="pausa-motivo"><?= e($d['pausa']['tipo_nombre'] ?? '') ?></span><?php endif; ?></td>
         <td data-t="Plan"><?= e($c['plan'] ?? '—') ?></td>
         <td data-t="Vence" class="nowrap<?= $dias !== null && $dias <= 7 && $c['estado'] !== 'suspendido' ? ' urgente-suave' : '' ?>"><?= $c['vence'] ? e(fecha_dm($c['vence'])) . ' · ' . e(falta($dias)) : 'No vence' ?></td>
         <td data-t="Último uso"><?= e(hace_iso($c['ultima_actividad'])) ?></td>
         <td data-t="Pagado"><?= e(dinero((float) $c['total_pagado'])) ?></td>
+        <?php endif; ?>
         <td class="c-acc">
-          <?php if ($msg && ve_contacto() && !empty($ct['whatsapp'])): ?>
+          <div class="acc-1">
+          <?php if (!$f['papelera'] && $msg && ve_contacto() && !empty($ct['whatsapp'])): ?>
             <form method="post" action="<?= e(url('recordar')) ?>" target="_blank" class="enlinea"><?= campo_csrf() ?>
               <input type="hidden" name="i" value="<?= e($c['instancia_id']) ?>"><input type="hidden" name="id" value="<?= e($c['cliente_id']) ?>">
               <button class="btn btn-chico btn-wa" type="submit"><?= icono('whatsapp') ?> Recordar</button></form>
           <?php endif; ?>
           <a class="btn btn-chico" href="<?= e(url('cliente', ['i' => $c['instancia_id'], 'id' => $c['cliente_id']])) ?>">Ficha</a>
-          <?php if (puede('entrar')): ?><?= boton_entrar($c['instancia_id'], $d['ir'] ?? null, 'Entrar') ?><?php endif; ?>
+          <?php if (!$f['papelera'] && puede('entrar')): ?><?= boton_entrar($c['instancia_id'], $d['ir'] ?? null, 'Entrar') ?><?php endif; ?>
+          </div>
+          <?php if (($pb = botones_pausa_borrar($c)) !== ''): ?><div class="acc-2"><?= $pb ?></div><?php endif; ?>
         </td>
       </tr>
     <?php endforeach; ?>

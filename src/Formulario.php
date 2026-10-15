@@ -78,7 +78,8 @@ final class Formulario
         $r = [
             'accion' => $a['accion'],
             'etiqueta' => self::texto($a['etiqueta'] ?? null, 60) ?? ucfirst(str_replace('_', ' ', $a['accion'])),
-            'estilo' => in_array($a['estilo'] ?? null, self::ESTILOS, true) ? $a['estilo'] : 'normal',
+            // Las peligrosas (pausar, borrar…) siempre en rojo, diga lo que diga el programa
+            'estilo' => Operaciones::ESTILOS[$a['accion']] ?? (in_array($a['estilo'] ?? null, self::ESTILOS, true) ? $a['estilo'] : 'normal'),
             'confirmar' => self::texto($a['confirmar'] ?? null, 300),
             'datos' => [],
             'campos' => self::limpiarCampos($a['campos'] ?? []),

@@ -70,6 +70,11 @@ if (in_array($accion, Operaciones::PIDEN_2FA, true)) {
         $errores['_codigo'] = 'El código de 2 pasos no es correcto. Escribe el que aparece ahora en tu app.';
     }
 }
+if ($accion === 'borrar_cliente' && !isset($errores['confirmar']) && is_string($meta['nombre_exacto'] ?? null)) {
+    if (!Operaciones::nombreCoincide((string) ($valores['confirmar'] ?? ''), $meta['nombre_exacto'], $cid)) {
+        $errores['confirmar'] = 'No coincide: escribe el nombre exacto («' . $meta['nombre_exacto'] . '»). No se borró nada.';
+    }
+}
 if ($errores) $deNuevo($errores, $errores['_seguro'] ?? 'Revisa los campos marcados.', $op);
 
 $datos = $fijos + $valores;
@@ -83,6 +88,12 @@ if ($res['ok']) {
     if (array_key_exists('clave', $resultado) || isset($resultado['acceso'])) {
         vista('resultado', ['inst' => $inst, 'tipo' => 'clave', 'mensaje' => $mensaje, 'resultado' => $resultado, 'respuesta' => $r, 'volver' => $volver], 'Listo · Panel Tukán');
         exit;
+    }
+    if ($accion === 'borrar_cliente') {
+        // Cuándo se borra para siempre y dónde quedó la copia (Anexo A.1)
+        $b = Operaciones::datosBorrado($r);
+        if ($b['borrar_definitivo_el'] !== null && !str_contains($mensaje, $b['borrar_definitivo_el'])) $mensaje .= ' Se borra para siempre el ' . fecha_dm($b['borrar_definitivo_el'], true) . ' (hasta entonces se puede restaurar).';
+        if ($b['copia'] !== null && !str_contains($mensaje, $b['copia'])) $mensaje .= ' Copia: ' . $b['copia'];
     }
     aviso(($r['repetida'] ?? false) ? 'Ya estaba hecho: ' . $mensaje : $mensaje, 'ok');
     // Desde una solicitud que ya quedó atendida, se vuelve a la bandeja

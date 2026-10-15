@@ -70,6 +70,15 @@ $notas = [
 </div>
 
 <div class="rejilla dos seccion">
+  <div class="tarjeta preguntas" id="ayuda-pausar">
+    <h2>Pausar o borrar un cliente</h2>
+    <details><summary>¿Qué pasa cuando pauso a un cliente?</summary><div>
+      <p>En <a href="<?= e(url('clientes')) ?>">Clientes</a> toca <b>Pausar</b>, elige por qué y escribe el motivo. Al entrar, el cliente ve «Tu cuenta está pausada» con el motivo y el WhatsApp de Tukán; con <b>En revisión</b> o <b>Uso indebido</b> ve un texto general. Sus datos no se tocan.</p>
+      <p><b>Reactivar</b> lo deja como estaba. Soporte puede pausar, pero reactivar lo hace el dueño.</p></div></details>
+    <details><summary>¿Y si lo borro por error?</summary><div>
+      <p><b>Borrar</b> pide el nombre exacto, el motivo y tu código de 2 pasos. El programa guarda una copia y lo deja <b>30 días en la Papelera</b> (filtro arriba de la lista); ahí tocas <b>Restaurar</b> y vuelve tal como estaba. Pasados los 30 días se borra para siempre (la copia se guarda 1 año).</p>
+      <p>En la ficha, <b>Pausas y borrados</b> dice quién lo hizo, cuándo y por qué.</p></div></details>
+  </div>
   <div class="tarjeta preguntas" id="ayuda-borrar">
     <h2>Borrar la instalación de un cliente (TuGuardería)</h2>
     <details><summary>¿Cómo borro una instalación que ya no se usa?</summary><div>

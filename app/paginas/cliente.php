@@ -38,5 +38,5 @@ $st->execute([$inst['id'], $id]);
 vista('cliente', [
     'inst' => $inst, 'c' => $c, 'det' => $det, 'fila' => $fila, 'contacto' => $contacto, 'acciones' => $acciones, 'pagos' => $pagos, 'registro' => $registro,
     'mensajes' => $mensajes, 'problema' => $problema, 'operaciones' => $st->fetchAll(), 'cap' => capacidades()->datos($inst['id']),
-    'solicitudes' => solicitudes()->deCliente($inst['id'], $id, ve_contacto()), 'recordado' => clientes()->ultimosRecordatorios(60)[$inst['id'] . '|' . $id] ?? null,
+    'solicitudes' => solicitudes()->deCliente($inst['id'], $id, ve_contacto()), 'historial' => historial()->de($inst['id'], $id), 'recordado' => clientes()->ultimosRecordatorios(60)[$inst['id'] . '|' . $id] ?? null,
 ], ($c['nombre'] ?? 'Cliente') . ' · Panel Tukán');

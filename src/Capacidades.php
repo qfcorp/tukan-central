@@ -173,6 +173,8 @@ final class Capacidades
             'Registrar pagos'                     => $p('ejecutar', 'registrar_pago'),
             'Aprobar comprobantes'                => $p('ejecutar', 'aprobar_comprobante'),
             'Suspender y reactivar'               => $p('ejecutar', 'suspender'),
+            'Pausar clientes'                     => $p('ejecutar', 'pausar'),
+            'Borrar clientes (papelera)'          => $p('ejecutar', 'borrar_cliente'),
             'Nueva clave del dueño'               => $p('ejecutar', 'nueva_clave_dueno'),
             'Finanzas (ingresos por mes)'         => $p('finanzas'),
             'Entrar directo a la ficha'           => (bool) ($datos['sso_ir'] ?? false),

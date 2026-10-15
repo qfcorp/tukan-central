@@ -19,13 +19,21 @@ final class Operaciones
         'extender_prueba' => 'demos', 'crear_demo' => 'demos', 'nueva_clave_dueno' => 'demos', 'nota_interna' => 'demos',
         'registrar_pago' => 'cobros', 'aprobar_comprobante' => 'cobros', 'rechazar_comprobante' => 'cobros', 'anular_pago' => 'cobros',
         'suspender' => 'cobros', 'reactivar' => 'cobros', 'cambiar_plan' => 'cobros', 'guardar_plan' => 'cobros', 'cancelar' => 'cobros',
+        // Anexo A: pausar lo puede hacer soporte; reactivar (devolver el servicio) y borrar / restaurar solo el dueño
+        'pausar' => 'pausar', 'borrar_cliente' => 'borrar_clientes', 'restaurar_cliente' => 'borrar_clientes',
         // Borrar la instalación: solo el dueño, y solo desde la ficha del programa (zona de peligro, con el ID y el código de 2 pasos)
         'dar_de_baja' => 'programas', 'cancelar_baja' => 'programas',
     ];
     /** Se hacen desde la ficha del programa (página "baja"), nunca con el formulario genérico. */
     public const DE_LA_FICHA = ['dar_de_baja', 'cancelar_baja'];
     /** Raras y delicadas: piden otra vez el código de 2 pasos. */
-    public const PIDEN_2FA = ['anular_pago', 'guardar_plan'];
+    public const PIDEN_2FA = ['anular_pago', 'guardar_plan', 'borrar_cliente'];
+    /** Estilo que pone el panel aunque el programa mande otro (botón rojo que pide confirmar dos veces). */
+    public const ESTILOS = ['pausar' => 'peligro', 'suspender' => 'peligro', 'borrar_cliente' => 'peligro', 'dar_de_baja' => 'peligro', 'anular_pago' => 'peligro'];
+    /** Tipos de pausa (Anexo A.1). Con revision y abuso el cliente ve un texto general, no el motivo. */
+    public const TIPOS_PAUSA = ['falta_pago' => 'Falta de pago', 'pedido_cliente' => 'A pedido del cliente', 'revision' => 'En revisión', 'abuso' => 'Uso indebido', 'otro' => 'Otro motivo'];
+    /** Las que quedan en el historial de la ficha ("quién pausó o borró, cuándo y por qué"). */
+    public const DE_HISTORIAL = ['pausar', 'reactivar', 'suspender', 'cancelar', 'borrar_cliente', 'restaurar_cliente'];
 
     public const NOMBRES = [
         'crear_demo' => 'Crear demo', 'extender_prueba' => 'Alargar prueba', 'registrar_pago' => 'Registrar pago', 'anular_pago' => 'Anular pago',
@@ -33,6 +41,7 @@ final class Operaciones
         'cambiar_plan' => 'Cambiar plan', 'nueva_clave_dueno' => 'Nueva clave del dueño', 'nota_interna' => 'Nota interna',
         'atender_solicitud' => 'Atender solicitud', 'guardar_plan' => 'Guardar plan', 'responder_ticket' => 'Responder ticket', 'cancelar' => 'Cancelar cuenta',
         'dar_de_baja' => 'Borrar la instalación', 'cancelar_baja' => 'Cancelar el borrado',
+        'pausar' => 'Pausar', 'borrar_cliente' => 'Borrar cliente', 'restaurar_cliente' => 'Restaurar',
     ];
 
     /** Segundos de espera cuando el programa dice que la operación sigue "en curso" (§7.1). */
@@ -48,6 +57,54 @@ final class Operaciones
     public static function nombre(string $accion): string
     {
         return self::NOMBRES[$accion] ?? ucfirst(str_replace('_', ' ', $accion));
+    }
+
+    /**
+     * Campos que el panel exige en las operaciones del Anexo A, aunque el programa no los mande:
+     * pausar → tipo + motivo; borrar_cliente → confirmar (nombre exacto) + motivo; suspender → motivo.
+     * Los campos que el programa sí manda se respetan (etiquetas, ayudas), pero quedan obligatorios.
+     */
+    public static function completarCampos(array $a, string $nombre = ''): array
+    {
+        $tiene = fn(string $c) => in_array($c, array_column($a['campos'], 'campo'), true);
+        $obligar = function (string $c, array $def) use (&$a, $tiene): void {
+            if (!$tiene($c)) {
+                $a['campos'][] = $def;
+                return;
+            }
+            foreach ($a['campos'] as &$f) {
+                if ($f['campo'] !== $c) continue;
+                $f['requerido'] = true;
+                if ($def['tipo'] === 'opcion' && $f['tipo'] !== 'opcion') { $f['tipo'] = 'opcion'; $f['opciones'] = $def['opciones']; }
+                foreach (['min', 'max'] as $k) if (isset($def[$k]) && $f[$k] === null) $f[$k] = $def[$k];
+            }
+            unset($f);
+        };
+        $motivo = ['campo' => 'motivo', 'etiqueta' => 'Motivo', 'tipo' => 'texto_largo', 'requerido' => true, 'valor' => null, 'min' => 3, 'max' => 300,
+                   'opciones' => [], 'ayuda' => null, 'cotizar' => false];
+        if ($a['accion'] === 'pausar') {
+            $obligar('tipo', ['campo' => 'tipo', 'etiqueta' => 'Por qué se pausa', 'tipo' => 'opcion', 'requerido' => true, 'valor' => 'falta_pago', 'min' => null, 'max' => null,
+                              'opciones' => array_map(fn($k, $v) => ['valor' => $k, 'etiqueta' => $v], array_keys(self::TIPOS_PAUSA), self::TIPOS_PAUSA),
+                              'ayuda' => 'Con «En revisión» o «Uso indebido» el cliente ve un texto general, sin el motivo.', 'cotizar' => false]);
+            $obligar('motivo', ['ayuda' => 'El cliente lo ve al entrar (salvo «En revisión» y «Uso indebido»).'] + $motivo);
+        } elseif ($a['accion'] === 'borrar_cliente') {
+            $obligar('confirmar', ['campo' => 'confirmar', 'etiqueta' => 'Escribe el nombre exacto' . ($nombre !== '' ? ': ' . $nombre : ''), 'tipo' => 'texto', 'requerido' => true,
+                                   'valor' => null, 'min' => null, 'max' => 120, 'opciones' => [], 'ayuda' => 'Así se evita borrar otro por error.', 'cotizar' => false]);
+            $obligar('motivo', ['ayuda' => 'Queda en el historial de la ficha y en el programa.'] + $motivo);
+            // El valor nunca viene lleno: hay que escribirlo
+            foreach ($a['campos'] as &$f) if ($f['campo'] === 'confirmar') $f['valor'] = null;
+            unset($f);
+        } elseif ($a['accion'] === 'suspender') {
+            $obligar('motivo', ['min' => 5, 'max' => 200] + $motivo);
+        }
+        return $a;
+    }
+
+    /** ¿Lo que escribió es el nombre exacto del cliente (o su id)? Solo se quitan los espacios de los extremos. */
+    public static function nombreCoincide(string $escrito, string $nombre, string $id): bool
+    {
+        $e = trim($escrito);
+        return $e !== '' && ($e === trim($nombre) || $e === $id);
     }
 
     public static function nuevaId(): string
@@ -72,6 +129,7 @@ final class Operaciones
     {
         $p = [self::nombre($accion)];
         if ($nombre) $p[] = $nombre;
+        if ($accion === 'pausar' && isset(self::TIPOS_PAUSA[$datos['tipo'] ?? ''])) $p[] = self::TIPOS_PAUSA[$datos['tipo']];
         foreach (['plan', 'periodo', 'meses', 'dias', 'resultado', 'estado', 'pago_id'] as $k) {
             if (isset($datos[$k]) && is_scalar($datos[$k]) && $datos[$k] !== '') $p[] = "$k " . mb_substr((string) $datos[$k], 0, 30);
         }
@@ -149,7 +207,25 @@ final class Operaciones
         $this->db->prepare('UPDATE operaciones SET estado = \'ok\', http = 200, codigo = NULL, mensaje = ?, respondida = ?, cuerpo_cif = NULL WHERE operacion_id = ?')
             ->execute([$mensaje, time(), $op]);
         $this->aplicar($inst, $accion, $clienteId, $datos, $r, $usuario);
+        if (in_array($accion, self::DE_HISTORIAL, true) && $clienteId !== null && $clienteId !== '' && ($r['sin_cambios'] ?? false) !== true) {
+            (new Historial($this->db))->anotar($inst['id'], $clienteId, $accion, $datos, $usuario, $op, array_filter(self::datosBorrado($r), fn($v) => $v !== null));
+        }
         return ['ok' => true, 'respuesta' => $r, 'error' => null, 'sin_respuesta' => false, 'resumen' => $resumen];
+    }
+
+    /**
+     * Lo que devuelve borrar_cliente (Anexo A.1): {copia, borrar_definitivo_el}, arriba o dentro de "resultado".
+     * @return array{borrar_definitivo_el:?string, copia:?string}
+     */
+    public static function datosBorrado(array $r): array
+    {
+        $res = is_array($r['resultado'] ?? null) ? $r['resultado'] : [];
+        $fecha = $r['borrar_definitivo_el'] ?? $res['borrar_definitivo_el'] ?? null;
+        $copia = $r['copia'] ?? $res['copia'] ?? null;
+        return [
+            'borrar_definitivo_el' => is_string($fecha) && preg_match('/^\d{4}-\d{2}-\d{2}/', $fecha) ? substr($fecha, 0, 10) : null,
+            'copia' => is_string($copia) && $copia !== '' && !preg_match('/[\x00-\x1F\x7F]/', $copia) ? mb_substr($copia, 0, 300) : null,
+        ];
     }
 
     /** Actualiza la copia local con lo que devolvió el programa (sin otro pedido). */
@@ -160,8 +236,17 @@ final class Operaciones
         $c = Clientes::limpiar($r['cliente'] ?? null);
         if ($c !== null) {
             if ($c['id'] === 'unico') $c = (new Licencias($this->db, $this->cifrado))->aplicar($inst['id'], $c);
+            if ($accion === 'restaurar_cliente') $c['papelera'] = null;
             $clientes->guardar($inst['id'], $c);
             $clienteId ??= $c['id'];
+        }
+        if ($accion === 'borrar_cliente' && $clienteId !== null) {
+            // A la papelera de la copia local, con lo que dijo el programa (y lo que falte, de su respuesta y del formulario)
+            $b = self::datosBorrado($r);
+            $p = array_filter($c['papelera'] ?? [], fn($v) => $v !== null);
+            $clientes->aPapelera($inst['id'], $clienteId, $p + ['desde' => date('Y-m-d'), 'hasta' => $b['borrar_definitivo_el'], 'copia' => $b['copia'],
+                'motivo' => is_string($datos['motivo'] ?? null) ? mb_substr($datos['motivo'], 0, 300) : null, 'quien' => $usuario['nombre'] ?? null]);
+            return;
         }
         $s = Solicitudes::limpiar($r['solicitud'] ?? null);
         $solId = is_string($datos['solicitud_id'] ?? null) ? $datos['solicitud_id'] : null;

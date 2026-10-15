@@ -1247,6 +1247,18 @@ function tc2_validar(string $accion): array
      sea el de `tukan_baja` en la base de esa instalación, hace la copia final y solo entonces borra. Resultado en
      `CARPETA.hecho` o `CARPETA.error` (si la copia falla no se borra nada).
 
+7. **`pausar` / `reactivar` de toda la instalación** (Anexo A.2). `datos.tipo` ∈ los 5 tipos de A.1 (si no → `422`,
+   `campo: "datos.tipo"`) y `datos.motivo` de 3 a 300 (`422`, `datos.motivo`). Se guarda en el ajuste `tukan_pausa`
+   (JSON: `tipo`, `motivo`, `desde`, `quien`, `operacion_id`) y queda en la `bitacora`. Pausar igual → `sin_cambios`; con
+   otro tipo o motivo → se actualiza y conserva `desde`. Reactivar sin pausa → `sin_cambios`.
+   - Ficha (`cliente`): `estado: "suspendido"`, `estado_detalle: "pausado"` (en `capacidades.estados_detalle`),
+     `bloqueado: true`, `estado_texto` "Pausado (tipo): motivo" y **`pausa: {tipo, tipo_nombre, motivo, desde, quien}`**
+     (`null` sin pausa). `acciones_posibles`: `pausar` (estilo `peligro`, campos `tipo` y `motivo`) o `reactivar`.
+   - Pantalla "Servicio pausado" (HTTP 503, `api.php` contesta JSON `{ok:false, pausado:true}`) en todas las páginas para
+     el personal y los dueños de mascotas, también con la sesión ya abierta y en el ingreso. Siguen funcionando: el
+     acceso desde el Panel (sesión del SSO, con un aviso arriba), `tukan_central.php`, salir, privacidad, el manifiesto y
+     la placa QR de una mascota perdida (`q.php` y las fotos de perfil). `capacidades.revision` = 2.
+
 ---
 
 ## Notas de implementación — TuEvento/TuSalón
@@ -1391,6 +1403,32 @@ decía y lo que agregó por su cuenta.)
     con el resto igual, y se vuelve a leer para verificar) y el CNAME si apunta a `<túnel>.cfargotunnel.com`. El
     hostname es el de la URL del programa en el panel, o el `dominio` que devolvió `dar_de_baja` si la URL es una IP.
     Nunca se toca el hostname del panel. `CLOUDFLARE_API_BASE` cambia la dirección de la API (pruebas).
+
+16. **Pausar y borrar clientes** (Anexo A.3):
+    - Permisos: `pausar` → permiso `pausar` (dueño y **soporte**); `reactivar` sigue en `cobros` (solo el dueño devuelve
+      el servicio); `borrar_cliente` y `restaurar_cliente` → `borrar_clientes` (solo el dueño). `borrar_cliente` pide el
+      código de 2 pasos. `pausar`, `suspender`, `borrar_cliente`, `anular_pago` y `dar_de_baja` salen **siempre en rojo**
+      (estilo `peligro`, con "Sí, estoy seguro") aunque el programa mande otro estilo.
+    - Campos que el panel exige aunque el programa no los mande: `pausar` → `tipo` (opción con los 5 tipos) + `motivo`
+      (3–300); `borrar_cliente` → `confirmar` (vacío, "Escribe el nombre exacto") + `motivo`. Antes de mandar, el panel
+      revisa que `confirmar` sea el nombre exacto (solo quita espacios de los extremos) o el id; si no, ni lo manda.
+    - Lista de Clientes: Pausar / Reactivar (según `estado = suspendido`), Borrar y, en la Papelera, Restaurar. Abren
+      `accion` **sin `n`**: se usa el primer botón con ese nombre de `acciones_posibles` de la ficha. TuGuardería: Pausar
+      y Borrar → ficha del programa `#baja`.
+    - Papelera: el panel pide `clientes` con `{"estado": "papelera", "filtros": {"estado": "papelera"}}` (las dos formas;
+      un programa que no lo entienda devuelve la lista normal y el panel guarda **solo** los que traen `papelera`). Se pide
+      solo si `capacidades.ejecutar` tiene `borrar_cliente` o `restaurar_cliente`, en la revisión de cada hora. En la
+      copia local `papelera` va en `datos`; los de la papelera no cuentan en Clientes, Inicio, Vencimientos ni Embudo.
+    - Respuesta de `borrar_cliente`: `copia` y `borrar_definitivo_el` se leen arriba **o** dentro de `resultado`. Se
+      muestran en el aviso y se guardan en la copia local (los programas no mandan la copia en `papelera`; el panel la conserva).
+    - `pausa` del cliente (como en TuGuardería, nota 7): opcional; si viene, la lista dice "Pausado" con el tipo y la ficha
+      el motivo, desde cuándo y quién.
+    - Historial: tabla `historial_clientes` (se crea sola, `user_version` sigue en 2), una línea por `operacion_id` correcto
+      de `pausar`, `reactivar`, `suspender`, `cancelar`, `borrar_cliente`, `restaurar_cliente` (no las `sin_cambios`), con
+      usuario, tipo, motivo, fecha y, al borrar, `borrar_definitivo_el` y `copia`. La ficha lo muestra en *Pausas y borrados*.
+    - Programa de prueba (`tests/mock/`): sabe `pausar`, `borrar_cliente` (30 días, copia en `respaldos/borrados/`),
+      `restaurar_cliente` y la papelera en `clientes` (acepta `estado`, `filtros.estado` o `estados`); `MOCK_SIN_PAUSA=1`
+      imita un programa sin el Anexo A.
 
 ---
 

@@ -180,7 +180,7 @@ bash tests/integracion.sh     # con los conectores REALES de TuEvento y TuSalón
 sin nada que se salga a lo ancho.
 
 Puertos que usan las pruebas: 8260-8269 (`run_web.sh`; 8267 y 8269 TuGuarderías que se pueden borrar, 8268 Cloudflare
-de mentira), 8258 (`run_tests.php`: Cloudflare de mentira) y 8240-8249 (`integracion.sh`: 8240 panel, 8241 TuEvento,
+de mentira), 8258 (`run_tests.php`: Cloudflare de mentira), 8257 (`run_tests.php`: programa de prueba para pausar y borrar) y 8240-8249 (`integracion.sh`: 8240 panel, 8241 TuEvento,
 8242 TuSalón, 8243 TuVocalía). Las pruebas **nunca** hablan con el Cloudflare real (`tests/mock/cloudflare.php`).
 
 ---
@@ -211,14 +211,33 @@ los muestra (en una hoja abajo en el celular, o en una página sin JavaScript), 
 cuerpo, byte a byte** (se guarda cifrado por `operacion_id`), así nunca se cobra dos veces. Los errores del programa salen
 junto al campo, en palabras sencillas. Todo queda en la auditoría.
 
-**Permisos:** soporte puede ver, entrar, probar, actualizar y marcar atendida; solo el **dueño** ve contactos y
-comprobantes, crea demos, cobra / anula / suspende / cambia planes, y ve Finanzas. Anular un pago y guardar un plan piden
-el código de 2FA.
+**Permisos:** soporte puede ver, entrar, probar, actualizar, marcar atendida y **pausar**; solo el **dueño** ve contactos y
+comprobantes, crea demos, cobra / anula / suspende / reactiva / cambia planes, **borra y restaura clientes**, y ve Finanzas.
+Anular un pago, guardar un plan y borrar un cliente piden el código de 2FA.
 
 **Revisión automática** (`bin/revisar.php`, cada 15 min): estado de todos; solicitudes nuevas cuando cambia su huella
 (aviso a Telegram con el teléfono enmascarado, respetando el horario de silencio; más de 5 → un solo resumen); clientes
 cada hora; finanzas una vez al día (desde las 03:10); resumen diario por Telegram (07:30–12:00) y los gastos fijos del
 mes. No hace falta otra tarea de cron ni la extensión zip de PHP (el Excel se arma en PHP puro).
+
+### Pausar y borrar clientes (Anexo A de `docs/PROTOCOLO_V2.md`)
+
+En **Clientes** cada fila tiene, debajo de Ficha y Entrar, **Pausar** (o **Reactivar** si está pausado o suspendido) y
+**Borrar**; arriba, el filtro **Papelera** con **Restaurar**. Solo salen si el programa tiene la operación en
+`capacidades.ejecutar` y el usuario el permiso. El formulario lo arma el programa (`acciones_posibles` de la ficha;
+la lista abre el botón con ese nombre), y el panel agrega lo que falte:
+
+- **Pausar** (`pausar`): tipo (*Falta de pago, A pedido del cliente, En revisión, Uso indebido, Otro motivo*) y motivo
+  (3–300). Siempre en rojo, con "Sí, estoy seguro". Soporte puede pausar; reactivar lo decide el dueño.
+- **Borrar** (`borrar_cliente`): escribir el **nombre exacto** (el panel lo revisa antes de mandar), motivo y el **código de
+  2 pasos**. Solo el dueño. El programa guarda una copia y lo deja **30 días en la papelera**; el aviso dice el día en que se
+  borra para siempre (`borrar_definitivo_el`) y dónde quedó la copia.
+- **Papelera**: los borrados no cuentan en la lista, los chips, Inicio, Vencimientos ni Embudo. La revisión de cada hora los
+  pide aparte (`clientes` con `estado`/`filtros.estado` = `papelera`) y guarda solo los que traen `papelera`.
+  **Restaurar** (`restaurar_cliente`) los devuelve tal como estaban.
+- **TuGuardería** (una sola empresa): Pausar pausa toda la instalación; Borrar lleva a *Borrar esta instalación* (§9).
+- La ficha muestra la pausa (tipo, motivo, desde, quién), el aviso de papelera y **Pausas y borrados**: quién pausó,
+  reactivó, suspendió, borró o restauró, cuándo y por qué (tabla `historial_clientes`, se crea sola).
 
 ---
 

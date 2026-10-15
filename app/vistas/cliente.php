@@ -1,5 +1,5 @@
 <?php
-use Tukan\{Clientes, Contacto, Operaciones, Solicitudes};
+use Tukan\{Clientes, Contacto, Historial, Operaciones, Solicitudes};
 
 $nombre = $c['nombre'] ?? '';
 $f = $c['fechas'] ?? [];
@@ -8,6 +8,8 @@ $estado = $c['estado'] ?? 'activo';
 $prod = $inst['producto'];
 $mensajesNombres = ['bienvenida' => 'Bienvenida', 'recordar_prueba' => 'Recordar la prueba', 'recordar_renovacion' => 'Recordar la renovación', 'vencido' => 'Plan vencido'];
 $volver = aqui();
+$pap = is_array($c['papelera'] ?? null) ? $c['papelera'] : null;
+$pau = is_array($c['pausa'] ?? null) ? $c['pausa'] : null;
 ?>
 <p class="migas"><a href="<?= e(url('clientes')) ?>">Clientes</a> / <?= e($nombre) ?></p>
 <div class="cabeza p-<?= e($prod) ?>">
@@ -24,10 +26,24 @@ $volver = aqui();
   <div class="aviso info mb"><?= icono('info') ?><p><?= e($inst['nombre']) ?> no respondió ahora (<?= e($problema->getMessage()) ?>). Se muestran los datos guardados<?= $fila ? ' ' . e(hace((int) $fila['visto'])) : '' ?>; los botones vuelven cuando el programa conteste.</p></div>
 <?php endif; ?>
 
-<section class="estado-cliente e-<?= e($estado) ?>" aria-label="Estado">
+<?php if ($pap): $dp = !empty($pap['hasta']) ? dias_hasta($pap['hasta']) : null; ?>
+  <div class="aviso error mb en-papelera" role="status"><?= icono('basura') ?><div>
+    <p><strong>Está en la papelera</strong><?= !empty($pap['desde']) ? ' desde el ' . e(fecha_dm($pap['desde'], true)) : '' ?><?= !empty($pap['quien']) ? ' (lo borró ' . e((string) $pap['quien']) . ')' : '' ?>.
+      <?php if (!empty($pap['hasta'])): ?>Se borra para siempre el <strong><?= e(fecha_dm($pap['hasta'], true)) ?></strong> (<?= e(falta($dp)) ?>); hasta entonces se puede restaurar tal como estaba.<?php else: ?>Se puede restaurar mientras siga en la papelera.<?php endif; ?></p>
+    <?php if (!empty($pap['motivo'])): ?><p class="chico">Motivo: <?= e((string) $pap['motivo']) ?></p><?php endif; ?>
+    <?php if (!empty($pap['copia']) && ve_contacto()): ?><p class="chico mono copia">Copia de sus datos: <?= e((string) $pap['copia']) ?></p><?php endif; ?>
+  </div></div>
+<?php endif; ?>
+
+<section class="estado-cliente e-<?= e($estado) ?><?= $pau ? ' pausado' : '' ?>" aria-label="Estado">
   <div class="ec-principal">
-    <span class="ec-estado"><?= e(Clientes::ESTADOS[$estado] ?? $estado) ?><?= !empty($c['en_gracia']) ? ' · en gracia' : '' ?></span>
+    <span class="ec-estado"><?= e($pau ? 'Pausado' : (Clientes::ESTADOS[$estado] ?? $estado)) ?><?= !empty($c['en_gracia']) ? ' · en gracia' : '' ?></span>
     <span class="ec-texto"><?= e($c['estado_texto'] ?? '') ?></span>
+    <?php if ($pau): ?>
+      <p class="ec-pausa"><strong><?= e((string) $pau['tipo_nombre']) ?></strong><?= !empty($pau['motivo']) ? ': ' . e((string) $pau['motivo']) : '' ?>
+        <span class="chico suave"><?= !empty($pau['desde']) ? 'desde ' . e(fecha_dm(substr((string) $pau['desde'], 0, 10), true)) : '' ?><?= !empty($pau['quien']) ? ' · ' . e(Contacto::enmascararTexto((string) $pau['quien'])) : '' ?></span>
+        <?php if (in_array($pau['tipo'], ['revision', 'abuso'], true)): ?><span class="chico suave">El cliente ve un texto general (no este motivo).</span><?php endif; ?></p>
+    <?php endif; ?>
   </div>
   <dl class="ec-datos">
     <div><dt>Plan</dt><dd><?= e($c['plan']['nombre'] ?? '—') ?></dd></div>
@@ -133,6 +149,22 @@ $volver = aqui();
     </tbody>
   </table>
   </div>
+</div>
+<?php endif; ?>
+
+<?php if ($historial): ?>
+<div class="tarjeta seccion">
+  <h2>Pausas y borrados</h2>
+  <ul class="lista-p historial-pb">
+    <?php foreach ($historial as $h): ?>
+      <li class="h-<?= e($h['accion']) ?>"><div class="dato"><strong><?= e(Historial::titulo($h)) ?></strong>
+        <span><?= e(fecha_hora($h['momento'])) ?> · <?= e($h['quien'] ?? '—') ?></span>
+        <?php if ($h['motivo']): ?><span class="h-motivo">«<?= e($h['motivo']) ?>»</span><?php endif; ?>
+        <?php if (!empty($h['datos']['borrar_definitivo_el'])): ?><span>Se borra para siempre el <?= e(fecha_dm($h['datos']['borrar_definitivo_el'], true)) ?></span><?php endif; ?>
+        <?php if (!empty($h['datos']['copia']) && ve_contacto()): ?><span class="mono copia">Copia: <?= e($h['datos']['copia']) ?></span><?php endif; ?>
+      </div></li>
+    <?php endforeach; ?>
+  </ul>
 </div>
 <?php endif; ?>
 

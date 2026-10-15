@@ -78,7 +78,7 @@ $on = $activo && $f['consultado'] !== null && (int) $f['en_linea'];
   <?php else: ?>
     <p class="chico suave mb"><?= $esV2 ? 'Protocolo v2' . (!empty($cap['datos']['version']) ? ' · versión ' . e($cap['datos']['version']) : '') . ' · revisado ' . e(hace($cap['consultado'])) : 'Este programa todavía usa el protocolo v1: solo cifras y Entrar.' ?></p>
     <ul class="capacidades">
-      <?php foreach ($resumen as $t => $si): if ($unico && in_array($t, ['Crear demos', 'Alargar pruebas', 'Registrar pagos', 'Aprobar comprobantes', 'Finanzas (ingresos por mes)', 'Ver las solicitudes (bandeja)'], true)) continue; ?>
+      <?php foreach ($resumen as $t => $si): if ($unico && in_array($t, ['Crear demos', 'Alargar pruebas', 'Registrar pagos', 'Aprobar comprobantes', 'Finanzas (ingresos por mes)', 'Ver las solicitudes (bandeja)', 'Borrar clientes (papelera)'], true)) continue; ?>
         <li class="<?= $si ? 'si' : 'no' ?>"><?= icono($si ? 'check' : 'cruz') ?> <?= e($t) ?></li>
       <?php endforeach; ?>
     </ul>

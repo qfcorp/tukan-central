@@ -14,6 +14,38 @@ function etiqueta_estado(string $estado, ?string $texto = null): string
     return '<span class="etiqueta e-' . e($estado) . '">' . e($texto ?? (Clientes::ESTADOS[$estado] ?? $estado)) . '</span>';
 }
 
+/**
+ * Botones de la lista de Clientes del Anexo A (Pausar / Reactivar, Borrar y, en la papelera, Restaurar).
+ * Salen solo si el programa tiene la operación y el usuario el permiso; el formulario lo arma el programa
+ * (acciones_posibles de la ficha). TuGuardería (una sola empresa): Borrar lleva a "Borrar esta instalación".
+ */
+function botones_pausa_borrar(array $fila): string
+{
+    $inst = $fila['instancia_id'];
+    $id = $fila['cliente_id'];
+    $d = $fila['datos'];
+    $volver = aqui();
+    $link = fn(string $accion, string $texto, string $ico, string $clase) => '<a class="btn btn-chico ' . $clase . '" data-hoja href="'
+        . e(url('accion', ['i' => $inst, 'a' => $accion, 'cliente' => $id, 'volver' => $volver])) . '">' . icono($ico) . ' ' . e($texto) . '</a>';
+    $h = '';
+    if (!empty($d['papelera'])) {
+        return puede_operacion($inst, 'restaurar_cliente') ? $link('restaurar_cliente', 'Restaurar', 'restaurar', 'btn-primario') : '';
+    }
+    if ($fila['estado'] === 'suspendido') {
+        if (puede_operacion($inst, 'reactivar')) $h .= $link('reactivar', 'Reactivar', 'refrescar', 'btn-suave');
+    } elseif (puede_operacion($inst, 'pausar')) {
+        $h .= $link('pausar', 'Pausar', 'pausa', 'btn-suave');
+    }
+    if ($id === 'unico') {
+        if (puede('programas') && Capacidades::puede(capacidades()->datos($inst), 'ejecutar', 'dar_de_baja')) {
+            $h .= '<a class="btn btn-chico btn-peligro" href="' . e(url('programa', ['id' => $inst])) . '#baja">' . icono('basura') . ' Borrar</a>';
+        }
+    } elseif (puede_operacion($inst, 'borrar_cliente')) {
+        $h .= $link('borrar_cliente', 'Borrar', 'basura', 'btn-peligro');
+    }
+    return $h;
+}
+
 /** Cuadrito del programa (color + letra). */
 function ico_programa(string $producto, bool $chico = true): string
 {

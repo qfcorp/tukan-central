@@ -575,15 +575,42 @@ a.kpi:hover { border-color: var(--ink-soft); }
 .tabla.clientes .prog-tit a { text-decoration: none; }
 .tabla.clientes .prog-tit a:hover { text-decoration: underline; }
 .c-acc { white-space: nowrap; text-align: right; }
-.c-acc > * { margin-left: 4px; }
+.c-acc .acc-1, .c-acc .acc-2 { display: flex; gap: 6px; justify-content: flex-end; }
+.c-acc .acc-2 { margin-top: 6px; }
+.c-acc .btn svg { width: 16px; height: 16px; }
+/* Segunda fila de la lista (Pausar / Borrar): más discreta que los botones de todos los días */
+.btn-suave { background: transparent; border-color: var(--line); color: var(--ink-soft); }
+.btn-suave:hover { background: var(--surface-2); color: var(--ink); }
+.c-acc .acc-2 .btn { min-height: 34px; padding: 5px 10px; font-size: 13px; }
+.etiqueta.e-pausado { background: var(--warn-bg); color: var(--warn); }
+.pausa-motivo { display: block; font-size: 12px; color: var(--warn); font-weight: 700; margin-top: 3px; white-space: nowrap; }
+.chip.c-papelera svg { width: 15px; height: 15px; }
+.c-motivo { max-width: 340px; overflow-wrap: anywhere; }
+.c-motivo .copia { display: block; font-size: 11.5px; color: var(--ink-mute); margin-top: 3px; overflow-wrap: anywhere; }
 @media (max-width: 699px) {
   .tabla.apilable.clientes tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 12px; padding: 14px 0; }
-  .tabla.apilable.clientes td { padding: 0; }
-  .tabla.apilable.clientes .c-nombre, .tabla.apilable.clientes .c-acc { grid-column: 1 / -1; min-width: 0; }
-  .tabla.apilable.clientes .c-acc { display: flex; gap: 6px; flex-wrap: wrap; text-align: left; margin-top: 6px; }
-  .tabla.apilable.clientes .c-acc > * { margin: 0; flex: 1 1 0; min-width: 0; }
+  .tabla.apilable.clientes td { padding: 0; min-width: 0; overflow-wrap: anywhere; }
+  .tabla.apilable.clientes td.nowrap { white-space: normal; }
+  .tabla.apilable.clientes .c-nombre, .tabla.apilable.clientes .c-acc, .tabla.apilable.clientes .c-motivo { grid-column: 1 / -1; min-width: 0; max-width: none; }
+  .tabla.apilable.clientes .c-acc { display: grid; gap: 6px; text-align: left; margin-top: 6px; }
+  .tabla.apilable.clientes .c-acc .acc-1, .tabla.apilable.clientes .c-acc .acc-2 { justify-content: stretch; margin: 0; }
+  .tabla.apilable.clientes .c-acc .acc-1 > *, .tabla.apilable.clientes .c-acc .acc-2 > * { margin: 0; flex: 1 1 0; min-width: 0; }
   .tabla.apilable.clientes .c-acc .btn { width: 100%; }
 }
+
+/* Ficha del cliente: pausa, papelera e historial (Anexo A) */
+.ec-pausa { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--warn-bg); color: var(--warn); overflow-wrap: anywhere; }
+.ec-pausa .chico { display: block; color: var(--ink-soft); margin-top: 2px; }
+.en-papelera > div { display: grid; gap: 4px; min-width: 0; }
+.en-papelera p { margin: 0; overflow-wrap: anywhere; }
+.copia { overflow-wrap: anywhere; }
+.historial-pb .dato > span { display: block; }
+.estado-cliente.pausado { border-top-color: var(--yellow); }
+.estado-cliente.pausado .ec-estado { color: var(--warn); }
+.historial-pb .h-motivo { font-style: italic; color: var(--ink); overflow-wrap: anywhere; }
+.historial-pb li.h-borrar_cliente strong { color: var(--bad); }
+.historial-pb li.h-pausar strong, .historial-pb li.h-suspender strong { color: var(--warn); }
+.historial-pb li.h-reactivar strong, .historial-pb li.h-restaurar_cliente strong { color: var(--ok); }
 
 /* Ficha del cliente: estado grande */
 .estado-cliente { border-radius: var(--r-lg); padding: 18px 20px; background: var(--surface); border: 1px solid var(--line); border-top: 6px solid var(--ink-mute); box-shadow: var(--shadow);

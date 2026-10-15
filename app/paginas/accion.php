@@ -29,13 +29,19 @@ if (!puede_operacion($inst['id'], $accion)) {
     $falla('Tu usuario no tiene permiso para esto (o el programa no lo permite).');
 }
 $n = (int) param('n', '-1');
+// Con n: el botón número n de la lista; sin n (botones de la lista de Clientes): el primero con esa acción
+$porNombre = function (array $lista) use ($n, $accion): ?array {
+    if ($n >= 0) return $lista[$n] ?? null;
+    foreach ($lista as $x) if (($x['accion'] ?? null) === $accion) return $x;
+    return null;
+};
 $a = null;
 $ctx = ['volver' => $volver, 'cliente_id' => param('cliente') ?: null, 'nombre' => ''];
 if (param('sol') !== '') {
     $fila = solicitudes()->obtener($inst['id'], param('sol'));
     if ($fila) {
         $s = solicitudes()->completa($fila, ve_contacto());
-        $a = $s['acciones'][$n] ?? null;
+        $a = $porNombre($s['acciones']);
         $ctx['cliente_id'] = $s['cliente_id'];
         $ctx['nombre'] = (string) ($s['quien']['organizacion'] ?? $s['quien']['nombre'] ?? $s['titulo']);
     }
@@ -55,10 +61,12 @@ if (param('sol') !== '') {
             }
         }
     } else {
-        $a = Formulario::limpiarAcciones($r['cliente']['acciones_posibles'] ?? [])[$n] ?? null;
+        $a = $porNombre(Formulario::limpiarAcciones($r['cliente']['acciones_posibles'] ?? []));
     }
 }
 if (!$a || $a['accion'] !== $accion) $falla('Ese botón ya no está disponible (quizás alguien ya lo atendió). Actualiza la lista.');
+// Pausar pide tipo + motivo; borrar pide el nombre exacto + motivo (aunque el programa no los mande)
+$a = Operaciones::completarCampos($a, $ctx['nombre']);
 $datos = ['inst' => $inst, 'a' => $a, 'ctx' => $ctx, 'valores' => [], 'errores' => [], 'error' => null, 'op' => Operaciones::nuevaId()];
 if ($parcial) {
     extract($datos);

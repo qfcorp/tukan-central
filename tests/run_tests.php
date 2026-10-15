@@ -281,7 +281,15 @@ $plantillas = [
     'tusalon'    => 'sudo bash /var/www/tusalon/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
     'tuvocalia'  => 'sudo bash /var/www/ligas/vps/conectar_central.sh {ID} {SECRETO} {URL}',
     'tuacademia' => 'sudo bash /var/www/tuacademia/vps/conectar_central.sh {ID} {SECRETO} {URL}',
+    'tuplanner'  => 'sudo bash /var/www/tuplanner/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
 ];
+// TuPlanner: la plantilla es la misma que dice su script (si el repositorio está al lado)
+$scriptTp = dirname(__DIR__, 2) . '/tuplanner/deploy/conectar_central.sh';
+if (is_file($scriptTp)) {
+    $txtTp = (string) file_get_contents($scriptTp);
+    check('Plantilla de TuPlanner = la de su conectar_central.sh (ID SECRETO URL)', [true, true],
+          [str_contains($txtTp, '#   sudo bash /var/www/tuplanner/deploy/conectar_central.sh ID SECRETO URL'), str_contains($txtTp, 'APP="${APP:-/var/www/tuplanner}"')]);
+}
 foreach ($plantillas as $tipo => $pl) check("Plantilla de $tipo", $pl, Productos::tipo($tipo)['comando']);
 $cmd = Productos::comando(Productos::tipo('tusalon')['comando'], ['ID' => 'tusalon', 'SECRETO' => $secTe, 'URL' => $central]);
 check('Comando renderizado sin tildes ni ñ', 0, preg_match('/[^\x20-\x7E]/', $cmd));
@@ -428,6 +436,7 @@ foreach (glob(dirname(__DIR__) . '/{bin,deploy}/*.{php,sh}', GLOB_BRACE) as $arc
 
 require __DIR__ . '/run_tests_v2.php';
 require __DIR__ . '/run_tests_bajas.php';
+require __DIR__ . '/run_tests_pausa.php';
 
 // ---------------------------------------------------------------------------
 echo "\n----------------------------------------\n";

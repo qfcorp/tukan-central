@@ -6,7 +6,10 @@ use Tukan\{Operaciones};
 
 $fijos = json_encode($a['datos'], JSON_UNESCAPED_UNICODE);
 $def = json_encode($a['campos'], JSON_UNESCAPED_UNICODE);
-$meta = json_encode(['etiqueta' => $a['etiqueta'], 'estilo' => $a['estilo'], 'confirmar' => $a['confirmar']], JSON_UNESCAPED_UNICODE);
+$meta = ['etiqueta' => $a['etiqueta'], 'estilo' => $a['estilo'], 'confirmar' => $a['confirmar']];
+// Borrar: el nombre exacto que hay que escribir va firmado (el panel lo revisa antes de mandar)
+if ($a['accion'] === 'borrar_cliente' && (string) ($ctx['nombre'] ?? '') !== '') $meta['nombre_exacto'] = (string) $ctx['nombre'];
+$meta = json_encode($meta, JSON_UNESCAPED_UNICODE);
 $cid = (string) ($a['datos']['cliente_id'] ?? $ctx['cliente_id'] ?? '');
 $cotiza = (bool) array_filter($a['campos'], fn($c) => $c['cotizar']);
 $dosPasos = in_array($a['accion'], Operaciones::PIDEN_2FA, true);

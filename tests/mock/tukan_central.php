@@ -20,6 +20,7 @@ declare(strict_types=1);
  *   MOCK_BAJA=1    (tuguarderia) sabe borrarse desde el panel: dar_de_baja / cancelar_baja
  *   MOCK_CARPETA   (tuguarderia) carpeta de la instalación (por defecto el ID) · MOCK_DOMINIO su dirección pública
  *   MOCK_BAJA_ESPERA segundos de espera antes de borrar (por defecto 300)
+ *   MOCK_SIN_PAUSA=1 programa que todavía no sabe pausar ni borrar clientes (Anexo A): sin pausar, borrar_cliente ni restaurar_cliente
  * Archivos de control en MOCK_DIR (se pueden crear durante la prueba):
  *   total          cambia negocios.total del "estado" (para probar el aviso de negocio nuevo)
  *   lento_ejecutar segundos que tarda "ejecutar" DESPUÉS de hacer la operación (para probar "no respondió" + Revisar)
@@ -35,6 +36,7 @@ $v1 = (string) getenv('MOCK_V1');
 $producto = (string) (getenv('MOCK_PRODUCTO') ?: 'tuevento');
 $unico = $producto === 'tuguarderia';
 $conBaja = $unico && getenv('MOCK_BAJA') === '1';
+$conPausa = getenv('MOCK_SIN_PAUSA') !== '1';     // Anexo A: pausar / reactivar (y en los de varios clientes, borrar_cliente / restaurar_cliente)
 date_default_timezone_set('America/Guayaquil');
 if ((int) getenv('MOCK_DESFASE') !== 0) header('Date: ' . gmdate('D, d M Y H:i:s', $ahora) . ' GMT');
 
@@ -436,6 +438,7 @@ function sembrar(): array
 function estado_de(array $c): array
 {
     $hoy = hoy();
+    if (!empty($c['pausa'])) return ['suspendido', 'pausada', false, true, null];
     if ($c['suspendido']) return ['suspendido', 'suspendida', false, true, null];
     if ($c['vence'] === null) return ['activo', 'sin_limite', false, false, null];
     $dias = dias_entre($hoy, $c['vence']);
@@ -447,6 +450,25 @@ function estado_de(array $c): array
 }
 
 function pagos_validos(array $c): array { return array_values(array_filter($c['pagos'], fn($p) => !$p['anulado'])); }
+/** Los clientes que no están en la papelera (los borrados no cuentan en listas, cifras ni finanzas). */
+function vivos(array $db): array { return array_filter($db['clientes'], fn($c) => empty($c['papelera'])); }
+function tipos_pausa(): array { return ['falta_pago' => 'Falta de pago', 'pedido_cliente' => 'A pedido del cliente', 'revision' => 'En revisión', 'abuso' => 'Uso indebido', 'otro' => 'Otro']; }
+function pausa_publica(?array $p): ?array { return $p ? $p + ['tipo_nombre' => tipos_pausa()[$p['tipo']] ?? $p['tipo']] : null; }
+function campos_pausa(): array
+{
+    return [['campo' => 'tipo', 'etiqueta' => 'Tipo de pausa', 'tipo' => 'opcion', 'requerido' => true, 'valor' => 'falta_pago',
+             'opciones' => array_map(fn($k, $v) => ['valor' => $k, 'etiqueta' => $v], array_keys(tipos_pausa()), tipos_pausa())],
+            ['campo' => 'motivo', 'etiqueta' => 'Motivo (lo ve el cliente)', 'tipo' => 'texto_largo', 'requerido' => true, 'min' => 3, 'max' => 300]];
+}
+/** pausar (Anexo A.1): tipo + motivo. Devuelve [pausa nueva, sin_cambios]. */
+function pedir_pausa(?array $antes, array $d, array $quien): array
+{
+    $tipo = $d['tipo'] ?? null;
+    if (!is_string($tipo) || !isset(tipos_pausa()[$tipo])) fallo('invalido', 'Elija el tipo de pausa.', 422, 'datos.tipo');
+    $motivo = texto_campo($d, 'motivo', 3, 300, 'Escriba el motivo (3 a 300 letras).');
+    if ($antes && $antes['tipo'] === $tipo && $antes['motivo'] === $motivo) return [$antes, true];
+    return [['tipo' => $tipo, 'motivo' => $motivo, 'desde' => $antes['desde'] ?? date('c'), 'quien' => "{$quien['nombre']} <{$quien['email']}>"], false];
+}
 
 function cliente_resumen(array $c): array
 {
@@ -460,7 +482,7 @@ function cliente_resumen(array $c): array
         'por_vencer' => 'Vence el ' . $c['vence'] . " (faltan $dias días)",
         'activo' => $c['vence'] ? 'Activa hasta el ' . $c['vence'] : 'Sin vencimiento (cortesía)',
         'vencido' => ($gracia ? 'Venció el ' . $c['vence'] . ' (en gracia)' : 'Venció el ' . $c['vence']),
-        default => 'Suspendida',
+        default => !empty($c['pausa']) ? 'Pausada (' . tipos_pausa()[$c['pausa']['tipo']] . '): ' . $c['pausa']['motivo'] : 'Suspendida',
     };
     $wa = preg_replace('/\D+/', '', $c['dueno']['telefono']);
     return [
@@ -477,6 +499,8 @@ function cliente_resumen(array $c): array
         'origen' => $c['origen'], 'vendedor' => null,
         'uso' => $producto === 'tuvocalia' ? ['Equipos' => 4 + (int) $c['id'], 'Campeonatos' => 1] : ['Usuarios' => 2 + (int) $c['id']],
         'ir' => '/admin?cliente=' . $c['id'], 'ir_trabajar' => '/admin?entrar=' . $c['id'], 'actualizado' => date('c'),
+        'pausa' => pausa_publica($c['pausa'] ?? null),
+        'papelera' => !empty($c['papelera']) ? ['desde' => $c['papelera']['desde'], 'hasta' => $c['papelera']['hasta'], 'motivo' => $c['papelera']['motivo']] : null,
     ];
 }
 
@@ -501,6 +525,11 @@ function acciones_cliente(array $c, array $r): array
     $cap = capacidades();
     $puede = fn(string $op) => in_array($op, $cap['ejecutar'], true);
     $a = [];
+    if (!empty($c['papelera'])) {
+        // En la papelera: solo se puede restaurar
+        return $puede('restaurar_cliente') ? [['accion' => 'restaurar_cliente', 'etiqueta' => 'Restaurar', 'estilo' => 'principal',
+            'confirmar' => '¿Restaurar ' . $c['nombre'] . '? Vuelve tal como estaba.', 'datos' => ['cliente_id' => $c['id']], 'campos' => []]] : [];
+    }
     $sinPagos = $r['pagos']['cantidad'] === 0;
     if ($puede('registrar_pago') && $r['estado'] !== 'suspendido') {
         $a[] = ['accion' => 'registrar_pago', 'etiqueta' => 'Registrar pago', 'estilo' => 'principal', 'confirmar' => '¿Registrar el pago de ' . $c['nombre'] . '?',
@@ -530,9 +559,22 @@ function acciones_cliente(array $c, array $r): array
     }
     if ($r['estado'] === 'suspendido' && $puede('reactivar')) {
         $a[] = ['accion' => 'reactivar', 'etiqueta' => 'Reactivar', 'estilo' => 'principal', 'confirmar' => '¿Reactivar ' . $c['nombre'] . '?', 'datos' => ['cliente_id' => $c['id']], 'campos' => []];
-    } elseif ($puede('suspender')) {
-        $a[] = ['accion' => 'suspender', 'etiqueta' => 'Suspender', 'estilo' => 'peligro', 'confirmar' => '¿Suspender ' . $c['nombre'] . '? No podrá trabajar hasta que lo reactives.', 'datos' => ['cliente_id' => $c['id']],
-                'campos' => [['campo' => 'motivo', 'etiqueta' => 'Motivo', 'tipo' => 'texto', 'requerido' => true, 'min' => 5, 'max' => 200]]];
+    } else {
+        if ($puede('suspender')) {
+            $a[] = ['accion' => 'suspender', 'etiqueta' => 'Suspender', 'estilo' => 'peligro', 'confirmar' => '¿Suspender ' . $c['nombre'] . '? No podrá trabajar hasta que lo reactives.', 'datos' => ['cliente_id' => $c['id']],
+                    'campos' => [['campo' => 'motivo', 'etiqueta' => 'Motivo', 'tipo' => 'texto', 'requerido' => true, 'min' => 5, 'max' => 200]]];
+        }
+        if ($puede('pausar')) {
+            // estilo "normal" a propósito: el panel lo pone rojo igual (Anexo A)
+            $a[] = ['accion' => 'pausar', 'etiqueta' => 'Pausar', 'estilo' => 'normal', 'confirmar' => '¿Pausar ' . $c['nombre'] . '? Verá «Tu cuenta está pausada» hasta que lo reactives.',
+                    'datos' => ['cliente_id' => $c['id']], 'campos' => campos_pausa()];
+        }
+    }
+    if ($puede('borrar_cliente')) {
+        $a[] = ['accion' => 'borrar_cliente', 'etiqueta' => 'Borrar', 'estilo' => 'peligro', 'confirmar' => 'Se guarda una copia y queda 30 días en la papelera. ¿Borrar ' . $c['nombre'] . '?',
+                'datos' => ['cliente_id' => $c['id']], 'campos' => [
+                    ['campo' => 'confirmar', 'etiqueta' => 'Escriba el nombre exacto (' . $c['nombre'] . ')', 'tipo' => 'texto', 'requerido' => true, 'max' => 120],
+                    ['campo' => 'motivo', 'etiqueta' => 'Motivo', 'tipo' => 'texto_largo', 'requerido' => true, 'min' => 3, 'max' => 300]]];
     }
     $a[] = ['accion' => 'whatsapp', 'etiqueta' => 'WhatsApp', 'whatsapp' => $r['dueno']['whatsapp'], 'texto' => 'Hola ' . explode(' ', $c['dueno']['nombre'])[0] . ', le saluda Tukán Software de ' . $NOMBRES[$producto] . '.'];
     $a[] = ['accion' => 'abrir', 'etiqueta' => 'Ver en ' . $NOMBRES[$producto], 'ir' => '/admin?cliente=' . $c['id']];
@@ -543,15 +585,17 @@ function cliente_detalle(array $db, array $c): array
 {
     global $NOMBRES, $producto, $unico;
     if ($unico) {
-        return ['id' => 'unico', 'nombre' => $db['unico']['nombre'], 'tipo' => null, 'ciudad' => 'Quito', 'plan' => null, 'estado' => 'activo', 'estado_detalle' => null,
-                'estado_texto' => null, 'en_gracia' => false, 'bloqueado' => false,
+        $pu = $db['unico']['pausa'] ?? null;
+        return ['id' => 'unico', 'nombre' => $db['unico']['nombre'], 'tipo' => null, 'ciudad' => 'Quito', 'plan' => null, 'estado' => $pu ? 'suspendido' : 'activo', 'estado_detalle' => $pu ? 'pausado' : null,
+                'estado_texto' => $pu ? 'Pausado (' . tipos_pausa()[$pu['tipo']] . '): ' . $pu['motivo'] : null, 'en_gracia' => false, 'bloqueado' => $pu !== null,
                 'fechas' => ['alta' => '2026-01-10', 'prueba_hasta' => null, 'activo_hasta' => null, 'vence' => null, 'dias_para_vencer' => null],
                 'dueno' => $db['unico']['dueno'] + ['whatsapp' => '593998877665'], 'ultima_actividad' => date('c', $GLOBALS['ahora'] - 3600),
                 'pagos' => ['total' => 0.0, 'cantidad' => 0, 'primer_pago' => null, 'ultimo_pago' => null, 'ultimo_monto' => null], 'mensual_estimado' => 0.0,
                 'origen' => 'super', 'vendedor' => null, 'uso' => ['Mascotas activas' => 86, 'Usuarios' => 6], 'ir' => '/admin?usuarios', 'ir_trabajar' => null,
                 'notas_admin' => '', 'usuarios' => 6, 'pagos_detalle' => [], 'solicitudes' => [], 'registro' => [], 'mensajes_sugeridos' => [],
+                'pausa' => pausa_publica($db['unico']['pausa'] ?? null),
                 'acciones_posibles' => array_merge([['accion' => 'nueva_clave_dueno', 'etiqueta' => 'Nueva clave del administrador', 'estilo' => 'normal', 'confirmar' => '¿Crear una contraseña nueva para el administrador?', 'datos' => ['cliente_id' => 'unico'], 'campos' => []],
-                                        ['accion' => 'abrir', 'etiqueta' => 'Ver usuarios', 'ir' => '/admin?usuarios']], acciones_baja($db))]
+                                        ['accion' => 'abrir', 'etiqueta' => 'Ver usuarios', 'ir' => '/admin?usuarios']], acciones_pausa_unico($db), acciones_baja($db))]
                + ($GLOBALS['conBaja'] ? ['baja' => baja_de($db) + ['carpeta' => carpeta_mock()]] : []);
     }
     $r = cliente_resumen($c);
@@ -599,6 +643,13 @@ function baja_de(array $db): array
     return ['estado' => 'programada', 'texto' => 'Borrado programado.', 'borrar_desde' => date('c', $b['desde']), 'segundos' => max(0, $b['desde'] - $GLOBALS['ahora']), 'quien' => $b['quien'], 'copia_en' => '/var/backups/borrados/'];
 }
 
+function acciones_pausa_unico(array $db): array
+{
+    if (!$GLOBALS['conPausa']) return [];
+    if (!empty($db['unico']['pausa'])) return [['accion' => 'reactivar', 'etiqueta' => 'Reactivar', 'estilo' => 'principal', 'confirmar' => '¿Quitar la pausa?', 'datos' => ['cliente_id' => 'unico'], 'campos' => []]];
+    return [['accion' => 'pausar', 'etiqueta' => 'Pausar', 'estilo' => 'peligro', 'confirmar' => '¿Pausar toda la instalación?', 'datos' => ['cliente_id' => 'unico'], 'campos' => campos_pausa()]];
+}
+
 function acciones_baja(array $db): array
 {
     if (!$GLOBALS['conBaja']) return [];
@@ -616,13 +667,15 @@ function capacidades(): array
         return ['revision' => 1, 'producto' => $producto, 'nombre' => $NOMBRES[$producto], 'version' => '57ed3ce', 'unico' => true, 'moneda' => 'USD',
                 'zona_horaria' => 'America/Guayaquil', 'url_publica' => getenv('MOCK_DOMINIO') ? 'https://' . getenv('MOCK_DOMINIO') : 'https://dogssy.ejemplo.ec',
                 'acciones' => ['capacidades', 'estado', 'sso', 'cliente', 'ejecutar'], 'sso_ir' => true, 'rutas_sso' => ['/admin'],
-                'ejecutar' => $GLOBALS['conBaja'] ? ['nueva_clave_dueno', 'dar_de_baja', 'cancelar_baja'] : ['nueva_clave_dueno'], 'tipos_solicitud' => [], 'estados_detalle' => [], 'periodos' => [], 'meses_libres' => false,
+                'ejecutar' => array_merge(['nueva_clave_dueno'], $GLOBALS['conPausa'] ? ['pausar', 'reactivar'] : [], $GLOBALS['conBaja'] ? ['dar_de_baja', 'cancelar_baja'] : []),
+                'tipos_solicitud' => [], 'estados_detalle' => [], 'periodos' => [], 'meses_libres' => false,
                 'metodos_pago' => [], 'planes_editar' => false, 'filtros_clientes' => [], 'formularios' => ['crear_demo' => []],
                 'limites' => ['por_pagina_max' => 1, 'meses_finanzas_max' => 1, 'dias_prueba_max' => 1]];
     }
     $completo = in_array($producto, ['tuvocalia', 'tuacademia'], true);
     $ejecutar = ['crear_demo', 'extender_prueba', 'registrar_pago', 'anular_pago', 'suspender', 'reactivar', 'cambiar_plan', 'nueva_clave_dueno', 'nota_interna', 'atender_solicitud'];
     if ($completo) array_push($ejecutar, 'aprobar_comprobante', 'rechazar_comprobante', 'responder_ticket');
+    if ($GLOBALS['conPausa']) array_push($ejecutar, 'pausar', 'borrar_cliente', 'restaurar_cliente');
     $tipos = ['registro_nuevo', 'seguimiento_prueba', 'renovacion'];
     if ($completo) array_push($tipos, 'demo_pedida', 'comprobante', 'soporte');
     if ($producto === 'tuvocalia') $tipos[] = 'derechos_datos';
@@ -650,9 +703,17 @@ function accion_clientes(array $db, array $d): array
     $pagina = max(1, (int) ($d['pagina'] ?? 1));
     $porPagina = (int) ($d['por_pagina'] ?? 50);
     if ($porPagina < 1 || $porPagina > 200) fallo('invalido', 'por_pagina debe ser de 1 a 200.', 422, 'por_pagina');
-    $todos = array_map('cliente_resumen', array_values($db['clientes']));
+    $todos = array_map('cliente_resumen', array_values(vivos($db)));
     $cont = ['total' => count($todos), 'prueba' => 0, 'activo' => 0, 'por_vencer' => 0, 'vencido' => 0, 'suspendido' => 0];
     foreach ($todos as $c) $cont[$c['estado']]++;
+    // Papelera (Anexo A.1): se acepta "estado", "filtros.estado" o "estados" con "papelera"
+    $pap = ($d['estado'] ?? null) === 'papelera' || ($d['filtros']['estado'] ?? null) === 'papelera' || in_array('papelera', (array) ($d['estados'] ?? []), true);
+    registrar('clientes.log', $pap ? 'papelera' : 'normal');
+    if ($pap) {
+        $d['estados'] = [];
+        $todos = $GLOBALS['conPausa'] ? array_map('cliente_resumen', array_values(array_filter($db['clientes'], fn($c) => !empty($c['papelera'])))) : $todos;
+    }
+    $cont['papelera'] = count(array_filter($db['clientes'], fn($c) => !empty($c['papelera'])));
     $l = $todos;
     if (!empty($d['ids'])) $l = array_values(array_filter($l, fn($c) => in_array($c['id'], $d['ids'], true)));
     if (!empty($d['estados'])) $l = array_values(array_filter($l, fn($c) => in_array($c['estado'], $d['estados'], true)));
@@ -705,7 +766,7 @@ function accion_planes(array $db): array
         $precios = [];
         foreach (periodos() as $k => $x) $precios[] = ['periodo' => $k, 'meses' => $x['meses'], 'precio' => precio($p['codigo'], $k), 'meses_gratis' => $x['meses'] - $x['paga']];
         $r[] = ['codigo' => $p['codigo'], 'nombre' => $p['nombre'], 'activo' => true, 'para' => 'Todos', 'descripcion' => '', 'precios' => $precios, 'limites' => [],
-                'clientes' => count(array_filter($db['clientes'], fn($c) => $c['plan'] === $p['codigo']))];
+                'clientes' => count(array_filter(vivos($db), fn($c) => $c['plan'] === $p['codigo']))];
     }
     return ['editable' => capacidades()['planes_editar'], 'planes' => $r, 'ajustes' => ['dias_prueba' => 7, 'dias_demo' => 7, 'dias_gracia' => 3, 'dias_gracia_demo' => 0, 'registro_abierto' => true]];
 }
@@ -788,7 +849,7 @@ function todas_solicitudes(array $db): array
         }
     }
     // Recordatorios y registros (se arman al momento)
-    foreach ($db['clientes'] as $c) {
+    foreach (vivos($db) as $c) {
         [$estado, , , , $dias] = estado_de($c);
         $pv = pagos_validos($c);
         $q = $quienDe($c);
@@ -882,12 +943,12 @@ function accion_finanzas(array $db, array $d): array
     for ($m = new DateTimeImmutable("$desde-01"); $m->format('Y-m') <= $hasta; $m = $m->modify('+1 month')) $meses[] = $m->format('Y-m');
     if (count($meses) > 24 || !$meses) fallo('invalido', 'Máximo 24 meses.', 422, 'desde');
     $primeros = [];
-    foreach ($db['clientes'] as $c) if ($pv = pagos_validos($c)) $primeros[$c['id']] = substr($pv[0]['fecha'], 0, 7);
+    foreach (vivos($db) as $c) if ($pv = pagos_validos($c)) $primeros[$c['id']] = substr($pv[0]['fecha'], 0, 7);
     $salida = [];
     $tot = ['ingresos' => 0.0, 'otros_ingresos' => 0.0, 'costos' => 0.0, 'pagos' => 0];
     foreach ($meses as $mes) {
         $ing = 0.0; $n = 0; $quienes = []; $plan = []; $per = []; $met = [];
-        foreach ($db['clientes'] as $c) {
+        foreach (vivos($db) as $c) {
             foreach (pagos_validos($c) as $pg) {
                 if (substr($pg['fecha'], 0, 7) !== $mes) continue;
                 $ing += $pg['monto']; $n++; $quienes[$c['id']] = true;
@@ -905,7 +966,7 @@ function accion_finanzas(array $db, array $d): array
         $tot['ingresos'] += $ing; $tot['pagos'] += $n; $tot['otros_ingresos'] += array_sum(array_column($otros, 'monto')); $tot['costos'] += array_sum(array_column($costos, 'monto'));
     }
     $mrr = 0.0;
-    foreach ($db['clientes'] as $c) $mrr += cliente_resumen($c)['mensual_estimado'];
+    foreach (vivos($db) as $c) $mrr += cliente_resumen($c)['mensual_estimado'];
     return ['moneda' => 'USD', 'criterio' => 'Pagos de suscripción no anulados, por fecha de pago.', 'mrr' => round($mrr, 2), 'meses' => $salida,
             'totales' => array_map(fn($v) => is_float($v) ? round($v, 2) : $v, $tot)];
 }
@@ -930,7 +991,7 @@ function estado_v2(array $db): array
     $anterior = date('Y-m', strtotime(date('Y-m-01', $GLOBALS['ahora']) . ' -1 month'));
     $ing = [$mes => 0.0, $anterior => 0.0];
     $nuevos = 0;
-    foreach ($db['clientes'] as $c) {
+    foreach (vivos($db) as $c) {
         $r = cliente_resumen($c);
         $n['total']++;
         $n[$plural[$r['estado']]]++;
@@ -1039,6 +1100,20 @@ function hacer(array &$db, string $accion, ?string $cid, array $d, array $quien,
         registrar('bajas.log', "cancelada|" . carpeta_mock() . "|$op|{$quien['email']}");
         return ['mensaje' => 'Borrado cancelado: la instalación sigue igual.', 'resultado' => ['estado' => 'cancelada', 'carpeta' => carpeta_mock()]];
     }
+    if ($unico && in_array($accion, ['pausar', 'reactivar'], true)) {
+        $antes = $db['unico']['pausa'] ?? null;
+        if ($accion === 'reactivar') {
+            if (!$antes) return ['sin_cambios' => true, 'mensaje' => 'No estaba pausada.', 'resultado' => ['estado' => 'activo'], 'cliente' => cliente_detalle($db, ['unico' => true])];
+            $db['unico']['pausa'] = null;
+            registrar('bitacora.log', "{$quien['email']}|unico|Instalación reactivada|$op");
+            return ['mensaje' => 'Reactivada: vuelve a funcionar normal.', 'resultado' => ['estado' => 'activo'], 'cliente' => cliente_detalle($db, ['unico' => true])];
+        }
+        [$nueva, $sin] = pedir_pausa($antes, $d, $quien);
+        $db['unico']['pausa'] = $nueva;
+        if (!$sin) registrar('bitacora.log', "{$quien['email']}|unico|Instalación pausada ({$nueva['tipo']}): {$nueva['motivo']}|$op");
+        return ['sin_cambios' => $sin, 'mensaje' => $sin ? 'Ya estaba pausada con ese motivo.' : 'Pausada: el personal y los dueños ven «Servicio pausado».',
+                'resultado' => ['estado' => 'pausado'] + pausa_publica($nueva), 'cliente' => cliente_detalle($db, ['unico' => true])];
+    }
     if ($unico) {
         $clave = substr(str_shuffle('abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789'), 0, 10);
         registrar('bitacora.log', "{$quien['email']}|unico|Clave nueva del administrador|$op");
@@ -1053,9 +1128,11 @@ function hacer(array &$db, string $accion, ?string $cid, array $d, array $quien,
     }
     if ($cid !== null && !isset($db['clientes'][$cid])) fallo('no_encontrado', 'Ese cliente no existe.', 404);
     $c = $cid !== null ? $db['clientes'][$cid] : null;
-    if ($c === null && in_array($accion, ['registrar_pago', 'anular_pago', 'extender_prueba', 'suspender', 'reactivar', 'cambiar_plan', 'nueva_clave_dueno', 'nota_interna'], true)) {
+    if ($c === null && in_array($accion, ['registrar_pago', 'anular_pago', 'extender_prueba', 'suspender', 'reactivar', 'cambiar_plan', 'nueva_clave_dueno', 'nota_interna', 'pausar', 'borrar_cliente', 'restaurar_cliente'], true)) {
         fallo('invalido', 'Falta el cliente.', 422, 'cliente_id');
     }
+    // En la papelera solo se puede restaurar (para lo demás "ya no existe")
+    if ($c !== null && !empty($c['papelera']) && $accion !== 'restaurar_cliente' && $accion !== 'borrar_cliente') fallo('no_encontrado', 'Ese cliente está en la papelera.', 404);
     $sin = false;
     switch ($accion) {
         case 'registrar_pago':
@@ -1131,9 +1208,37 @@ function hacer(array &$db, string $accion, ?string $cid, array $d, array $quien,
             $db['clientes'][$cid] = $c;
             if (!$sin) anotar($db, $cid, $quien, "Suspendió la cuenta: $motivo", $op);
             return ['sin_cambios' => $sin, 'mensaje' => $sin ? 'Ya estaba suspendida.' : "{$c['nombre']} quedó suspendida.", 'resultado' => ['estado' => 'suspendido'], 'cliente' => cliente_resumen($c)];
+        case 'pausar':
+            [$nueva, $sin] = pedir_pausa($c['pausa'] ?? null, $d, $quien);
+            $c['pausa'] = $nueva;
+            $db['clientes'][$cid] = $c;
+            if (!$sin) anotar($db, $cid, $quien, 'Pausó la cuenta (' . tipos_pausa()[$nueva['tipo']] . '): ' . $nueva['motivo'], $op);
+            return ['sin_cambios' => $sin, 'mensaje' => $sin ? 'Ya estaba pausada con ese motivo.' : "{$c['nombre']} quedó pausada. Al entrar verá «Tu cuenta está pausada».",
+                    'resultado' => ['estado' => 'suspendido'], 'cliente' => cliente_resumen($c)];
+        case 'borrar_cliente':
+            $conf = $d['confirmar'] ?? null;
+            if (!is_string($conf) || trim($conf) === '') fallo('invalido', 'Para confirmar escriba el nombre exacto del cliente.', 422, 'datos.confirmar');
+            if (trim($conf) !== $c['nombre'] && trim($conf) !== $c['id']) fallo('invalido', 'No coincide con el nombre del cliente. No se borró nada.', 422, 'datos.confirmar');
+            $motivo = texto_campo($d, 'motivo', 3, 300, 'Escriba el motivo (3 a 300 letras).');
+            if (!empty($c['papelera'])) return ['sin_cambios' => true, 'mensaje' => 'Ya estaba en la papelera.', 'copia' => $c['papelera']['copia'], 'borrar_definitivo_el' => $c['papelera']['hasta'],
+                                                'resultado' => ['copia' => $c['papelera']['copia'], 'borrar_definitivo_el' => $c['papelera']['hasta']], 'cliente' => cliente_resumen($c)];
+            $hasta = dia(30);
+            $copia = '/var/www/' . $producto . '/respaldos/borrados/' . $cid . '_' . date('Ymd_His', $GLOBALS['ahora']) . '.json.gz';
+            $c['papelera'] = ['desde' => hoy(), 'hasta' => $hasta, 'motivo' => $motivo, 'copia' => $copia, 'quien' => $quien['email']];
+            $db['clientes'][$cid] = $c;
+            anotar($db, $cid, $quien, "Borró el cliente (a la papelera hasta el $hasta): $motivo", $op);
+            return ['mensaje' => "{$c['nombre']} quedó en la papelera. Se guardó una copia completa.", 'copia' => $copia, 'borrar_definitivo_el' => $hasta,
+                    'resultado' => ['copia' => $copia, 'borrar_definitivo_el' => $hasta], 'cliente' => cliente_resumen($c)];
+        case 'restaurar_cliente':
+            if (empty($c['papelera'])) return ['sin_cambios' => true, 'mensaje' => 'No estaba en la papelera.', 'resultado' => [], 'cliente' => cliente_resumen($c)];
+            $c['papelera'] = null;
+            $db['clientes'][$cid] = $c;
+            anotar($db, $cid, $quien, 'Restauró el cliente de la papelera', $op);
+            return ['mensaje' => "{$c['nombre']} volvió tal como estaba.", 'resultado' => [], 'cliente' => cliente_resumen($c)];
         case 'reactivar':
-            if (!$c['suspendido']) $sin = true;
+            if (!$c['suspendido'] && empty($c['pausa'])) $sin = true;
             $c['suspendido'] = false;
+            $c['pausa'] = null;
             $db['clientes'][$cid] = $c;
             if (!$sin) anotar($db, $cid, $quien, 'Reactivó la cuenta', $op);
             $r = cliente_resumen($c);

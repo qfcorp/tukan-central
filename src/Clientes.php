@@ -74,6 +74,17 @@ final class Clientes
         $plan = is_array($c['plan'] ?? null) ? ['codigo' => self::texto($c['plan']['codigo'] ?? null, 40), 'nombre' => self::texto($c['plan']['nombre'] ?? null, 60)] : null;
         $vend = $c['vendedor'] ?? null;
         $vend = is_array($vend) ? self::texto($vend['nombre'] ?? null, 80) : self::texto($vend, 80);
+        // Anexo A: en la papelera (borrado, se puede restaurar hasta "hasta") y pausa con su tipo y motivo
+        $pap = is_array($c['papelera'] ?? null) ? $c['papelera'] : null;
+        $pap = $pap !== null ? ['desde' => self::fecha($pap['desde'] ?? null), 'hasta' => self::fecha($pap['hasta'] ?? $pap['borrar_definitivo_el'] ?? null),
+                                'motivo' => self::texto($pap['motivo'] ?? null, 300), 'quien' => self::texto($pap['quien'] ?? null, 120),
+                                'copia' => self::texto($pap['copia'] ?? null, 300)] : null;
+        $pau = is_array($c['pausa'] ?? null) ? $c['pausa'] : null;
+        $tipoP = is_string($pau['tipo'] ?? null) ? $pau['tipo'] : null;
+        $pau = $pau !== null ? ['tipo' => $tipoP !== null && isset(Operaciones::TIPOS_PAUSA[$tipoP]) ? $tipoP : 'otro',
+                                'tipo_nombre' => self::texto($pau['tipo_nombre'] ?? null, 60) ?? Operaciones::TIPOS_PAUSA[$tipoP] ?? 'Otro motivo',
+                                'motivo' => self::texto($pau['motivo'] ?? null, 300), 'desde' => self::texto($pau['desde'] ?? null, 40),
+                                'quien' => self::texto($pau['quien'] ?? null, 160)] : null;
         return [
             'id' => $id,
             'nombre' => $nombre,
@@ -114,13 +125,30 @@ final class Clientes
             'ir' => Formulario::rutaValida($c['ir'] ?? null) ? $c['ir'] : null,
             'ir_trabajar' => Formulario::rutaValida($c['ir_trabajar'] ?? null) ? $c['ir_trabajar'] : null,
             'actualizado' => self::texto($c['actualizado'] ?? null, 40),
+            'pausa' => $pau,
+            'papelera' => $pap,
         ];
+    }
+
+    /** Lo pone en la papelera de la copia local (después de borrar_cliente, aunque el programa no mande cómo quedó). */
+    public function aPapelera(string $inst, string $id, array $papelera): void
+    {
+        $f = $this->obtener($inst, $id);
+        if (!$f) return;
+        $d = $f['datos'];
+        $d['papelera'] = $papelera + ['desde' => date('Y-m-d'), 'hasta' => null, 'motivo' => null, 'quien' => null, 'copia' => null];
+        $this->db->prepare('UPDATE clientes SET datos = ? WHERE instancia_id = ? AND cliente_id = ?')->execute([json_encode($d, JSON_UNESCAPED_UNICODE), $inst, $id]);
     }
 
     /** Guarda (o actualiza) un cliente ya revisado. */
     public function guardar(string $inst, array $c, ?int $ahora = null): void
     {
         $ahora ??= time();
+        if (($c['papelera'] ?? null) !== null) {
+            // Los programas no mandan la copia ni quién borró: se conserva lo que guardó el panel al borrar
+            $antes = $this->obtener($inst, $c['id'])['datos']['papelera'] ?? null;
+            if (is_array($antes)) foreach (['copia', 'quien', 'motivo', 'hasta'] as $k) $c['papelera'][$k] ??= $antes[$k] ?? null;
+        }
         $contacto = $c['dueno'];
         $resto = $c;
         unset($resto['dueno']);
@@ -169,12 +197,41 @@ final class Clientes
             $paginas = is_int($r['paginas'] ?? null) ? $r['paginas'] : 1;
             $pagina++;
         } while ($pagina <= min($paginas, 100) && $lista !== []);
+        if ($ids === null && (Capacidades::puede($cap, 'ejecutar', 'borrar_cliente') || Capacidades::puede($cap, 'ejecutar', 'restaurar_cliente'))) {
+            // La papelera (Anexo A.1): se pide aparte y solo se guardan los que de verdad traen "papelera"
+            try {
+                $this->refrescarPapelera($inst, $cv, $usuario, $ahora);
+            } catch (ErrorPrograma) {
+                // sin papelera esta vez: la lista normal ya quedó guardada
+            }
+        }
         if ($ids === null) {
             $sync->guardar($inst['id'], 'clientes', $ahora, null, $contadores);
             // Los que el programa ya no manda se borran de la copia a los 7 días
             $this->db->prepare('DELETE FROM clientes WHERE instancia_id = ? AND visto < ?')->execute([$inst['id'], $ahora - self::BORRAR_DESPUES]);
         }
         return ['total' => $total, 'contadores' => $contadores];
+    }
+
+    /** Clientes en la papelera de un programa. Se piden con estado "papelera" (§A.1: filtros.estado). */
+    public function refrescarPapelera(array $inst, ClienteV2 $cv, ?array $usuario = null, ?int $ahora = null): int
+    {
+        $ahora ??= time();
+        $n = 0;
+        $pagina = 1;
+        do {
+            $r = $cv->pedir($inst, 'clientes', ['pagina' => $pagina, 'por_pagina' => 200, 'estado' => 'papelera', 'filtros' => ['estado' => 'papelera'], 'orden' => 'vence'], $usuario);
+            $lista = is_array($r['clientes'] ?? null) && array_is_list($r['clientes']) ? $r['clientes'] : [];
+            foreach ($lista as $c) {
+                if (($l = self::limpiar($c)) !== null && $l['papelera'] !== null) {
+                    $this->guardar($inst['id'], $l, $ahora);
+                    $n++;
+                }
+            }
+            $paginas = is_int($r['paginas'] ?? null) ? $r['paginas'] : 1;
+            $pagina++;
+        } while ($pagina <= min($paginas, 20) && $lista !== []);
+        return $n;
     }
 
     /** Programas de una sola empresa (TuGuardería): un solo "cliente", con la licencia que lleva el Central. */
@@ -212,12 +269,16 @@ final class Clientes
         return $f;
     }
 
-    /** Filas vigentes (de programas activos y que vinieron en la última lista completa). */
-    public function todas(?string $inst = null): array
+    /**
+     * Filas vigentes (de programas activos y que vinieron en la última lista completa).
+     * Los que están en la papelera (borrados) no salen, salvo con $conPapelera (la pantalla Clientes los separa).
+     */
+    public function todas(?string $inst = null, bool $conPapelera = false): array
     {
         $sql = 'SELECT c.*, i.nombre AS programa, i.producto FROM clientes c JOIN instancias i ON i.id = c.instancia_id AND i.activo = 1
                 LEFT JOIN sincronizacion s ON s.instancia_id = c.instancia_id AND s.que = \'clientes\'
-                WHERE (s.momento IS NULL OR c.visto >= s.momento)' . ($inst !== null ? ' AND c.instancia_id = ?' : '');
+                WHERE (s.momento IS NULL OR c.visto >= s.momento)' . ($inst !== null ? ' AND c.instancia_id = ?' : '')
+             . ($conPapelera ? '' : " AND json_extract(c.datos, '$.papelera') IS NULL");
         $st = $this->db->prepare($sql);
         $st->execute($inst !== null ? [$inst] : []);
         $filas = $st->fetchAll();
@@ -238,12 +299,21 @@ final class Clientes
     public function lista(array $f, bool $conContacto, ?string $hoy = null): array
     {
         $hoy ??= date('Y-m-d');
-        $filas = $this->todas(($f['inst'] ?? '') !== '' ? $f['inst'] : null);
+        $filas = $this->todas(($f['inst'] ?? '') !== '' ? $f['inst'] : null, true);
         $q = self::sinTildes(trim((string) ($f['buscar'] ?? '')));
         $qDig = preg_replace('/\D+/', '', $q) ?? '';
         $salida = [];
         $contadores = array_fill_keys(array_keys(self::ESTADOS), 0);
+        $enPapelera = 0;
+        $verPapelera = !empty($f['papelera']);
         foreach ($filas as $r) {
+            // Los borrados (papelera) no cuentan ni salen en la lista normal; solo con el filtro Papelera
+            $pap = !empty($r['datos']['papelera']);
+            if ($pap) $enPapelera++;
+            if ($pap !== $verPapelera) {
+                if (!$pap) $contadores[$r['estado']]++;   // en la Papelera, los chips siguen diciendo cuántos hay de cada estado
+                continue;
+            }
             $r['contacto'] = $conContacto ? $this->contacto($r) : null;
             if (($f['plan'] ?? '') !== '' && (string) $r['plan'] !== $f['plan']) continue;
             if (($f['origen'] ?? '') !== '' && $r['origen'] !== $f['origen']) continue;
@@ -266,8 +336,8 @@ final class Clientes
                 }
                 if (!$ok) continue;
             }
-            $contadores[$r['estado']]++;
-            $estados = $f['estados'] ?? [];
+            if (!$verPapelera) $contadores[$r['estado']]++;
+            $estados = $verPapelera ? [] : ($f['estados'] ?? []);
             if ($estados && !in_array($r['estado'], $estados, true)) continue;
             $salida[] = $r;
         }
@@ -280,7 +350,7 @@ final class Clientes
                 default => [$a['vence'] === null, $a['vence'], $a['nombre']] <=> [$b['vence'] === null, $b['vence'], $b['nombre']],
             };
         });
-        return ['filas' => $salida, 'contadores' => $contadores, 'total' => count($salida)];
+        return ['filas' => $salida, 'contadores' => $contadores, 'total' => count($salida), 'papelera' => $enPapelera];
     }
 
     /** Planes que hay en la copia (para el filtro). */
