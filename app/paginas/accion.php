@@ -24,6 +24,7 @@ $falla = function (string $texto) use ($parcial, $volver): never {
 };
 if (!$inst || !(int) $inst['activo']) $falla('Ese programa no existe o está pausado.');
 if (in_array($accion, Operaciones::DE_LA_FICHA, true)) $falla('Borrar la instalación se hace desde la ficha del programa (zona de peligro).');
+if (in_array($accion, Operaciones::DE_MODULOS, true)) $falla('Los módulos se cambian en la pestaña «Módulos» del cliente (o en el Catálogo del programa).');
 if (!puede_operacion($inst['id'], $accion)) {
     auditar('permiso_negado', "Pidió el formulario $accion", $inst['id']);
     $falla('Tu usuario no tiene permiso para esto (o el programa no lo permite).');

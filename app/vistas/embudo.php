@@ -1,7 +1,7 @@
 <?php
 use Tukan\{Contacto, Finanzas};
 
-$pasos = [['interesados', 'Pedidos de demo y registros', null], ['creadas', 'Demos y pruebas creadas', 'pct_creadas'], ['pagaron', 'Empezaron a pagar', 'pct_pagaron'], ['siguen', 'Siguen pagando hoy', 'pct_siguen']];
+$pasos = [['interesados', 'Pedidos de demo y registros', null], ['creadas', 'Demos creadas', 'pct_creadas'], ['pagaron', 'Empezaron a pagar', 'pct_pagaron'], ['siguen', 'Siguen pagando hoy', 'pct_siguen']];
 $max = max(1, $total['interesados']);
 ?>
 <div class="cabeza">
@@ -47,7 +47,7 @@ $max = max(1, $total['interesados']);
 
 <div class="rejilla dos seccion">
   <div class="tarjeta">
-    <h2>Pruebas que terminaron sin pagar <span class="cuenta"><?= count($sin_pagar) ?></span></h2>
+    <h2>Demos que terminaron sin pagar <span class="cuenta"><?= count($sin_pagar) ?></span></h2>
     <p class="chico suave mb">Últimos 60 días. Una llamada a tiempo hace la diferencia.</p>
     <?php if (!$sin_pagar): ?><p class="vacio"><?= icono('ok') ?> Ninguna.</p><?php else: ?>
     <ul class="lista-p">

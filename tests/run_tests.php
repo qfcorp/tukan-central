@@ -438,6 +438,7 @@ foreach (glob(dirname(__DIR__) . '/{bin,deploy}/*.{php,sh}', GLOB_BRACE) as $arc
 require __DIR__ . '/run_tests_v2.php';
 require __DIR__ . '/run_tests_bajas.php';
 require __DIR__ . '/run_tests_pausa.php';
+require __DIR__ . '/run_tests_modulos.php';
 
 // ---------------------------------------------------------------------------
 echo "\n----------------------------------------\n";

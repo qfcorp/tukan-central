@@ -173,6 +173,19 @@ with sync_playwright() as p:
         hechas.append(f'36_hoja_borrar_desde_solicitud_{sufijo}.png')
         pag.keyboard.press('Escape')
     pag.set_viewport_size({'width': 390, 'height': 844})
+    # Anexo B: módulos (pestaña de la ficha, resumen antes de guardar, catálogo de precios y aprobar un pedido)
+    ir('cliente&i=tuvocalia&id=3&tab=modulos', '37_cliente_modulos')
+    pag.click('li.mod[data-id="pagos_linea"] label.mod-sw')       # encender un módulo: el total cambia en vivo
+    pag.wait_for_timeout(200)
+    if pag.inner_text('[data-m="total"]').strip() != '$33,00':
+        errores.append('37_cliente_modulos: el total no cambió al encender (salió ' + pag.inner_text('[data-m="total"]') + ')')
+    pag.click('form#form-modulos button[type=submit]')
+    pag.wait_for_load_state('networkidle')
+    foto('38_revisar_modulos')
+    ir('catalogo&i=tuvocalia', '39_catalogo_modulos')
+    ir('modulos&i=tuvocalia&sol=cambio_modulos:7', '40_aprobar_modulos')
+    ir('programa&id=tuvocalia', '41_programa_catalogo')
+    ir('demo_nueva&i=tuvocalia', '42_demo_modulos')
     nav.close()
 
 print(f'{len(hechas)} capturas en {SALIDA}')

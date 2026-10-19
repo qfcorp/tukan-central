@@ -32,7 +32,24 @@ if (puede('programas')) {
 $on = (int) $fila['activo'] && $fila['consultado'] !== null && (int) $fila['en_linea'];
 $hostBaja = Bajas::hostname($fila, is_string($cap['datos']['url_publica'] ?? null) ? (string) parse_url($cap['datos']['url_publica'], PHP_URL_HOST) : null);
 $carpetaBaja = Bajas::carpeta($fila, null);
+// Anexo B: catálogo de módulos (en vivo o la copia) y, en TuGuardería, los módulos de la instalación
+$mCat = null;
+$mCli = null;
+if ($cap && $cap['protocolo'] === 2 && \Tukan\Modulos::tiene($cap['datos'])) {
+    $instM = instancias()->obtener($id);
+    if ($instM) $mCat = (new \Tukan\Modulos(db()))->catalogo($instM, cliente_v2(), usuario_v2(), (bool) $on);
+    if ($unico && $instM) {
+        try {
+            $rc = cliente_v2()->pedir($instM, 'cliente', ['id' => 'unico'], usuario_v2());
+            $mCli = \Tukan\Modulos::limpiarCliente($rc['cliente']['modulos'] ?? null);
+        } catch (\Tukan\ErrorPrograma) {
+            $mCli = null;
+        }
+    }
+    if ($mCat && !$mCat['modulos']) $mCat = null;
+}
 vista('programa', [
+    'mCat' => $mCat, 'mCli' => $mCli,
     'on' => $on, 'hostBaja' => $hostBaja, 'carpetaBaja' => $carpetaBaja,
     'comandoBorrar' => 'cd /home/qf/github/tuguarderia && git pull && sudo bash borrar_cliente.sh ' . ($carpetaBaja ?? 'CARPETA'),
     'baja' => $baja, 'bajaDisp' => $bajaDisp, 'urlPublica' => is_string($cap['datos']['url_publica'] ?? null) ? $cap['datos']['url_publica'] : null, 'cfListo' => Cloudflare::configurado(ajustes()), 'opBaja' => Operaciones::nuevaId(),

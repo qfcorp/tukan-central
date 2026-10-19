@@ -35,6 +35,13 @@ if (Capacidades::puede($cap, 'planes')) {
     } catch (ErrorPrograma) {
     }
 }
+// Anexo B: si el programa lo acepta (capacidades.modulos.crear_demo), se elige el plan y qué módulos encender
+$demoCat = null;
+if (\Tukan\Modulos::tiene($cap) && ($cap['modulos']['crear_demo'] ?? false)) {
+    $demoCat = (new \Tukan\Modulos(db()))->catalogo($inst, cliente_v2(), usuario_v2());
+    if ($demoCat && !$demoCat['modulos']) $demoCat = null;
+    if ($demoCat && !$planes) foreach ($demoCat['planes'] as $pl) $planes[] = ['valor' => $pl['codigo'], 'etiqueta' => $pl['nombre'] . ' · ' . dinero($pl['precio_mensual']) . ' al mes'];
+}
 $maxDias = (int) ($cap['limites']['dias_prueba_max'] ?? 90);
 $comunes = Formulario::limpiarCampos([
     ['campo' => 'nombre', 'etiqueta' => 'Nombre del negocio', 'tipo' => 'texto', 'requerido' => true, 'min' => 3, 'max' => 120],
@@ -44,7 +51,7 @@ $comunes = Formulario::limpiarCampos([
 ]);
 if ($planes) $comunes = array_merge($comunes, Formulario::limpiarCampos([['campo' => 'plan', 'etiqueta' => 'Plan', 'tipo' => 'opcion', 'requerido' => true, 'valor' => $planes[0]['valor'], 'opciones' => $planes]]));
 $comunes = array_merge($comunes, Formulario::limpiarCampos([
-    ['campo' => 'dias', 'etiqueta' => 'Días de prueba', 'tipo' => 'dias', 'requerido' => true, 'valor' => min($diasDef, $maxDias), 'min' => 1, 'max' => $maxDias],
+    ['campo' => 'dias', 'etiqueta' => 'Días de demo', 'tipo' => 'dias', 'requerido' => true, 'valor' => min($diasDef, $maxDias), 'min' => 1, 'max' => $maxDias],
 ]));
 $extra = $cap['formularios']['crear_demo'] ?? [];
 
@@ -65,7 +72,9 @@ if ($solId !== '' && ($fila = solicitudes()->obtener($inst['id'], $solId))) {
     }
     foreach ($extra as $c) if (!isset($valoresExtra[$c['campo']]) && is_scalar($sol['detalle'][$c['campo']] ?? null)) $valoresExtra[$c['campo']] = (string) $sol['detalle'][$c['campo']];
 }
-$base = ['paso' => 2, 'inst' => $inst, 'pueden' => $pueden, 'comunes' => $comunes, 'extra' => $extra, 'sol' => $sol, 'solId' => $sol ? $solId : '',
+$demoMods = $demoCat ? array_keys($demoCat['modulos']) : [];
+if ($demoCat && es_post()) $demoMods = array_values(array_intersect(array_keys($demoCat['modulos']), is_array($_POST['demo_mods'] ?? null) ? $_POST['demo_mods'] : []));
+$base = ['demoCat' => $demoCat, 'demoMods' => $demoMods, 'paso' => 2, 'inst' => $inst, 'pueden' => $pueden, 'comunes' => $comunes, 'extra' => $extra, 'sol' => $sol, 'solId' => $sol ? $solId : '',
          'valores' => $valores, 'valoresExtra' => $valoresExtra, 'errores' => [], 'error' => null, 'op' => Operaciones::nuevaId(), 'enviarCorreo' => true];
 if (!es_post()) {
     vista('demo_nueva', $base, 'Crear demo · Panel Tukán');
@@ -89,6 +98,12 @@ if ($err || $errx) {
 $datos = ['nombre' => $v['nombre'], 'contacto_nombre' => $v['contacto_nombre'], 'email' => $v['email'], 'telefono' => $v['telefono'],
           'plan' => $v['plan'] ?? null, 'dias' => $v['dias'], 'enviar_correo' => $enviar, 'extra' => $vx === [] ? new stdClass() : $vx];
 if ($sol) $datos['solicitud_id'] = $solId;
+// Módulos de la demo: sin elegir = todos encendidos (no se manda nada); si se quitaron algunos, la lista de los que quedan
+if ($demoCat && count($demoMods) < count($demoCat['modulos'])) {
+    $sim = \Tukan\Modulos::simular($demoCat, ['activos' => []], (string) ($v['plan'] ?? ''), $demoMods, null);
+    // Ninguno marcado = solo la base ("ninguno"); una lista vacía los programas la leen como «todos»
+    $datos['modulos'] = $sim['activos'] ?: 'ninguno';
+}
 $res = operaciones()->ejecutar($inst, 'crear_demo', $op, null, $datos, usuario_v2(), $v['nombre']);
 $corto = substr($op, 0, 8);
 if ($res['ok']) {

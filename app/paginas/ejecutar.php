@@ -31,6 +31,10 @@ if (in_array($accion, Operaciones::DE_LA_FICHA, true)) {
     aviso('Borrar la instalación se hace desde la ficha del programa (zona de peligro).', 'info');
     redirigir('programa', ['id' => $inst['id']]);
 }
+if (in_array($accion, Operaciones::DE_MODULOS, true)) {
+    aviso('Los módulos se cambian en la pestaña «Módulos» del cliente (o en el Catálogo del programa).', 'info');
+    $irA();
+}
 $op = campo('op');
 $cid = campo('cliente_id');
 $fijosJ = campo('fijos', '{}');

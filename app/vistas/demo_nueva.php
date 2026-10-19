@@ -26,6 +26,12 @@
       <h2 class="mt">Lo propio de <?= e($inst['nombre']) ?></h2>
       <div class="fila-campos"><?= campos_html($extra, $valoresExtra, $errores, 'extra', 'x') ?></div>
     <?php endif; ?>
+    <?php if ($demoCat): ?>
+      <fieldset class="mt mb demo-mods"><legend><h2 class="mb0">Módulos de la demo</h2></legend>
+        <p class="chico suave mb">Lo normal es probar con <b>todo encendido</b>. Quita los que no quiere ver (los que otro necesita se encienden solos).</p>
+        <div class="plan-mods"><?php foreach ($demoCat['modulos'] as $id => $m): ?><label class="check"><input type="checkbox" name="demo_mods[]" value="<?= e($id) ?>"<?= in_array($id, $demoMods, true) ? ' checked' : '' ?>> <span><?= e($m['nombre']) ?></span></label><?php endforeach; ?></div>
+      </fieldset>
+    <?php endif; ?>
     <label class="check mb"><input type="hidden" name="enviar_correo" value="0"><input type="checkbox" name="enviar_correo" value="1" <?= $enviarCorreo ? 'checked' : '' ?>> <span>Enviarle el correo de bienvenida con sus accesos</span></label>
     <div class="acciones-form">
       <button class="btn btn-primario btn-grande" type="submit"><?= icono('demo') ?> Crear demo</button>

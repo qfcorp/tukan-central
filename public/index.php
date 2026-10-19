@@ -18,6 +18,8 @@ $rutas = [
     'solicitudes' => 'ver', 'solicitud' => 'ver', 'adjunto' => 'ver', 'clientes' => 'ver', 'cliente' => 'ver',
     'vencimientos' => 'ver', 'demos' => 'ver', 'embudo' => 'ver', 'accion' => 'ver', 'ejecutar' => 'ver',
     'demo_nueva' => 'demos', 'cotizar' => 'cobros', 'recordar' => 'contacto',
+    // Anexo B: módulos (cambiar es solo del dueño; se revisa adentro) y catálogo de precios (todos lo ven)
+    'modulos' => 'ver', 'catalogo' => 'ver',
     'finanzas' => 'finanzas', 'gastos' => 'finanzas', 'ingresos_extra' => 'finanzas', 'exportar' => 'finanzas', 'licencias' => 'finanzas',
     // Solo el dueño
     'programa_nuevo' => 'programas', 'programa_editar' => 'programas', 'programa_comando' => 'programas',

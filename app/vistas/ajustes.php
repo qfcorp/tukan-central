@@ -47,7 +47,7 @@
       <div class="campo"><label for="s-hasta">hasta</label><input id="s-hasta" type="time" name="silencio_hasta" value="<?= e(ajustes()->valor('silencio_hasta')) ?>"></div>
     </div>
     <p class="chico suave mb">Las que lleguen en la noche salen juntas al terminar el silencio.</p>
-    <label class="check mb"><input type="checkbox" name="resumen_diario" value="1" <?= ajustes()->si('resumen_diario') ? 'checked' : '' ?>> <span><b>Resumen de cada mañana</b> (07:30): por atender, pruebas que terminan, planes que vencen, cobrado y gastos del mes</span></label>
+    <label class="check mb"><input type="checkbox" name="resumen_diario" value="1" <?= ajustes()->si('resumen_diario') ? 'checked' : '' ?>> <span><b>Resumen de cada mañana</b> (07:30): por atender, demos que terminan, planes que vencen, cobrado y gastos del mes</span></label>
     <button class="btn btn-primario" type="submit">Guardar</button>
   </form>
   <form method="post" action="<?= e(url('ajustes')) ?>" class="tarjeta" id="ajustes-whatsapp">

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /** "Más" (celular): todo lo que no cabe en los 4 botones de abajo. */
 $items = [
-    ['vencimientos', 'Vencimientos', 'calendario', 'Qué día vence cada prueba y cada plan'],
+    ['vencimientos', 'Vencimientos', 'calendario', 'Qué día vence cada demo y cada plan'],
     ['demos', 'Demos', 'demo', 'Crear demos y ver cuántas pagan'],
     ['embudo', 'Embudo', 'embudo', 'Cuántos interesados se vuelven clientes'],
     ['programas', 'Programas', 'programas', 'Tus programas conectados y qué puede hacer cada uno'],

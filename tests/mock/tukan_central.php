@@ -21,6 +21,7 @@ declare(strict_types=1);
  *   MOCK_CARPETA   (tuguarderia) carpeta de la instalación (por defecto el ID) · MOCK_DOMINIO su dirección pública
  *   MOCK_BAJA_ESPERA segundos de espera antes de borrar (por defecto 300)
  *   MOCK_SIN_PAUSA=1 programa que todavía no sabe pausar ni borrar clientes (Anexo A): sin pausar, borrar_cliente ni restaurar_cliente
+ *   MOCK_SIN_MODULOS=1 programa sin módulos (Anexo B): sin modulos, cambiar_modulos, guardar_modulos ni cambio_modulos
  * Archivos de control en MOCK_DIR (se pueden crear durante la prueba):
  *   total          cambia negocios.total del "estado" (para probar el aviso de negocio nuevo)
  *   lento_ejecutar segundos que tarda "ejecutar" DESPUÉS de hacer la operación (para probar "no respondió" + Revisar)
@@ -36,7 +37,8 @@ $v1 = (string) getenv('MOCK_V1');
 $producto = (string) (getenv('MOCK_PRODUCTO') ?: 'tuevento');
 $unico = $producto === 'tuguarderia';
 $conBaja = $unico && getenv('MOCK_BAJA') === '1';
-$conPausa = getenv('MOCK_SIN_PAUSA') !== '1';     // Anexo A: pausar / reactivar (y en los de varios clientes, borrar_cliente / restaurar_cliente)
+$conPausa = getenv('MOCK_SIN_PAUSA') !== '1';
+$conModulos = getenv('MOCK_SIN_MODULOS') !== '1';   // Anexo B: módulos (modulos, cambiar_modulos, guardar_modulos, solicitudes cambio_modulos)     // Anexo A: pausar / reactivar (y en los de varios clientes, borrar_cliente / restaurar_cliente)
 date_default_timezone_set('America/Guayaquil');
 if ((int) getenv('MOCK_DESFASE') !== 0) header('Date: ' . gmdate('D, d M Y H:i:s', $ahora) . ' GMT');
 
@@ -133,7 +135,7 @@ if ($esV2Accion && $v1 !== '') {
     if ($v1 === '404') { http_response_code(404); exit('No encontrado'); }
     json_out(['ok' => false, 'error' => 'Acción no válida.'], 400);
 }
-if ($esV2Accion && !in_array($accion, ['capacidades', 'clientes', 'cliente', 'cotizar', 'planes', 'solicitudes', 'solicitud', 'adjunto', 'finanzas', 'ejecutar'], true)) {
+if ($esV2Accion && !in_array($accion, ['capacidades', 'clientes', 'cliente', 'cotizar', 'planes', 'solicitudes', 'solicitud', 'adjunto', 'finanzas', 'ejecutar', 'modulos'], true)) {
     json_out(['ok' => false, 'protocolo' => 2, 'codigo' => 'no_permitido', 'error' => 'Esa acción no existe.', 'detalle' => ['motivo' => 'no_disponible']], 403);
 }
 
@@ -293,6 +295,7 @@ $db = abrir_db();
 try {
     $r = match ($accion) {
         'capacidades' => capacidades(),
+        'modulos' => mod_accion_modulos(),
         'clientes' => accion_clientes($db, $datos),
         'cliente' => ['cliente' => cliente_detalle($db, cliente_de($db, (string) ($datos['id'] ?? '')))],
         'cotizar' => accion_cotizar($db, $datos),
@@ -429,7 +432,14 @@ function sembrar(): array
         }
     }
     if ($unico) {
-        $db['unico'] = ['nombre' => (string) (getenv('MOCK_CLIENTE') ?: 'Dogssy'), 'dueno' => ['nombre' => 'Gabriela Ortiz', 'telefono' => '0998877665', 'email' => 'gabriela@dogssy.ec']];
+        $db['unico'] = ['nombre' => (string) (getenv('MOCK_CLIENTE') ?: 'Dogssy'), 'dueno' => ['nombre' => 'Gabriela Ortiz', 'telefono' => '0998877665', 'email' => 'gabriela@dogssy.ec'],
+                        'mods' => ['plan' => 'completo', 'extra' => [], 'quitados' => ['hotel'], 'acordado' => null]];
+        if ($GLOBALS['conModulos']) $db['solicitudes']['cambio_modulos:1'] = ['tipo' => 'cambio_modulos', 'estado' => 'pendiente', 'fecha' => date('c', $GLOBALS['ahora'] - 1800),
+            'cliente_id' => 'unico', 'encender' => ['hotel'], 'apagar' => [], 'nota' => 'Abrimos el hotel en diciembre'];
+    } elseif ($GLOBALS['conModulos']) {
+        $db['clientes']['3']['mods'] = ['plan' => '1', 'extra' => ['reportes'], 'quitados' => [], 'acordado' => null];
+        $db['solicitudes']['cambio_modulos:7'] = ['tipo' => 'cambio_modulos', 'estado' => 'pendiente', 'fecha' => date('c', $GLOBALS['ahora'] - 5400),
+            'cliente_id' => '5', 'encender' => ['pagos_linea'], 'apagar' => [], 'nota' => 'Quiero cobrar con tarjeta'];
     }
     return $db;
 }
@@ -501,7 +511,7 @@ function cliente_resumen(array $c): array
         'ir' => '/admin?cliente=' . $c['id'], 'ir_trabajar' => '/admin?entrar=' . $c['id'], 'actualizado' => date('c'),
         'pausa' => pausa_publica($c['pausa'] ?? null),
         'papelera' => !empty($c['papelera']) ? ['desde' => $c['papelera']['desde'], 'hasta' => $c['papelera']['hasta'], 'motivo' => $c['papelera']['motivo']] : null,
-    ];
+    ] + ($GLOBALS['conModulos'] ? ['modulos' => mod_resumen($c['mods'] ?? mod_defecto($c['plan']))] : []);
 }
 
 function cliente_de(array $db, string $cid): array
@@ -592,11 +602,13 @@ function cliente_detalle(array $db, array $c): array
                 'dueno' => $db['unico']['dueno'] + ['whatsapp' => '593998877665'], 'ultima_actividad' => date('c', $GLOBALS['ahora'] - 3600),
                 'pagos' => ['total' => 0.0, 'cantidad' => 0, 'primer_pago' => null, 'ultimo_pago' => null, 'ultimo_monto' => null], 'mensual_estimado' => 0.0,
                 'origen' => 'super', 'vendedor' => null, 'uso' => ['Mascotas activas' => 86, 'Usuarios' => 6], 'ir' => '/admin?usuarios', 'ir_trabajar' => null,
-                'notas_admin' => '', 'usuarios' => 6, 'pagos_detalle' => [], 'solicitudes' => [], 'registro' => [], 'mensajes_sugeridos' => [],
+                'notas_admin' => '', 'usuarios' => 6, 'pagos_detalle' => [], 'registro' => [], 'mensajes_sugeridos' => [],
                 'pausa' => pausa_publica($db['unico']['pausa'] ?? null),
+                'solicitudes' => $GLOBALS['conModulos'] ? array_values(array_filter(todas_solicitudes($db), fn($s) => $s['estado'] === 'pendiente')) : [],
                 'acciones_posibles' => array_merge([['accion' => 'nueva_clave_dueno', 'etiqueta' => 'Nueva clave del administrador', 'estilo' => 'normal', 'confirmar' => '¿Crear una contraseña nueva para el administrador?', 'datos' => ['cliente_id' => 'unico'], 'campos' => []],
                                         ['accion' => 'abrir', 'etiqueta' => 'Ver usuarios', 'ir' => '/admin?usuarios']], acciones_pausa_unico($db), acciones_baja($db))]
-               + ($GLOBALS['conBaja'] ? ['baja' => baja_de($db) + ['carpeta' => carpeta_mock()]] : []);
+               + ($GLOBALS['conBaja'] ? ['baja' => baja_de($db) + ['carpeta' => carpeta_mock()]] : [])
+               + ($GLOBALS['conModulos'] ? ['modulos' => mod_resumen($db['unico']['mods'] ?? null)] : []);
     }
     $r = cliente_resumen($c);
     $plan = planes_lista()[$c['plan']];
@@ -666,9 +678,11 @@ function capacidades(): array
     if ($unico) {
         return ['revision' => 1, 'producto' => $producto, 'nombre' => $NOMBRES[$producto], 'version' => '57ed3ce', 'unico' => true, 'moneda' => 'USD',
                 'zona_horaria' => 'America/Guayaquil', 'url_publica' => getenv('MOCK_DOMINIO') ? 'https://' . getenv('MOCK_DOMINIO') : 'https://dogssy.ejemplo.ec',
-                'acciones' => ['capacidades', 'estado', 'sso', 'cliente', 'ejecutar'], 'sso_ir' => true, 'rutas_sso' => ['/admin'],
-                'ejecutar' => array_merge(['nueva_clave_dueno'], $GLOBALS['conPausa'] ? ['pausar', 'reactivar'] : [], $GLOBALS['conBaja'] ? ['dar_de_baja', 'cancelar_baja'] : []),
-                'tipos_solicitud' => [], 'estados_detalle' => [], 'periodos' => [], 'meses_libres' => false,
+                'acciones' => array_merge(['capacidades', 'estado', 'sso', 'cliente', 'ejecutar'], $GLOBALS['conModulos'] ? ['modulos', 'solicitudes', 'solicitud'] : []), 'sso_ir' => true, 'rutas_sso' => ['/admin'],
+                'ejecutar' => array_merge(['nueva_clave_dueno'], $GLOBALS['conPausa'] ? ['pausar', 'reactivar'] : [], $GLOBALS['conBaja'] ? ['dar_de_baja', 'cancelar_baja'] : [],
+                                          $GLOBALS['conModulos'] ? ['cambiar_modulos', 'guardar_modulos', 'atender_solicitud'] : []),
+                'tipos_solicitud' => $GLOBALS['conModulos'] ? ['cambio_modulos'] : [],
+                'modulos' => ['editable' => true, 'por_instalacion' => true, 'cambia_plan' => true, 'precio_acordado' => true], 'estados_detalle' => [], 'periodos' => [], 'meses_libres' => false,
                 'metodos_pago' => [], 'planes_editar' => false, 'filtros_clientes' => [], 'formularios' => ['crear_demo' => []],
                 'limites' => ['por_pagina_max' => 1, 'meses_finanzas_max' => 1, 'dias_prueba_max' => 1]];
     }
@@ -676,14 +690,17 @@ function capacidades(): array
     $ejecutar = ['crear_demo', 'extender_prueba', 'registrar_pago', 'anular_pago', 'suspender', 'reactivar', 'cambiar_plan', 'nueva_clave_dueno', 'nota_interna', 'atender_solicitud'];
     if ($completo) array_push($ejecutar, 'aprobar_comprobante', 'rechazar_comprobante', 'responder_ticket');
     if ($GLOBALS['conPausa']) array_push($ejecutar, 'pausar', 'borrar_cliente', 'restaurar_cliente');
+    if ($GLOBALS['conModulos']) array_push($ejecutar, 'cambiar_modulos', 'guardar_modulos');
     $tipos = ['registro_nuevo', 'seguimiento_prueba', 'renovacion'];
     if ($completo) array_push($tipos, 'demo_pedida', 'comprobante', 'soporte');
     if ($producto === 'tuvocalia') $tipos[] = 'derechos_datos';
+    if ($GLOBALS['conModulos']) $tipos[] = 'cambio_modulos';
     return [
         'revision' => 1, 'producto' => $producto, 'nombre' => $NOMBRES[$producto], 'version' => $producto === 'tuvocalia' ? '3f0b7aa' : '75df6b3', 'unico' => false,
         'moneda' => 'USD', 'zona_horaria' => 'America/Guayaquil', 'url_publica' => 'https://' . $producto . '.ejemplo.ec',
-        'acciones' => ['capacidades', 'estado', 'sso', 'clientes', 'cliente', 'cotizar', 'planes', 'solicitudes', 'solicitud', 'adjunto', 'finanzas', 'ejecutar'],
+        'acciones' => array_merge(['capacidades', 'estado', 'sso', 'clientes', 'cliente', 'cotizar', 'planes', 'solicitudes', 'solicitud', 'adjunto', 'finanzas', 'ejecutar'], $GLOBALS['conModulos'] ? ['modulos'] : []),
         'sso_ir' => true, 'rutas_sso' => ['/admin'], 'ejecutar' => $ejecutar, 'tipos_solicitud' => $tipos,
+        'modulos' => ['editable' => true, 'por_instalacion' => false, 'cambia_plan' => true, 'precio_acordado' => true, 'crear_demo' => true],
         'estados_detalle' => ['prueba' => 'Demo', 'activa' => 'Activa', 'sin_limite' => 'Sin vencimiento', 'gracia' => 'En gracia', 'vencida' => 'Vencida', 'prueba_vencida' => 'Demo terminada', 'suspendida' => 'Suspendida'],
         'periodos' => [['periodo' => 'mensual', 'meses' => 1], ['periodo' => 'semestral', 'meses' => 6], ['periodo' => 'anual', 'meses' => 12]],
         'meses_libres' => $completo,
@@ -784,6 +801,10 @@ function todas_solicitudes(array $db): array
     foreach ($db['solicitudes'] as $sid => $s) {
         if (!in_array($s['tipo'], $tipos, true)) continue;
         $c = $s['cliente_id'] !== null ? ($db['clientes'][$s['cliente_id']] ?? null) : null;
+        if ($s['tipo'] === 'cambio_modulos') {
+            $r[] = mod_solicitud($db, $sid, $s);
+            continue;
+        }
         if ($s['tipo'] === 'demo_pedida') {
             $estado = ['nueva' => 'pendiente', 'contactada' => 'en_proceso', 'creada' => 'atendida', 'descartada' => 'descartada'][$s['estado']];
             $q = $s['quien'] + ['whatsapp' => $wa($s['quien']['telefono'])];
@@ -974,7 +995,7 @@ function accion_finanzas(array $db, array $d): array
 function estado_v2(array $db): array
 {
     global $producto, $NOMBRES, $unico, $dir;
-    $abiertas = $unico ? [] : array_values(array_filter(todas_solicitudes($db), fn($s) => in_array($s['estado'], ['pendiente', 'en_proceso'], true)));
+    $abiertas = array_values(array_filter(todas_solicitudes($db), fn($s) => in_array($s['estado'], ['pendiente', 'en_proceso'], true)));
     $h = array_map(fn($s) => $s['id'] . ':' . $s['estado'], $abiertas);
     sort($h);
     $comun = ['producto' => $producto, 'nombre' => $NOMBRES[$producto], 'protocolo_max' => 2, 'solicitudes_abiertas' => count($abiertas),
@@ -1073,6 +1094,9 @@ function hacer(array &$db, string $accion, ?string $cid, array $d, array $quien,
 {
     global $unico, $NOMBRES, $producto;
     $sid = isset($d['solicitud_id']) ? (string) $d['solicitud_id'] : null;
+    if (in_array($accion, ['cambiar_modulos', 'guardar_modulos'], true) || ($accion === 'atender_solicitud' && str_starts_with((string) $sid, 'cambio_modulos:'))) {
+        return mod_hacer($db, $accion, $cid, $d, $quien, $op);
+    }
     if ($unico && $accion === 'dar_de_baja') {
         $c = carpeta_mock();
         $conf = $d['confirmar'] ?? null;
@@ -1326,6 +1350,15 @@ function crear_demo(array &$db, array $d, array $quien, string $op): array
     $c = ['id' => $cid, 'nombre' => $nombre, 'tipo' => $extra['tipo'] ?? null, 'ciudad' => $extra['ciudad'] ?? null, 'plan' => (string) ($plan ?? '1'), 'es_prueba' => true,
           'vence' => dia($dias), 'suspendido' => false, 'alta' => hoy(), 'dueno' => ['nombre' => $contacto, 'telefono' => $tel, 'email' => strtolower($email)],
           'ultima_actividad' => null, 'origen' => $sid ? 'demo_pedida' : 'central', 'notas' => '', 'pagos' => []];
+    // Anexo B: la demo con todo encendido, salvo que se elijan los módulos
+    if ($GLOBALS['conModulos']) {
+        $mods = $d['modulos'] ?? null;
+        if ($mods === 'ninguno') $mods = [];
+        elseif ($mods === []) $mods = null;   // lista vacía = todos (como TuSalón)
+        if ($mods !== null && (!is_array($mods) || array_diff($mods, array_keys(mod_catalogo()['modulos'])))) fallo('invalido', 'Módulos de la demo no válidos.', 422, 'datos.modulos');
+        $c['mods'] = mod_desde_activos($c['plan'], $mods ?? array_keys(mod_catalogo()['modulos']), null);
+        registrar('demos.log', $cid . '|' . $c['plan'] . '|' . implode(',', $mods ?? ['*']));
+    }
     $db['clientes'][$cid] = $c;
     anotar($db, $cid, $quien, "Creó la demo hasta el {$c['vence']}", $op);
     $wa = preg_replace('/\D+/', '', $tel);
@@ -1336,4 +1369,220 @@ function crear_demo(array &$db, array $d, array $quien, string $op): array
         'cliente_id' => $cid, 'prueba_hasta' => $c['vence'], 'acceso' => ['url_panel' => "$url/admin.php", 'usuario' => strtolower($email), 'clave' => $clave],
         'enlace_publico' => "$url/$cid", 'mensaje_whatsapp' => $msg, 'whatsapp_url' => 'https://wa.me/' . $wa . '?text=' . rawurlencode($msg), 'correo_enviado' => ($d['enviar_correo'] ?? false) === true,
     ], 'cliente' => cliente_resumen($c), 'solicitud' => $sid ? solicitud_de($db, $sid) : null];
+}
+
+// =====================================================================
+// Anexo B: programa modular (MOCK_SIN_MODULOS=1 = programa sin módulos)
+// =====================================================================
+
+function mod_catalogo_base(): array
+{
+    if ($GLOBALS['unico']) {
+        return [
+            'modulos' => [
+                'guarderia' => ['Guardería por días', 'calendar-check', 15.0, [], 'Servicios', 'Llegada y salida con la placa QR y planes de días.'],
+                'hotel' => ['Hotel y estadías', 'bed-double', 10.0, [], 'Servicios', 'Cuartos y reservas por noches.'],
+                'peluqueria' => ['Peluquería y spa', 'scissors', 10.0, [], 'Servicios', 'Agenda de baño y corte.'],
+                'rutas' => ['Rutas con GPS y chofer', 'route', 15.0, [], 'Servicios', 'Recogida y entrega con la camioneta en vivo.'],
+                'portal' => ['Portal de dueños', 'house', 10.0, [], 'Dueños de mascotas', 'Los dueños ven a sus perros y piden reservas.'],
+                'anuncios' => ['Anuncios y eventos', 'megaphone', 5.0, ['portal'], 'Dueños de mascotas', 'Avisos y eventos con confirmación.'],
+                'fotos' => ['Fotos y videos', 'images', 8.0, [], 'Día a día', 'Galería de cada perro.'],
+            ],
+            'planes' => ['esencial' => ['Esencial', 25.0, ['guarderia', 'portal']], 'completo' => ['Completo', 59.0, '*']],
+            'base' => ['Fichas de perros y dueños', 'Usuarios, ajustes y marca propia'],
+        ];
+    }
+    return [
+        'modulos' => [
+            'agenda' => ['Agenda y reservas', 'calendar', 8.0, [], 'Trabajo diario', 'Reservas con calendario.'],
+            'web' => ['Página pública', 'globe', 6.0, [], 'Clientes', 'Su página con fotos y precios.'],
+            'pagos_linea' => ['Cobros con tarjeta', 'card', 10.0, [], 'Clientes', 'Sus clientes pagan en línea.'],
+            'whatsapp' => ['Avisos por WhatsApp', 'chat', 5.0, ['agenda'], 'Trabajo diario', 'Recordatorios automáticos de las reservas.'],
+            'reportes' => ['Reportes', 'chart', 4.0, [], 'Administración', 'Ventas y gráficos del mes.'],
+        ],
+        'planes' => ['1' => ['Básico', 19.0, ['agenda', 'web']], '2' => ['Completo', 29.0, '*']],
+        'base' => ['Usuarios y ajustes', 'Clientes y contactos'],
+    ];
+}
+
+/** Catálogo con lo que se cambió (guardar_modulos) encima. */
+function mod_catalogo(): array
+{
+    $b = mod_catalogo_base();
+    $cam = $GLOBALS['db']['catalogo'] ?? ['modulos' => [], 'planes' => []];
+    $mods = [];
+    $orden = 0;
+    foreach ($b['modulos'] as $id => [$n, $ic, $p, $dep, $g, $desc]) {
+        $o = $cam['modulos'][$id] ?? [];
+        $mods[$id] = ['id' => $id, 'nombre' => $o['nombre'] ?? $n, 'icono' => $ic, 'descripcion' => $o['descripcion'] ?? $desc,
+                      'precio_mensual' => (float) ($o['precio_mensual'] ?? $p), 'depende_de' => $dep, 'grupo' => $g, 'orden' => $o['orden'] ?? ($orden += 10)];
+    }
+    $planes = [];
+    foreach ($b['planes'] as $cod => [$n, $p, $m]) {
+        if (!empty($cam['planes'][$cod]['borrado'])) continue;
+        $o = $cam['planes'][$cod] ?? [];
+        $m = $o['modulos'] ?? $m;
+        $planes[(string) $cod] = ['codigo' => (string) $cod, 'nombre' => $o['nombre'] ?? $n, 'precio_mensual' => (float) ($o['precio_mensual'] ?? $p),
+                                  'todos' => $m === '*', 'modulos' => $m === '*' ? array_keys($mods) : $m];
+    }
+    foreach ($cam['planes'] ?? [] as $cod => $o) {
+        if (isset($planes[$cod]) || !empty($o['borrado']) || !isset($o['nombre'])) continue;
+        $planes[(string) $cod] = ['codigo' => (string) $cod, 'nombre' => $o['nombre'], 'precio_mensual' => (float) $o['precio_mensual'], 'todos' => $o['modulos'] === '*',
+                                  'modulos' => $o['modulos'] === '*' ? array_keys($mods) : $o['modulos']];
+    }
+    return ['base' => $b['base'], 'modulos' => $mods, 'planes' => $planes];
+}
+
+function mod_accion_modulos(): array
+{
+    $c = mod_catalogo();
+    return ['moneda' => 'USD', 'editable' => true, 'base' => $c['base'], 'modulos' => array_values($c['modulos']), 'planes' => array_values($c['planes'])];
+}
+
+/** Estado por defecto de los módulos de un cliente (su plan, nada extra). */
+function mod_defecto(?string $plan): array
+{
+    return ['plan' => $plan ?? ($GLOBALS['unico'] ? 'completo' : '1'), 'extra' => [], 'quitados' => [], 'acordado' => null];
+}
+
+/** El objeto "modulos" del cliente (B.2). */
+function mod_resumen(?array $m): array
+{
+    $cat = mod_catalogo();
+    $m ??= mod_defecto(null);
+    $del = $cat['planes'][$m['plan']]['modulos'] ?? [];
+    $act = array_values(array_intersect(array_keys($cat['modulos']), array_merge(array_diff($del, $m['quitados']), $m['extra'])));
+    $pe = round(array_sum(array_map(fn($x) => $cat['modulos'][$x]['precio_mensual'], $m['extra'])), 2);
+    $de = round(array_sum(array_map(fn($x) => $cat['modulos'][$x]['precio_mensual'], array_intersect($m['quitados'], $del))), 2);
+    $pp = $cat['planes'][$m['plan']]['precio_mensual'] ?? 0.0;
+    $calc = round(max(0, $pp + $pe - $de), 2);
+    return ['plan' => ['codigo' => $m['plan'], 'nombre' => $cat['planes'][$m['plan']]['nombre'] ?? $m['plan']], 'del_plan' => $del, 'extra' => $m['extra'],
+            'quitados' => array_values(array_intersect($m['quitados'], $del)), 'activos' => $act, 'precio_plan' => $pp, 'precio_extra' => $pe, 'descuento' => $de,
+            'precio_acordado' => $m['acordado'], 'calculado' => $calc, 'mensual' => $m['acordado'] ?? $calc];
+}
+
+/** Estado (plan, extra, quitados) a partir de lo que debe quedar encendido. */
+function mod_desde_activos(string $plan, array $activos, ?float $acordado): array
+{
+    $cat = mod_catalogo();
+    $del = $cat['planes'][$plan]['modulos'] ?? [];
+    $orden = array_keys($cat['modulos']);
+    return ['plan' => $plan, 'extra' => array_values(array_intersect($orden, array_diff($activos, $del))),
+            'quitados' => array_values(array_intersect($orden, array_diff($del, $activos))), 'acordado' => $acordado];
+}
+
+/** Solicitud cambio_modulos con la forma de §5.8. */
+function mod_solicitud(array $db, string $sid, array $s): array
+{
+    $cat = mod_catalogo();
+    $cid = $s['cliente_id'];
+    $nombre = $GLOBALS['unico'] ? $db['unico']['nombre'] : ($db['clientes'][$cid]['nombre'] ?? $cid);
+    $m = $GLOBALS['unico'] ? ($db['unico']['mods'] ?? mod_defecto(null)) : ($db['clientes'][$cid]['mods'] ?? mod_defecto($db['clientes'][$cid]['plan'] ?? null));
+    $antes = mod_resumen($m);
+    $act = array_values(array_diff(array_unique(array_merge($antes['activos'], $s['encender'])), $s['apagar']));
+    $nuevo = mod_resumen(mod_desde_activos($m['plan'], $act, $m['acordado']));
+    $estado = ['pendiente' => 'pendiente', 'aprobada' => 'atendida', 'rechazada' => 'descartada'][$s['estado']];
+    $lista = fn(array $ids) => array_map(fn($x) => ['id' => $x, 'nombre' => $cat['modulos'][$x]['nombre'], 'precio_mensual' => $cat['modulos'][$x]['precio_mensual']], $ids);
+    $txt = 'Encender: ' . implode(', ', array_map(fn($x) => $cat['modulos'][$x]['nombre'], $s['encender']));
+    return ['id' => $sid, 'tipo' => 'cambio_modulos', 'categoria' => 'pedido', 'titulo' => 'Pide agregar ' . implode(', ', array_map(fn($x) => $cat['modulos'][$x]['nombre'], $s['encender'])),
+            'fecha' => $s['fecha'], 'actualizado' => $s['fecha'], 'cliente_id' => $cid,
+            'quien' => ['nombre' => 'Gabriela Ortiz', 'organizacion' => $nombre, 'telefono' => '0998877665', 'whatsapp' => '593998877665', 'email' => 'gabriela@dogssy.ec'],
+            'resumen' => $txt . ' · Nuevo mensual $' . number_format($nuevo['mensual'], 2, ',', '.'), 'monto' => $nuevo['mensual'],
+            'estado' => $estado, 'estado_producto' => $s['estado'], 'prioridad' => 'normal', 'vence_el' => null,
+            'detalle' => ['encender' => $lista($s['encender']), 'apagar' => $lista($s['apagar']), 'mensual_actual' => $antes['mensual'], 'mensual_nuevo' => $nuevo['mensual'],
+                          'nota' => $s['nota'], 'pedido_por' => 'Gabriela Ortiz'],
+            'adjuntos' => [],
+            'acciones_posibles' => $estado === 'pendiente' ? [
+                ['accion' => 'cambiar_modulos', 'etiqueta' => 'Aprobar', 'estilo' => 'principal', 'confirmar' => null,
+                 'datos' => ['cliente_id' => $cid, 'solicitud_id' => $sid], 'campos' => []],
+                ['accion' => 'atender_solicitud', 'etiqueta' => 'Rechazar', 'estilo' => 'peligro', 'confirmar' => '¿Rechazar este pedido?', 'datos' => ['solicitud_id' => $sid, 'resultado' => 'descartada'],
+                 'campos' => [['campo' => 'nota', 'etiqueta' => 'Motivo (lo ve el cliente)', 'tipo' => 'texto', 'requerido' => true, 'min' => 3, 'max' => 300]]],
+            ] : [], 'ir' => '/admin?mi_plan'];
+}
+
+function mod_lista(array $d, string $k, array $cat): array
+{
+    $v = $d[$k] ?? [];
+    if (!is_array($v) || ($v !== [] && !array_is_list($v))) fallo('invalido', "«$k» debe ser una lista.", 422, "datos.$k");
+    foreach ($v as $x) if (!is_string($x) || !isset($cat['modulos'][$x])) fallo('invalido', 'Módulo desconocido.', 422, "datos.$k");
+    return array_values(array_unique($v));
+}
+
+/** cambiar_modulos, guardar_modulos y atender_solicitud de un cambio_modulos. */
+function mod_hacer(array &$db, string $accion, ?string $cid, array $d, array $quien, string $op): array
+{
+    global $unico;
+    $cat = mod_catalogo();
+    if ($accion === 'guardar_modulos') {
+        $cambios = 0;
+        foreach (is_array($d['modulos'] ?? null) ? $d['modulos'] : [] as $i => $m) {
+            if (!isset($cat['modulos'][$m['id'] ?? ''])) fallo('invalido', 'Módulo desconocido.', 422, "datos.modulos.$i.id");
+            if (isset($m['precio_mensual']) && (!is_int($m['precio_mensual']) && !is_float($m['precio_mensual']) || $m['precio_mensual'] < 0)) fallo('invalido', 'Precio no válido.', 422, "datos.modulos.$i.precio_mensual");
+            foreach (['nombre', 'descripcion', 'precio_mensual', 'orden'] as $k) if (array_key_exists($k, $m)) { $db['catalogo']['modulos'][$m['id']][$k] = $m[$k]; $cambios++; }
+        }
+        foreach (is_array($d['planes'] ?? null) ? $d['planes'] : [] as $i => $p) {
+            $cod = (string) ($p['codigo'] ?? '');
+            if (!empty($p['borrar'])) {
+                $actual = $unico ? ($db['unico']['mods']['plan'] ?? 'completo') : null;
+                if ($cod === $actual) fallo('conflicto', 'Ese plan está en uso.', 409, null, ['motivo' => 'plan_en_uso']);
+                $db['catalogo']['planes'][$cod] = ['borrado' => true]; $cambios++; continue;
+            }
+            if (!isset($cat['planes'][$cod]) && (!isset($p['nombre'], $p['precio_mensual'], $p['modulos']))) fallo('invalido', 'Plan nuevo incompleto.', 422, "datos.planes.$i");
+            foreach (['nombre', 'precio_mensual', 'modulos'] as $k) if (array_key_exists($k, $p)) { $db['catalogo']['planes'][$cod][$k] = $p[$k]; $cambios++; }
+        }
+        if (!$cambios) fallo('invalido', 'No vino nada para guardar.', 422, 'datos');
+        registrar('bitacora.log', "{$quien['email']}|-|Catálogo de módulos guardado ($cambios cambios)|$op");
+        $GLOBALS['db'] = $db;
+        $nuevo = mod_accion_modulos();
+        return ['mensaje' => "Catálogo guardado ($cambios cambios).", 'catalogo' => $nuevo, 'resultado' => ['catalogo' => $nuevo]];
+    }
+    $sid = isset($d['solicitud_id']) ? (string) $d['solicitud_id'] : null;
+    $sol = null;
+    if ($sid !== null) {
+        $sol = $db['solicitudes'][$sid] ?? null;
+        if (!$sol || $sol['tipo'] !== 'cambio_modulos') fallo('no_encontrado', 'Esa solicitud no existe.', 404);
+        if ($sol['estado'] !== 'pendiente') {
+            if ($accion === 'atender_solicitud' && ($d['resultado'] ?? '') === 'descartada' && $sol['estado'] === 'rechazada') return ['sin_cambios' => true, 'mensaje' => 'Ya estaba rechazado.', 'solicitud' => mod_solicitud($db, $sid, $sol)];
+            fallo('conflicto', 'Ese pedido ya fue atendido.', 409, null, ['motivo' => 'ya_atendida']);
+        }
+        $cid = $sol['cliente_id'];
+    }
+    if ($accion === 'atender_solicitud') {
+        $res = (string) ($d['resultado'] ?? '');
+        if ($res === 'atendida') fallo('no_permitido', 'Para aprobar use cambiar_modulos.', 403, null, ['motivo' => 'usar_cambiar_modulos']);
+        if ($res !== 'descartada') fallo('invalido', 'resultado no válido.', 422, 'datos.resultado');
+        texto_campo($d, 'nota', 3, 300, 'Escriba el motivo del rechazo.');
+        $db['solicitudes'][$sid]['estado'] = 'rechazada';
+        registrar('bitacora.log', "{$quien['email']}|$cid|Rechazó el pedido de módulos $sid|$op");
+        $s = mod_solicitud($db, $sid, $db['solicitudes'][$sid]);
+        return ['mensaje' => 'Pedido rechazado.', 'resultado' => ['solicitud' => $s], 'solicitud' => $s];
+    }
+    // cambiar_modulos
+    $ref = $unico ? ($db['unico']['mods'] ?? mod_defecto(null)) : (isset($db['clientes'][$cid]) ? ($db['clientes'][$cid]['mods'] ?? mod_defecto($db['clientes'][$cid]['plan'])) : null);
+    if ($ref === null) fallo('no_encontrado', 'Ese cliente no existe.', 404);
+    $enc = mod_lista($d, 'encender', $cat);
+    $apa = mod_lista($d, 'apagar', $cat);
+    if ($sol && !$enc && !$apa) { $enc = $sol['encender']; $apa = $sol['apagar']; }
+    if (array_intersect($enc, $apa)) fallo('invalido', 'No se puede encender y apagar a la vez.', 422, 'datos.apagar');
+    $plan = isset($d['plan']) ? (string) $d['plan'] : $ref['plan'];
+    if (!isset($cat['planes'][$plan])) fallo('invalido', 'Ese plan no existe.', 422, 'datos.plan');
+    $acordado = array_key_exists('precio_acordado', $d) ? ($d['precio_acordado'] === null ? null : (float) $d['precio_acordado']) : $ref['acordado'];
+    $antes = mod_resumen($ref);
+    $act = array_values(array_diff(array_unique(array_merge($antes['activos'], $enc)), $apa));
+    $porDep = [];
+    foreach ($act as $x) foreach ($cat['modulos'][$x]['depende_de'] as $dd) if (!in_array($dd, $act, true)) {
+        if (in_array($dd, $apa, true)) fallo('invalido', 'No se puede apagar «' . $cat['modulos'][$dd]['nombre'] . '»: lo usa «' . $cat['modulos'][$x]['nombre'] . '».', 422, 'datos.apagar', ['motivo' => 'dependencia']);
+        $act[] = $dd; $porDep[] = $dd;
+    }
+    $nuevo = mod_desde_activos($plan, $act, $acordado);
+    $sin = $nuevo == $ref && !$sol;
+    if ($unico) $db['unico']['mods'] = $nuevo; else $db['clientes'][$cid]['mods'] = $nuevo;
+    if ($sol) $db['solicitudes'][$sid]['estado'] = 'aprobada';
+    $GLOBALS['db'] = $db;
+    $r = mod_resumen($nuevo);
+    if (!$sin) registrar('bitacora.log', "{$quien['email']}|" . ($cid ?? 'unico') . '|Módulos: ' . implode(',', $r['activos']) . " ({$r['mensual']})|$op");
+    return ['sin_cambios' => $sin, 'mensaje' => $sin ? 'No había nada que cambiar.' : ($sol ? 'Pedido aprobado. ' : '') . 'Módulos guardados. Valor mensual: $' . number_format($antes['mensual'], 2, ',', '.') . ' → $' . number_format($r['mensual'], 2, ',', '.') . '.',
+            'modulos' => $r, 'resultado' => ['modulos' => $r, 'por_dependencia' => $porDep, 'mensual_antes' => $antes['mensual'], 'mensual' => $r['mensual']],
+            'cliente' => $unico ? cliente_detalle($db, ['unico' => true]) : cliente_resumen($db['clientes'][$cid]),
+            'solicitud' => $sol ? mod_solicitud($db, $sid, $db['solicitudes'][$sid]) : null];
 }

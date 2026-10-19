@@ -8,7 +8,7 @@ $saludo = $hora < 12 ? 'Buenos días' : ($hora < 19 ? 'Buenas tardes' : 'Buenas 
 $activas = array_filter($tablero, fn($f) => (int) $f['activo']);
 $conDatos = $t['con_negocios'] > 0;
 $var = $t['variacion'];
-$etiquetas = ['prueba' => 'En prueba', 'activos' => 'Activos', 'por_vencer' => 'Por vencer', 'vencidos' => 'Vencidos', 'suspendidos' => 'Suspendidos'];
+$etiquetas = ['prueba' => 'En demo', 'activos' => 'Activos', 'por_vencer' => 'Por vencer', 'vencidos' => 'Vencidos', 'suspendidos' => 'Suspendidos'];
 $hayV1 = (bool) array_filter($activas, fn($f) => ($caps[$f['id']]['protocolo'] ?? 1) !== 2);
 $v1Pend = count($pendientes['pruebas']) + count($pendientes['pagos']);
 $ganancia = round($cobrado - $gastosMes, 2);
@@ -44,7 +44,7 @@ $boton = function (array $x): string {
     <span class="kpi-s"><?= $porAtender ? 'solicitudes de tus clientes' : 'Nada pendiente 👏' ?></span></a>
   <a class="kpi" href="<?= e(url('vencimientos')) ?>">
     <span class="kpi-t"><?= icono('calendario') ?> Vencen esta semana</span><span class="kpi-n" data-kpi="vencen"><?= $vencenSemana ?></span>
-    <span class="kpi-s">pruebas y planes</span></a>
+    <span class="kpi-s">demos y planes</span></a>
   <?php if (puede('finanzas')): ?>
   <a class="kpi" href="<?= e(url('finanzas')) ?>">
     <span class="kpi-t"><?= icono('dinero') ?> Cobrado en <?= e($nombreMes) ?></span><span class="kpi-n" data-kpi="cobrado"><?= e(dinero($cobrado)) ?></span>
@@ -54,7 +54,7 @@ $boton = function (array $x): string {
     <span class="kpi-s">cobrado − gastos</span></a>
   <?php else: ?>
   <a class="kpi" href="<?= e(url('clientes', ['estado' => 'prueba'])) ?>">
-    <span class="kpi-t"><?= icono('demo') ?> En prueba</span><span class="kpi-n"><?= $conDatos ? numero_corto($t['prueba']) : '—' ?></span><span class="kpi-s">en todos los programas</span></a>
+    <span class="kpi-t"><?= icono('demo') ?> En demo</span><span class="kpi-n"><?= $conDatos ? numero_corto($t['prueba']) : '—' ?></span><span class="kpi-s">en todos los programas</span></a>
   <a class="kpi" href="<?= e(url('clientes')) ?>">
     <span class="kpi-t"><?= icono('clientes') ?> Clientes</span><span class="kpi-n"><?= $conDatos ? numero_corto($t['total']) : '—' ?></span><span class="kpi-s">en total</span></a>
   <?php endif; ?>
@@ -109,9 +109,9 @@ $boton = function (array $x): string {
   <h2 id="t-v1">De los programas que todavía no se actualizan <span class="cuenta"><?= $v1Pend ?></span></h2>
   <div class="pendientes">
     <div class="tarjeta">
-      <h3>Pruebas gratis que vencen esta semana</h3>
+      <h3>Demos que vencen esta semana</h3>
       <?php if (!$pendientes['pruebas']): ?>
-        <p class="vacio"><?= icono('ok') ?> Ninguna prueba vence en los próximos 7 días.</p>
+        <p class="vacio"><?= icono('ok') ?> Ninguna demo vence en los próximos 7 días.</p>
       <?php else: ?>
         <ul class="lista-p">
           <?php foreach (array_slice($pendientes['pruebas'], 0, 6) as $x): $dias = dias_hasta($x['vence']); ?>

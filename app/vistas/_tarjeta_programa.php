@@ -15,7 +15,7 @@ $kv = [];
 if ($d) {
     if (is_array($d['negocios'])) {
         $kv['Negocios'] = $d['negocios']['total'];
-        $kv['En prueba'] = $d['negocios']['prueba'];
+        $kv['En demo'] = $d['negocios']['prueba'];
         $kv['Activos'] = $d['negocios']['activos'];
     }
     foreach ($d['extra'] as $k => $v) $kv[$k] = $v;

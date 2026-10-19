@@ -295,7 +295,7 @@ integrar() {
   get "r=inicio" > /dev/null; post refrescar > /dev/null; get "r=inicio" > /dev/null
   local tj; tj=$(tarjeta "$tipo")
   check "$nombre: tarjeta con el total de negocios de su base" "$total" "$(dato "$tj" Negocios)"
-  check "$nombre: tarjeta con los que estan en prueba" "$(psql_ "SELECT count(*) FROM $tabla WHERE estado='prueba' AND (prueba_hasta IS NULL OR prueba_hasta >= CURRENT_DATE)")" "$(dato "$tj" 'En prueba')"
+  check "$nombre: tarjeta con los que estan en prueba" "$(psql_ "SELECT count(*) FROM $tabla WHERE estado='prueba' AND (prueba_hasta IS NULL OR prueba_hasta >= CURRENT_DATE)")" "$(dato "$tj" 'En demo')"
   contiene "$nombre: tarjeta en linea" "$tj" 'estado on'
   contiene "$nombre: tarjeta con la version" "$tj" "v$ver"
   contiene "$nombre: Para atender hoy (prueba que vence)" "$TMP/pag.html" "$n1"

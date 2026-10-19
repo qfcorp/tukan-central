@@ -143,11 +143,29 @@ final class Capacidades
             'planes_editar'  => ($d['planes_editar'] ?? false) === true,
             'filtros_clientes' => self::lista($d['filtros_clientes'] ?? []),
             'formularios'    => ['crear_demo' => Formulario::limpiarCampos($d['formularios']['crear_demo'] ?? [])],
+            // Anexo B: programa modular (lo que el programa dice de sus módulos; sin "modulos" en acciones no hay nada)
+            // "modulos" puede venir como objeto con opciones o solo como true (TuVocalía, TuEvento… revisión 3)
+            'modulos'        => in_array('modulos', $acciones, true) ? self::opcionesModulos($d['modulos'] ?? true, $d) : null,
+            'finanzas_por_modulo' => ($d['finanzas_por_modulo'] ?? false) === true,
             'limites'        => [
                 'por_pagina_max' => $ent($lim['por_pagina_max'] ?? null, 50, 200),
                 'meses_finanzas_max' => $ent($lim['meses_finanzas_max'] ?? null, 12, 24),
                 'dias_prueba_max' => $ent($lim['dias_prueba_max'] ?? null, 90, 365),
             ],
+        ];
+    }
+
+    /** Opciones del Anexo B. Sin decir nada: todo se puede; crear_demo con módulos si el programa crea demos. */
+    private static function opcionesModulos(mixed $m, array $d): array
+    {
+        $m = is_array($m) ? $m : [];
+        $creaDemo = in_array('crear_demo', is_array($d['ejecutar'] ?? null) ? $d['ejecutar'] : [], true);
+        return [
+            'editable' => ($m['editable'] ?? true) !== false,
+            'por_instalacion' => ($m['por_instalacion'] ?? false) === true || ($d['unico'] ?? false) === true,
+            'cambia_plan' => ($m['cambia_plan'] ?? true) !== false,
+            'precio_acordado' => ($m['precio_acordado'] ?? true) !== false,
+            'crear_demo' => $creaDemo && ($m['crear_demo'] ?? true) !== false,
         ];
     }
 
@@ -169,13 +187,14 @@ final class Capacidades
             'Ver las solicitudes (bandeja)'       => $p('solicitudes'),
             'Ver los clientes y sus vencimientos' => $p('clientes') || ($datos['unico'] ?? false) && $p('cliente'),
             'Crear demos'                         => $p('ejecutar', 'crear_demo'),
-            'Alargar pruebas'                     => $p('ejecutar', 'extender_prueba'),
+            'Alargar demos'                     => $p('ejecutar', 'extender_prueba'),
             'Registrar pagos'                     => $p('ejecutar', 'registrar_pago'),
             'Aprobar comprobantes'                => $p('ejecutar', 'aprobar_comprobante'),
             'Suspender y reactivar'               => $p('ejecutar', 'suspender'),
             'Pausar clientes'                     => $p('ejecutar', 'pausar'),
             'Borrar clientes (papelera)'          => $p('ejecutar', 'borrar_cliente'),
             'Nueva clave del dueño'               => $p('ejecutar', 'nueva_clave_dueno'),
+            'Módulos (encender y apagar)'         => $p('ejecutar', 'cambiar_modulos'),
             'Finanzas (ingresos por mes)'         => $p('finanzas'),
             'Entrar directo a la ficha'           => (bool) ($datos['sso_ir'] ?? false),
         ];

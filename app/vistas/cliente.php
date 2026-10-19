@@ -58,6 +58,25 @@ $pau = is_array($c['pausa'] ?? null) ? $c['pausa'] : null;
   </dl>
 </section>
 
+<?php if ($conModulos): $urlT = fn(string $t) => url('cliente', ['i' => $inst['id'], 'id' => $c['id']] + ($t === 'modulos' ? ['tab' => 'modulos'] : [])); ?>
+<nav class="pestanas seccion" aria-label="Ficha del cliente">
+  <a href="<?= e($urlT('resumen')) ?>"<?= $tab === 'resumen' ? ' aria-current="page"' : '' ?>>Resumen</a>
+  <a href="<?= e($urlT('modulos')) ?>"<?= $tab === 'modulos' ? ' aria-current="page"' : '' ?>>Módulos <span class="cuenta"><?= count($mCli['activos']) ?></span></a>
+</nav>
+<?php endif; ?>
+<?php if ($tab === 'modulos'): ?>
+  <section class="seccion" id="modulos">
+    <?php if (!$mCat || !$mCat['modulos']): ?>
+      <p class="aviso error"><?= icono('error') ?> <?= e($inst['nombre']) ?> no mandó su catálogo de módulos. Prueba la conexión del programa.</p>
+    <?php else: ?>
+      <?php if (!empty($mCat['de_copia'])): ?><p class="aviso info mb"><?= icono('info') ?> <?= e($inst['nombre']) ?> no respondió: catálogo guardado (<?= e(datos_de((int) $mCat['de_copia'])) ?>).</p><?php endif; ?>
+      <?php $mInst = $inst; $mCid = $c['id']; $mVolver = url('cliente', ['i' => $inst['id'], 'id' => $c['id'], 'tab' => 'modulos']);
+            $mPuede = $det !== null && puede_operacion($inst['id'], 'cambiar_modulos'); $mFlags = $cap['modulos'] ?? []; $mNombre = $nombre;
+            require __DIR__ . '/_modulos.php'; ?>
+    <?php endif; ?>
+  </section>
+<?php return; endif; ?>
+
 <?php if ($acciones): ?>
 <div class="tarjeta seccion">
   <h2>¿Qué hacemos?</h2>

@@ -58,6 +58,21 @@ entrar a cada uno. El ERP QF no participa.
 - [x] Pruebas: `run_tests.php` 637, `run_web.sh` 621 (capturas 24–29: lista, papelera, fichas y las hojas de Pausar y Borrar).
 - [ ] Al actualizar cada programa con el Anexo A: **Probar conexión** en el panel (para que vea los botones).
 
+### Módulos (18 oct 2026, Anexo B) y «nada se da gratis»
+- [x] Ficha del cliente con pestaña **Módulos**: interruptores, precio de cada uno, plan base, total al mes en vivo y precio
+      acordado; *Revisar y guardar* muestra qué se enciende / apaga y el precio nuevo antes de mandar `cambiar_modulos`.
+      Solo el dueño; soporte la ve.
+- [x] TuGuardería: los interruptores en la ficha del programa; el total pasa a ser el valor de la licencia.
+- [x] Catálogo de módulos y planes del programa (`guardar_modulos`, con código de 2 pasos).
+- [x] Solicitudes `cambio_modulos` con Aprobar (resumen) y Rechazar; chip Módulos; Telegram.
+- [x] Clientes: columna Al mes y filtro «Con módulos extra». Finanzas: Ingreso por módulo. Demos: plan y módulos.
+- [x] Sin «prueba gratis»: pedidos de demo (`demo_pedida`, `demo`, `alta`) con Crear demo; en pantalla dice «demo».
+- [x] Pruebas: `run_tests.php` 693 (41 nuevas de módulos, con el programa de prueba en el 8267), `run_web.sh` 781
+      (97 nuevas; capturas 37–42: pestaña Módulos, resumen, catálogo, aprobar, ficha del programa y demo).
+      `tests/mock/` sabe `modulos`, `cambiar_modulos`, `guardar_modulos` y `cambio_modulos` (`MOCK_SIN_MODULOS=1`: sin Anexo B).
+      La parte de Telegram de `run_web.sh` apaga el horario de silencio (de noche fallaba).
+- [ ] Al actualizar cada programa con el Anexo B: **Probar conexión** en el panel (para que vea los módulos).
+
 ## Pendiente
 10. En el servidor de cada TuGuardería, una vez: `git pull` y `instalar.sh` de cada cliente (crea `/var/lib/tukan_bajas`
     y la tarea `/etc/cron.d/tukan_bajas`). Luego **Probar conexión** en el panel. Opcional: token de Cloudflare en Ajustes.

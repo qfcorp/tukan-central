@@ -169,6 +169,39 @@
     setTimeout(otraVez, seg * 1000);
   }
 
+  // Módulos (Anexo B): total al mes en vivo, dependencias y etiquetas de cada interruptor
+  document.querySelectorAll('form[data-modulos]').forEach(function (f) {
+    var planes = JSON.parse(f.getAttribute('data-planes') || '{}'), deps = JSON.parse(f.getAttribute('data-deps') || '{}');
+    var selPlan = f.querySelector('[data-mods-plan]'), acordado = f.querySelector('[data-mods-acordado]');
+    var fmt = function (n) { return '$' + n.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
+    var caja = function (id) { return f.querySelector('input[name="mod[]"][value="' + id + '"]'); };
+    var calcular = function () {
+      var p = planes[selPlan ? selPlan.value : ''] || { p: 0, m: [] }, ext = 0, qui = 0;
+      f.querySelectorAll('li.mod').forEach(function (li) {
+        var id = li.getAttribute('data-id'), on = caja(id).checked, en = p.m.indexOf(id) >= 0, pr = parseFloat(li.getAttribute('data-precio')) || 0;
+        li.classList.toggle('on', on);
+        if (on && !en) ext += pr;
+        if (!on && en) qui += pr;
+        var t = li.querySelector('[data-tag]');
+        if (t) t.textContent = en ? (on ? 'En el plan' : 'Quitado del plan') : (on ? 'Extra' : 'No incluido');
+      });
+      var tot = Math.max(0, p.p + ext - qui), a = acordado ? acordado.value.trim().replace(/\./g, '').replace(',', '.') : '';
+      if (a !== '' && !isNaN(parseFloat(a))) tot = parseFloat(a);
+      var put = function (k, v) { var x = f.querySelector('[data-m="' + k + '"]'); if (x) x.textContent = v; };
+      put('plan', fmt(p.p)); put('extra', '+' + fmt(ext)); put('descuento', '−' + fmt(qui)); put('total', fmt(tot));
+    };
+    f.addEventListener('change', function (ev) {
+      var c = ev.target;
+      if (c.name === 'mod[]') {
+        if (c.checked) (deps[c.value] || []).forEach(function (d) { var x = caja(d); if (x && !x.checked) { x.checked = true; x.dispatchEvent(new Event('change', { bubbles: true })); } });
+        else Object.keys(deps).forEach(function (k) { if ((deps[k] || []).indexOf(c.value) >= 0) { var x = caja(k); if (x && x.checked) { x.checked = false; x.dispatchEvent(new Event('change', { bubbles: true })); } } });
+      }
+      calcular();
+    });
+    if (acordado) acordado.addEventListener('input', calcular);
+    calcular();
+  });
+
   // Menú "Más" (escritorio): se cierra al tocar fuera
   document.addEventListener('click', function (ev) {
     document.querySelectorAll('details.menu-mas[open], details.menu-prog[open]').forEach(function (d) { if (!d.contains(ev.target)) d.removeAttribute('open'); });

@@ -15,19 +15,23 @@ final class Solicitudes
     public const CERRADAS = ['atendida', 'descartada', 'cerrada'];   // "cerrada" = el programa ya no la manda abierta
 
     public const TIPOS = [
-        'registro_nuevo' => ['Se registró solo', '🆕'], 'demo_pedida' => ['Pedido de demo', '📝'], 'comprobante' => ['Comprobante por revisar', '💵'],
+        'registro_nuevo' => ['Pidió una demo (registro)', '🆕'], 'demo_pedida' => ['Pedido de demo', '📝'], 'comprobante' => ['Comprobante por revisar', '💵'],
         'cambio_plan' => ['Cambio de plan', '🔁'], 'soporte' => ['Ticket de soporte', '🎫'], 'derechos_datos' => ['Datos personales (LOPDP)', '🛡️'],
-        'pago_automatico' => ['Pago automático', '💳'], 'seguimiento_prueba' => ['Prueba por terminar', '⏳'], 'renovacion' => ['Renovación', '📅'],
-        'dominio_gratis' => ['Dominio gratis por registrar', '🌐'], 'comision_vendedor' => ['Comisión de vendedor', '🤝'],
+        'pago_automatico' => ['Pago automático', '💳'], 'seguimiento_prueba' => ['Demo por terminar', '⏳'], 'renovacion' => ['Renovación', '📅'],
+        'dominio_gratis' => ['Dominio incluido por registrar', '🌐'], 'comision_vendedor' => ['Comisión de vendedor', '🤝'],
         'liquidacion_pendiente' => ['Dinero por transferir', '🏦'],
+        // Sin demos gratis: el registro público es un pedido de demo (los programas lo llaman "demo" o "alta")
+        'demo' => ['Pedido de demo', '📝'], 'alta' => ['Pedido de demo', '📝'],
+        // Anexo B: el cliente pidió encender o apagar módulos desde «Mi plan»
+        'cambio_modulos' => ['Cambio de módulos', '🧩'],
     ];
 
     /** Chips de la bandeja: clave => [texto, tipos (o "recordatorio" = la categoría)] */
     public const FILTROS = [
         'todo' => ['Todo', []],
         'pagos' => ['Pagos por aprobar', ['comprobante', 'cambio_plan']],
-        'demos' => ['Pedidos de demo', ['demo_pedida']],
-        'registros' => ['Registros nuevos', ['registro_nuevo']],
+        'demos' => ['Pedidos de demo', ['demo_pedida', 'demo', 'alta', 'registro_nuevo']],
+        'modulos' => ['Módulos', ['cambio_modulos']],
         'soporte' => ['Soporte', ['soporte', 'derechos_datos']],
         'recordatorios' => ['Recordatorios', ['*recordatorio']],
     ];

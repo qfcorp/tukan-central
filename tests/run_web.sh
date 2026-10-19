@@ -575,7 +575,7 @@ contiene "Programa v1 que contesta 404 -> protocolo v1" "$TMP/pag.html" "Usa el 
 check "Capacidades guardadas: TuVocalía v2, TuSalón v1, TuAcademia v1, Dogssy v2" "dogssy|2 tuacademia|1 tuevento|2 tusalon|1 tuvocalia|2" "$(sql "SELECT instancia_id || '|' || protocolo FROM capacidades ORDER BY instancia_id" | tr '\n' ' ' | sed 's/ $//')"
 get "r=programa&id=tuvocalia" > /dev/null
 contiene "Ficha: Qué puede hacer desde el panel" "$TMP/pag.html" "Qué puede hacer desde el panel"
-check "Ficha TuVocalía: todo con ✔ (12, con pausar y borrar clientes)" "12" "$(grep -c '<li class="si">' "$TMP/pag.html")"
+check "Ficha TuVocalía: todo con ✔ (13, con pausar, borrar clientes y módulos)" "13" "$(grep -c '<li class="si">' "$TMP/pag.html")"
 get "r=programa&id=tuevento" > /dev/null
 contiene "Ficha TuEvento: sin aprobar comprobantes (no lo declara)" "$TMP/pag.html" '<li class="no"><svg[^>]*>.*</svg> Aprobar comprobantes'
 contiene "Ficha TuEvento: actualiza para tenerlo" "$TMP/pag.html" "actualiza TuEvento para tener esto"
@@ -591,6 +591,9 @@ check "TuSalón (v1) no tiene copia de clientes ni solicitudes" "0|0" "$(sql "SE
 check "Lo viejo no se avisa por Telegram (primera vez)" "0" "$(tg | grep -c 'Pedido de demo')"
 
 titulo "19. Revisión automática: solicitudes nuevas por Telegram (teléfono escondido)"
+# Sin horario de silencio para esta parte (el predeterminado 22:00-07:00 haría fallar la prueba de noche)
+get "r=ajustes" > /dev/null
+post_form "$TMP/pag.html" "#ajustes-solicitudes" "silencio_desde=" "silencio_hasta=" > /dev/null
 echo 1 > "$TMP/mock_tuvocalia/agregar_demos"
 SALIDA=$(php bin/revisar.php)
 contiene "revisar.php: trae las solicitudes porque cambió la huella" <(echo "$SALIDA") "tuvocalia: solicitudes"
@@ -827,7 +830,7 @@ titulo "27. Clientes: todos los programas, filtros y Recordar por WhatsApp"
 check "Abre Clientes" "200" "$(get 'r=clientes')"
 TOTC=$(sql "SELECT count(*) FROM clientes")
 check "Todos los clientes de todos los programas ($TOTC)" "$TOTC" "$(grep -c 'data-cliente=' "$TMP/pag.html")"
-contiene "Chips de estado con número" "$TMP/pag.html" 'En prueba <b>'
+contiene "Chips de estado con número" "$TMP/pag.html" 'En demo <b>'
 contiene "Dogssy (una sola empresa) con su licencia" "$TMP/pag.html" "Dogssy"
 contiene "Nota: TuSalón todavía no manda su lista" "$TMP/pag.html" "TuSalón, TuAcademia todavía no mandan su lista"
 get "r=clientes&estado=vencido" > /dev/null
@@ -841,7 +844,7 @@ get "r=clientes&sin_uso=15" > /dev/null
 contiene "Sin usar hace 15 días" "$TMP/pag.html" "Liga Parroquial Conocoto"
 get "r=clientes" > /dev/null
 R=$(curl -s -b "$JAR" -o /dev/null -w '%{http_code} %{redirect_url}' --data-urlencode "csrf=$(csrf)" --data-urlencode "i=tuvocalia" --data-urlencode "id=1" "$BASE/?r=recordar")
-check "Recordar -> abre WhatsApp con el mensaje" "1" "$(echo "$R" | grep -c '^303 https://wa.me/593991234560?text=Hola%20Juan%2C%20le%20saluda%20Tuk%C3%A1n%20Software.%20%C2%BFC%C3%B3mo%20le%20va%20con%20la%20prueba')"
+check "Recordar -> abre WhatsApp con el mensaje" "1" "$(echo "$R" | grep -c '^303 https://wa.me/593991234560?text=Hola%20Juan%2C%20le%20saluda%20Tuk%C3%A1n%20Software.%20%C2%BFC%C3%B3mo%20le%20va%20con%20la%20demo')"
 get "r=clientes" > /dev/null
 contiene "Recordado hace un momento por Dimitry" "$TMP/pag.html" "Recordado hace un momento por Dimitry"
 check "Auditoría: recordatorio" "1" "$(audit_n recordatorio)"
@@ -1414,9 +1417,183 @@ if grep -qiE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log"
   FALLAS=$((FALLAS+1)); echo "  FALLA Avisos o errores de PHP en el panel (solicitudes/zona de peligro):"; grep -iE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log" | sort | uniq -c | head -20
 else OK=$((OK+1)); echo "  OK    Sin avisos ni errores de PHP en el panel (solicitudes/zona de peligro)"; fi
 
+titulo "37. Módulos (Anexo B): pestaña de la ficha, resumen, catálogo, pedidos y demos"
+JAR="$JAR_D2"; IP="198.51.100.11"
+probar tuevento > /dev/null; probar dogssy > /dev/null; probar tuvocalia > /dev/null
+php bin/revisar.php > /dev/null
+check "Capacidades: TuEvento, TuVocalía y Dogssy declaran modulos" "3" "$(sql "SELECT count(*) FROM capacidades WHERE instancia_id IN ('dogssy','tuevento','tuvocalia') AND json_extract(datos, '$.modulos') IS NOT NULL")"
+get "r=cliente&i=tuevento&id=3" > /dev/null
+contiene "Ficha: pestañas Resumen y Módulos" "$TMP/pag.html" 'aria-label="Ficha del cliente"'
+contiene "...con enlace a la pestaña Módulos" "$TMP/pag.html" 'r=cliente&amp;i=tuevento&amp;id=3&amp;tab=modulos'
+check "Pestaña Módulos abre" "200" "$(get 'r=cliente&i=tuevento&id=3&tab=modulos')"
+contiene "...interruptores de cada módulo" "$TMP/pag.html" 'value="reportes" checked aria-describedby'
+contiene "...el apagado sin marcar" "$TMP/pag.html" 'value="pagos_linea" aria-describedby'
+contiene "...precio de cada módulo" "$TMP/pag.html" '<span class="mod-precio">$10,00<small>/mes</small>'
+contiene "...plan base para elegir" "$TMP/pag.html" '<option value="1" selected>Básico · $19,00</option>'
+contiene "...total al mes (\$19 + Reportes \$4)" "$TMP/pag.html" 'data-actual="23.00">$23,00'
+contiene "...precio acordado opcional" "$TMP/pag.html" 'name="precio_acordado"'
+contiene "...dependencias a la vista" "$TMP/pag.html" 'Necesita: Agenda y reservas.'
+contiene "...botón Revisar y guardar (dueño)" "$TMP/pag.html" 'Revisar y guardar'
+no_contiene "...sin datos de otra pestaña (pagos)" "$TMP/pag.html" 'id="tabla-pagos"'
+VOLV="/?r=cliente&i=tuevento&id=3&tab=modulos"
+R=$(post modulos --data-urlencode "paso=revisar" --data-urlencode "i=tuevento" --data-urlencode "cliente=3" --data-urlencode "volver=$VOLV" --data-urlencode "plan=1" \
+     --data-urlencode "mod[]=agenda" --data-urlencode "mod[]=reportes" --data-urlencode "mod[]=pagos_linea" --data-urlencode "mod[]=whatsapp" --data-urlencode "precio_acordado=")
+check "Revisar: muestra el resumen (200)" "200 " "$R"
+cp "$TMP/post.html" "$TMP/pag.html"
+contiene "...se enciende Cobros con tarjeta +\$10" "$TMP/pag.html" 'Se enciende <strong>Cobros con tarjeta</strong></span>'
+contiene "...con su precio" "$TMP/pag.html" '+$10,00'
+contiene "...se apaga Página pública (sin borrar datos)" "$TMP/pag.html" 'Se apaga <strong>Página pública</strong> <small>(sus datos se guardan)</small>'
+contiene "...precio antes → después (\$23 → \$32)" "$TMP/pag.html" 'Valor mensual: $23,00 →</span> <strong>$32,00</strong>'
+contiene "...pide confirmar" "$TMP/pag.html" 'data-confirmar="¿Guardar los módulos de Salón Imperial? Valor mensual: $32,00."'
+R=$(post modulos --data-urlencode "paso=revisar" --data-urlencode "i=tuevento" --data-urlencode "cliente=3" --data-urlencode "volver=$VOLV" --data-urlencode "plan=1" \
+     --data-urlencode "mod[]=reportes" --data-urlencode "mod[]=whatsapp")
+cp "$TMP/post.html" "$TMP/dep.html"
+contiene "Encender uno que necesita otro: el otro queda encendido" "$TMP/dep.html" 'Se enciende <strong>Avisos por WhatsApp</strong>'
+no_contiene "...y Agenda no se apaga" "$TMP/dep.html" 'Se apaga <strong>Agenda y reservas'
+R=$(post_form "$TMP/pag.html" "#confirmar-modulos" "carga={\"encender\":[\"pagos_linea\"],\"apagar\":[]}")
+check "Resumen cambiado en el navegador: no se manda" "303 $BASE$VOLV" "$R"
+check "...y el programa no recibió nada" "0" "$(grep -c '|cambiar_modulos|' "$TMP/mock_tuevento/ejecutar.log" 2>/dev/null || true)"
+R=$(post_form "$TMP/pag.html" "#confirmar-modulos")
+check "Sí, guardar: vuelve a la pestaña Módulos" "303 $BASE$VOLV" "$R"
+check "El programa encendió Cobros y WhatsApp y apagó la Página pública" "pagos_linea,whatsapp,reportes|web" "$(mockdb tuevento "implode(',', \$d['clientes']['3']['mods']['extra']) . '|' . implode(',', \$d['clientes']['3']['mods']['quitados'])")"
+get "$(echo "$VOLV" | sed 's#^/?##')" > /dev/null
+contiene "Aviso: lo que respondió el programa" "$TMP/pag.html" 'Módulos guardados. Valor mensual: $23,00 → $32,00.'
+contiene "La pestaña ya muestra el nuevo total" "$TMP/pag.html" 'data-actual="32.00">$32,00'
+check "Auditoría: Cambiar módulos" "1" "$(sql "SELECT count(*) > 0 FROM auditoria WHERE accion='ejecutar' AND detalle LIKE 'Cambiar módulos%listo%'")"
+check "Copia local: el cliente vale con sus módulos" "pagos_linea,whatsapp,reportes" "$(sql "SELECT (SELECT group_concat(value) FROM json_each(json_extract(datos, '$.modulos.extra'))) FROM clientes WHERE instancia_id='tuevento' AND cliente_id='3'")"
+
+# Clientes: precio al mes y filtro "con módulos extra"
+get "r=clientes" > /dev/null
+contiene "Clientes: columna Al mes" "$TMP/pag.html" '<th>Al mes</th>'
+contiene "...etiqueta con los módulos extra" "$TMP/pag.html" '+3 módulos</span>'
+get "r=clientes&extra=1" > /dev/null
+contiene "Filtro con módulos extra: Salón Imperial" "$TMP/pag.html" 'Salón Imperial'
+no_contiene "...sin los que no tienen extras" "$TMP/pag.html" 'Quinta Los Álamos'
+contiene "...el filtro sale marcado" "$TMP/pag.html" 'name="extra" value="1" checked'
+
+# Finanzas: ingreso por módulo
+get "r=finanzas" > /dev/null
+contiene "Finanzas: Ingreso por módulo" "$TMP/pag.html" 'id="por-modulo"'
+contiene "...Cobros con tarjeta de TuEvento" "$TMP/pag.html" 'Cobros con tarjeta <small>TuEvento · 1 cliente</small>'
+contiene "...Reportes de TuEvento" "$TMP/pag.html" 'Reportes <small>TuEvento · 1 cliente</small>'
+
+# Soporte: ve, no cambia
+JAR="$TMP/jar_soporte2"; IP="198.51.100.21"
+get "r=cliente&i=tuevento&id=3&tab=modulos" > /dev/null
+contiene "Soporte: ve la pestaña Módulos" "$TMP/pag.html" 'id="form-modulos"'
+contiene "...interruptores sin poder tocar" "$TMP/pag.html" 'value="reportes" checked disabled'
+contiene "...y el aviso" "$TMP/pag.html" 'Solo el dueño del panel puede encender o apagar módulos.'
+no_contiene "...sin Revisar y guardar" "$TMP/pag.html" 'Revisar y guardar'
+R=$(post modulos --data-urlencode "paso=revisar" --data-urlencode "i=tuevento" --data-urlencode "cliente=3" --data-urlencode "mod[]=agenda")
+check "Soporte: mandar el formulario -> 403" "403 " "$R"
+get "r=catalogo&i=dogssy" > /dev/null
+contiene "Soporte: ve el catálogo" "$TMP/pag.html" 'Catálogo de módulos y planes'
+contiene "...sin poder cambiarlo" "$TMP/pag.html" 'Solo el dueño del panel puede cambiar precios y planes.'
+JAR="$JAR_D2"; IP="198.51.100.11"
+
+# Solicitudes: pedido de Mi plan (Dogssy) con Aprobar; y Rechazar (TuEvento)
+get "r=solicitudes&chip=modulos" > /dev/null
+contiene "Bandeja: chip Módulos" "$TMP/pag.html" 'chip=modulos'
+contiene "...pedido de Dogssy (Pide agregar Hotel)" "$TMP/pag.html" 'Pide agregar Hotel y estadías'
+contiene "...Aprobar abre el resumen" "$TMP/pag.html" 'href="/?r=modulos&amp;i=dogssy&amp;sol=cambio_modulos%3A1"'
+LIC0=$(sql "SELECT coalesce(valor_mensual, 0) FROM licencias WHERE instancia_id='dogssy'")
+get "r=modulos&i=dogssy&sol=cambio_modulos%3A1" > /dev/null
+contiene "Aprobar: dice exactamente qué se enciende" "$TMP/pag.html" 'Se enciende <strong>Hotel y estadías</strong>'
+contiene "...y el precio nuevo (\$49 → \$59)" "$TMP/pag.html" 'Valor mensual: $49,00 →</span> <strong>$59,00</strong>'
+contiene "...lo que pidió el cliente" "$TMP/pag.html" '«Abrimos el hotel en diciembre»'
+contiene "...en TuGuardería es el valor de la licencia" "$TMP/pag.html" 'este valor pasa a ser el de su licencia'
+R=$(post_form "$TMP/pag.html" "#confirmar-modulos" "motivo=Listo, bienvenido el hotel")
+check "Aprobar y encender: vuelve a la bandeja" "303 $BASE/?r=solicitudes" "$R"
+check "...el pedido queda atendido" "atendida" "$(sql "SELECT estado FROM solicitudes WHERE instancia_id='dogssy' AND solicitud_id='cambio_modulos:1'")"
+check "...Hotel encendido en el programa" "" "$(mockdb dogssy "implode(',', \$d['unico']['mods']['quitados'])")"
+check "...la licencia pasa a \$59 al mes (antes $LIC0)" "59" "$(sql "SELECT valor_mensual FROM licencias WHERE instancia_id='dogssy'")"
+check "Aprobar otra vez: ya atendido (vuelve a la bandeja con aviso)" "303" "$(get 'r=modulos&i=dogssy&sol=cambio_modulos%3A1')"
+get "r=solicitudes" > /dev/null
+contiene "...el aviso dice que ya fue atendido" "$TMP/pag.html" 'Ese pedido ya fue atendido.'
+get "r=solicitudes&chip=modulos" > /dev/null
+H=$(grep -o 'href="/?r=accion&amp;i=tuevento&amp;a=atender_solicitud[^"]*sol=cambio_modulos%3A7[^"]*"' "$TMP/pag.html" | head -1 | sed 's/^href="\/?//;s/"$//;s/&amp;/\&/g')
+check "Pedido de TuEvento con Rechazar" "1" "$([ -n "$H" ] && echo 1 || echo 0)"
+get "$H" > /dev/null
+R=$(post_form "$TMP/pag.html" "#form-accion" "campo[nota]=Primero terminemos el mes" "seguro=1")
+check "Rechazar: el programa lo marca rechazado" "rechazada" "$(mockdb tuevento "\$d['solicitudes']['cambio_modulos:7']['estado']")"
+check "...y sale de por atender" "descartada" "$(sql "SELECT estado FROM solicitudes WHERE instancia_id='tuevento' AND solicitud_id='cambio_modulos:7'")"
+
+# Ficha del programa TuGuardería: módulos junto a la licencia; catálogo de módulos y planes
+get "r=programa&id=dogssy" > /dev/null
+contiene "Programa Dogssy: módulos de la instalación" "$TMP/pag.html" 'id="modulos-licencia"'
+contiene "...con Hotel ya encendido" "$TMP/pag.html" 'value="hotel" checked aria-describedby'
+contiene "...la licencia dice el valor de los módulos" "$TMP/pag.html" '$59,00 al mes'
+contiene "...sección Catálogo de módulos y planes" "$TMP/pag.html" 'id="catalogo"'
+R=$(post modulos --data-urlencode "paso=revisar" --data-urlencode "i=dogssy" --data-urlencode "cliente=unico" --data-urlencode "volver=/?r=programa&id=dogssy" --data-urlencode "plan=completo" \
+     --data-urlencode "mod[]=guarderia" --data-urlencode "mod[]=hotel" --data-urlencode "mod[]=peluqueria" --data-urlencode "mod[]=rutas" --data-urlencode "mod[]=portal" --data-urlencode "mod[]=anuncios" \
+     --data-urlencode "precio_acordado=45,00")
+cp "$TMP/post.html" "$TMP/pag.html"
+contiene "Dogssy: apagar Fotos con precio acordado \$45" "$TMP/pag.html" 'Valor mensual: $59,00 →</span> <strong>$45,00</strong>'
+R=$(post_form "$TMP/pag.html" "#confirmar-modulos")
+check "...guardar vuelve a la ficha del programa" "303 $BASE/?r=programa&id=dogssy" "$R"
+check "...la licencia toma el precio acordado" "45" "$(sql "SELECT valor_mensual FROM licencias WHERE instancia_id='dogssy'")"
+check "...el programa lo guardó (acordado 45, Fotos quitado)" "45|fotos" "$(mockdb dogssy "\$d['unico']['mods']['acordado'] . '|' . implode(',', \$d['unico']['mods']['quitados'])")"
+R=$(post modulos --data-urlencode "paso=revisar" --data-urlencode "i=dogssy" --data-urlencode "cliente=unico" --data-urlencode "volver=/?r=programa&id=dogssy" --data-urlencode "plan=completo" \
+     --data-urlencode "mod[]=guarderia" --data-urlencode "precio_acordado=abc")
+check "Precio acordado mal escrito: vuelve con el error" "303 $BASE/?r=programa&id=dogssy" "$R"
+
+get "r=catalogo&i=dogssy" > /dev/null
+contiene "Catálogo: precios de cada módulo" "$TMP/pag.html" 'inputmode="decimal" value="10,00" aria-label="Precio de Hotel y estadías"'
+contiene "...planes con sus módulos" "$TMP/pag.html" 'p-esencial-p'
+contiene "...plan nuevo (opcional)" "$TMP/pag.html" 'id="pn-cod"'
+contiene "...pide el código de 2 pasos" "$TMP/pag.html" 'autocomplete="one-time-code"'
+R=$(post_form "$TMP/pag.html" "#form-catalogo" "m[hotel][precio]=12,50" "codigo=000000")
+check "Código de 2 pasos malo: no se guarda (422)" "422 " "$R"
+check "...el programa no cambió" "0" "$(mockdb dogssy "isset(\$d['catalogo']['modulos']['hotel']) ? 1 : 0")"
+get "r=catalogo&i=dogssy" > /dev/null
+R=$(post_form "$TMP/pag.html" "#form-catalogo" "m[hotel][precio]=12,50" "p[esencial][mods][]=anuncios" "codigo=$(codigo "$SECRETO_D" "$TMP/paso_d")")
+check "Plan con Anuncios sin Portal: el panel avisa antes de mandar" "422 " "$R"
+contiene "...con el motivo" "$TMP/post.html" 'pero no «Portal de dueños», que lo necesita.'
+get "r=catalogo&i=dogssy" > /dev/null
+R=$(post_form "$TMP/pag.html" "#form-catalogo" "m[hotel][precio]=12,50" "m[hotel][descripcion]=Cuartos, reservas y ocupación." "codigo=$(codigo "$SECRETO_D" "$TMP/paso_d")")
+check "Guardar catálogo: vuelve al catálogo" "303 $BASE/?r=catalogo&i=dogssy" "$R"
+check "...el programa tiene el precio nuevo" "12.5" "$(mockdb dogssy "\$d['catalogo']['modulos']['hotel']['precio_mensual']")"
+check "...solo se mandó lo que cambió" "descripcion,precio_mensual" "$(mockdb dogssy "implode(',', array_keys(\$d['catalogo']['modulos']['hotel']))")"
+get "r=catalogo&i=dogssy" > /dev/null
+contiene "...y se ve el precio nuevo" "$TMP/pag.html" 'inputmode="decimal" value="12,50" aria-label="Precio de Hotel y estadías"'
+check "Auditoría: Guardar catálogo de módulos" "1" "$(sql "SELECT count(*) > 0 FROM auditoria WHERE accion='ejecutar' AND detalle LIKE 'Guardar catálogo de módulos%listo%'")"
+check "El formulario genérico no manda cambiar_modulos" "303" "$(curl -s -b "$JAR" -o /dev/null -w '%{http_code}' -H "CF-Connecting-IP: $IP" --data-urlencode "csrf=$(csrf)" --data-urlencode "i=tuevento" --data-urlencode "accion=cambiar_modulos" "$BASE/?r=ejecutar")"
+
+# Demos: elegir plan y módulos (si el programa lo acepta)
+get "r=demo_nueva&i=tuevento" > /dev/null
+contiene "Crear demo: Módulos de la demo" "$TMP/pag.html" 'Módulos de la demo'
+contiene "...todos encendidos por defecto" "$TMP/pag.html" 'value="pagos_linea" checked> <span>Cobros con tarjeta'
+contiene "...días de demo (sin 'prueba')" "$TMP/pag.html" 'Días de demo'
+R=$(post_form "$TMP/pag.html" "#form-demo" "campo[nombre]=Quinta Módulos" "campo[contacto_nombre]=Rosa Vera" "campo[telefono]=0991112299" "campo[email]=rosa@modulos.ec" "demo_mods[]=whatsapp")
+check "Demo con solo WhatsApp: se crea" "200 " "$R"
+check "...el programa recibió WhatsApp y su dependencia Agenda" "|1|agenda,whatsapp" "$(tail -1 "$TMP/mock_tuevento/demos.log" | grep -o '|1|.*')"
+get "r=demo_nueva&i=tuevento" > /dev/null
+R=$(post_form "$TMP/pag.html" "#form-demo" "campo[nombre]=Quinta Completa" "campo[contacto_nombre]=Rosa Vera" "campo[telefono]=0991112298" "campo[email]=rosa2@modulos.ec")
+check "Demo sin tocar los módulos: todo encendido (no se manda la lista)" "|1|*" "$(tail -1 "$TMP/mock_tuevento/demos.log" | grep -o '|1|.*')"
+
+# Programa sin Anexo B: todo sigue como antes, sin pestaña ni catálogo
+mock tuevento 8262 tuevento "$SEC_TE" tuevento MOCK_SIN_MODULOS=1
+probar tuevento > /dev/null
+get "r=cliente&i=tuevento&id=3" > /dev/null
+no_contiene "Sin Anexo B: la ficha no tiene pestaña Módulos" "$TMP/pag.html" 'aria-label="Ficha del cliente"'
+check "...la pestaña pedida a mano muestra el resumen" "200" "$(get 'r=cliente&i=tuevento&id=3&tab=modulos')"
+no_contiene "...sin interruptores" "$TMP/pag.html" 'id="form-modulos"'
+get "r=programa&id=tuevento" > /dev/null
+no_contiene "...la ficha del programa sin catálogo" "$TMP/pag.html" 'id="catalogo"'
+contiene "...y dice que falta actualizar" "$TMP/pag.html" '<li class="no"><svg'
+R=$(post modulos --data-urlencode "paso=revisar" --data-urlencode "i=tuevento" --data-urlencode "cliente=3")
+check "...mandar módulos a la fuerza: no (vuelve con aviso)" "303" "$(echo "$R" | cut -d' ' -f1)"
+mock tuevento 8262 tuevento "$SEC_TE" tuevento
+probar tuevento > /dev/null
+get "r=ayuda" > /dev/null
+contiene "Ayuda: explica los módulos" "$TMP/pag.html" 'id="ayuda-modulos"'
+if grep -qiE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log"; then
+  FALLAS=$((FALLAS+1)); echo "  FALLA Avisos o errores de PHP en el panel (módulos):"; grep -iE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log" | sort | uniq -c | head -20
+else OK=$((OK+1)); echo "  OK    Sin avisos ni errores de PHP en el panel (módulos)"; fi
+
 # =====================================================================
 if [ -z "${SIN_CAPTURAS:-}" ] && python3 -c "import playwright" 2>/dev/null; then
-  titulo "37. Capturas de pantalla (Playwright, Chromium)"
+  titulo "38. Capturas de pantalla (Playwright, Chromium)"
   TUKAN_ADMIN_NOMBRE="Dimitry Fierro" TUKAN_ADMIN_EMAIL="capturas@tukan.ec" TUKAN_ADMIN_CLAVE="claveCapturas2026" php bin/crear_admin.php > /dev/null
   parar dogssy   # una caida para que se vea el estado "sin conexion" (tarjeta y zona de peligro de su ficha)
   get "r=inicio" > /dev/null; post refrescar > /dev/null

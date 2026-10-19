@@ -70,6 +70,24 @@ $notas = [
 </div>
 
 <div class="rejilla dos seccion">
+  <div class="tarjeta preguntas" id="ayuda-modulos">
+    <h2>Módulos: encender y apagar funciones</h2>
+    <details><summary>¿Qué es un módulo?</summary><div>
+      <p>Cada programa tiene una <b>base</b> que siempre está y <b>módulos</b> que se encienden o se apagan (por ejemplo en TuGuardería: Hotel, Peluquería, Rutas con GPS, Portal de dueños). Cada módulo tiene su precio al mes. Así cada cliente paga solo lo que usa.</p>
+      <p>Un <b>plan</b> es un precio con varios módulos incluidos. Lo que el cliente enciende además de su plan es <b>extra</b> (se suma) y lo que apaga de su plan es <b>quitado</b> (se descuenta). Si acordaste otro valor, escríbelo en <b>Precio acordado</b>: vale ese.</p></div></details>
+    <details><summary>¿Cómo enciendo o apago un módulo de un cliente?</summary><div>
+      <p>Abre su ficha en <a href="<?= e(url('clientes')) ?>">Clientes</a> y toca la pestaña <b>Módulos</b>. Mueve los interruptores: el total al mes cambia en vivo. Toca <b>Revisar y guardar</b>: verás qué se enciende, qué se apaga y el precio nuevo, y confirmas con <b>Sí, guardar</b>.</p>
+      <p>Si enciendes uno que necesita otro (por ejemplo Anuncios necesita el Portal), el otro se enciende solo. Apagar <b>no borra datos</b>: si lo vuelves a encender, todo sigue como estaba.</p>
+      <p>En TuGuardería los interruptores están en la ficha del programa, junto a la <b>Licencia</b>: el total al mes pasa a ser el valor de la licencia.</p>
+      <p>Solo el dueño puede cambiar módulos; soporte los ve.</p></div></details>
+    <details><summary>Un cliente pidió un módulo desde «Mi plan»</summary><div>
+      <p>Llega a <a href="<?= e(url('solicitudes', ['chip' => 'modulos'])) ?>">Solicitudes</a> como <b>Cambio de módulos</b> (y por Telegram). <b>Aprobar</b> te muestra exactamente qué se enciende y el precio nuevo antes de confirmar. <b>Rechazar</b> pide el motivo, que el cliente ve en «Mi plan».</p></div></details>
+    <details><summary>¿Dónde cambio los precios de los módulos y los planes?</summary><div>
+      <p>En <a href="<?= e(url('programas')) ?>">Programas</a>, abre el programa y toca <b>Catálogo de módulos y planes</b> → <b>Editar precios y planes</b>. Cambia precios, descripciones (lo que lee el cliente), el orden y qué trae cada plan. Pide tu código de 2 pasos.</p>
+      <p>En <a href="<?= e(url('finanzas')) ?>">Finanzas</a>, <b>Ingreso por módulo</b> dice cuánto suman al mes los módulos extra: así ves qué módulos venden más. En Clientes, el filtro <b>Con módulos extra</b> muestra quiénes pagan más que su plan.</p></div></details>
+    <details><summary>Demos: ¿con qué módulos?</summary><div>
+      <p>Nada se da gratis: quien quiere probar <b>pide una demo</b> (llega a Solicitudes como <b>Pedido de demo</b>) y tú la creas con <b>Crear demo</b>, con sus datos ya llenos. Eliges el plan, los días de la demo y, si el programa lo permite, qué módulos encender (lo normal: todos, para que vea todo).</p></div></details>
+  </div>
   <div class="tarjeta preguntas" id="ayuda-pausar">
     <h2>Pausar o borrar un cliente</h2>
     <details><summary>¿Qué pasa cuando pauso a un cliente?</summary><div>

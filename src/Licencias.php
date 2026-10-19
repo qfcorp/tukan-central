@@ -58,6 +58,16 @@ final class Licencias
         $this->actualizarCopia($inst);
     }
 
+    /** Cambia solo el valor al mes (Anexo B: el total de los módulos). Crea la licencia si no había. */
+    public function fijarValor(string $inst, float $valor, ?int $ahora = null): void
+    {
+        if ($valor < 0 || $valor > 100000) return;
+        $this->db->prepare('INSERT INTO licencias (instancia_id, valor_mensual, activo_hasta, contacto_cif, notas, actualizado) VALUES (?,?,NULL,NULL,\'\',?)
+                            ON CONFLICT (instancia_id) DO UPDATE SET valor_mensual = excluded.valor_mensual, actualizado = excluded.actualizado')
+            ->execute([$inst, round($valor, 2), $ahora ?? time()]);
+        $this->actualizarCopia($inst);
+    }
+
     /** Fecha nueva al pagar N meses: desde la fecha actual si aún no vence, o desde hoy. */
     public static function nuevaFecha(?string $hasta, int $meses, string $hoy): string
     {

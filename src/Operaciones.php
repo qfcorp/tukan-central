@@ -23,11 +23,15 @@ final class Operaciones
         'pausar' => 'pausar', 'borrar_cliente' => 'borrar_clientes', 'restaurar_cliente' => 'borrar_clientes',
         // Borrar la instalación: solo el dueño, y solo desde la ficha del programa (zona de peligro, con el ID y el código de 2 pasos)
         'dar_de_baja' => 'programas', 'cancelar_baja' => 'programas',
+        // Anexo B: encender / apagar módulos y el catálogo de precios: solo el dueño
+        'cambiar_modulos' => 'cobros', 'guardar_modulos' => 'cobros',
     ];
+    /** Anexo B: se hacen desde sus pantallas (pestaña Módulos y Catálogo), nunca con el formulario genérico. */
+    public const DE_MODULOS = ['cambiar_modulos', 'guardar_modulos'];
     /** Se hacen desde la ficha del programa (página "baja"), nunca con el formulario genérico. */
     public const DE_LA_FICHA = ['dar_de_baja', 'cancelar_baja'];
     /** Raras y delicadas: piden otra vez el código de 2 pasos. */
-    public const PIDEN_2FA = ['anular_pago', 'guardar_plan', 'borrar_cliente'];
+    public const PIDEN_2FA = ['anular_pago', 'guardar_plan', 'borrar_cliente', 'guardar_modulos'];
     /** Estilo que pone el panel aunque el programa mande otro (botón rojo que pide confirmar dos veces). */
     public const ESTILOS = ['pausar' => 'peligro', 'suspender' => 'peligro', 'borrar_cliente' => 'peligro', 'dar_de_baja' => 'peligro', 'anular_pago' => 'peligro'];
     /** Tipos de pausa (Anexo A.1). Con revision y abuso el cliente ve un texto general, no el motivo. */
@@ -36,12 +40,13 @@ final class Operaciones
     public const DE_HISTORIAL = ['pausar', 'reactivar', 'suspender', 'cancelar', 'borrar_cliente', 'restaurar_cliente'];
 
     public const NOMBRES = [
-        'crear_demo' => 'Crear demo', 'extender_prueba' => 'Alargar prueba', 'registrar_pago' => 'Registrar pago', 'anular_pago' => 'Anular pago',
+        'crear_demo' => 'Crear demo', 'extender_prueba' => 'Alargar demo', 'registrar_pago' => 'Registrar pago', 'anular_pago' => 'Anular pago',
         'aprobar_comprobante' => 'Aprobar comprobante', 'rechazar_comprobante' => 'Rechazar comprobante', 'suspender' => 'Suspender', 'reactivar' => 'Reactivar',
         'cambiar_plan' => 'Cambiar plan', 'nueva_clave_dueno' => 'Nueva clave del dueño', 'nota_interna' => 'Nota interna',
         'atender_solicitud' => 'Atender solicitud', 'guardar_plan' => 'Guardar plan', 'responder_ticket' => 'Responder ticket', 'cancelar' => 'Cancelar cuenta',
         'dar_de_baja' => 'Borrar la instalación', 'cancelar_baja' => 'Cancelar el borrado',
         'pausar' => 'Pausar', 'borrar_cliente' => 'Borrar cliente', 'restaurar_cliente' => 'Restaurar',
+        'cambiar_modulos' => 'Cambiar módulos', 'guardar_modulos' => 'Guardar catálogo de módulos',
     ];
 
     /** Segundos de espera cuando el programa dice que la operación sigue "en curso" (§7.1). */
@@ -233,6 +238,14 @@ final class Operaciones
     {
         $clientes = new Clientes($this->db, $this->cifrado);
         $sol = new Solicitudes($this->db, $this->cifrado);
+        // Anexo B: en los programas de una sola empresa el total mensual de los módulos es el valor de la licencia
+        if ($accion === 'cambiar_modulos' && ($clienteId === 'unico' || ($r['cliente']['id'] ?? null) === 'unico')) {
+            $m = Modulos::limpiarCliente($r['modulos'] ?? $r['resultado']['modulos'] ?? $r['cliente']['modulos'] ?? null);
+            if ($m !== null) (new Licencias($this->db, $this->cifrado))->fijarValor($inst['id'], $m['mensual']);
+        }
+        if ($accion === 'guardar_modulos' && is_array($r['catalogo'] ?? $r['resultado']['catalogo'] ?? null)) {
+            (new Modulos($this->db))->guardarCatalogo($inst['id'], Modulos::limpiarCatalogo($r['catalogo'] ?? $r['resultado']['catalogo']));
+        }
         $c = Clientes::limpiar($r['cliente'] ?? null);
         if ($c !== null) {
             if ($c['id'] === 'unico') $c = (new Licencias($this->db, $this->cifrado))->aplicar($inst['id'], $c);
@@ -254,7 +267,7 @@ final class Operaciones
             $sol->guardarUna($inst['id'], $s, null, false);
         } elseif ($solId !== null) {
             $nuevo = match ($accion) {
-                'aprobar_comprobante', 'rechazar_comprobante', 'crear_demo' => 'atendida',
+                'aprobar_comprobante', 'rechazar_comprobante', 'crear_demo', 'cambiar_modulos' => 'atendida',
                 'atender_solicitud' => in_array($datos['resultado'] ?? '', ['en_proceso', 'atendida', 'descartada'], true) ? $datos['resultado'] : null,
                 default => null,
             };

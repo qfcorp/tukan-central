@@ -11,14 +11,14 @@ namespace Tukan;
 final class Contacto
 {
     public const PLANTILLAS = [
-        'wa_recordar_prueba' => 'Hola {nombre}, le saluda Tukán Software. ¿Cómo le va con la prueba de {negocio} en {programa}? Su prueba termina el {vence}. Si desea seguir usándolo, con gusto le ayudamos a activar su plan.',
+        'wa_recordar_prueba' => 'Hola {nombre}, le saluda Tukán Software. ¿Cómo le va con la demo de {negocio} en {programa}? Su demo termina el {vence}. Si desea seguir usándolo, con gusto le ayudamos a activar su plan.',
         'wa_recordar_renovacion' => 'Hola {nombre}, le saluda Tukán Software. Le recordamos que el plan de {negocio} en {programa} vence el {vence}. El valor de la renovación es {monto}. ¿Le ayudamos a renovarlo?',
         'wa_vencido' => 'Hola {nombre}, le saluda Tukán Software. El plan de {negocio} en {programa} venció el {vence}. Para seguir usándolo sin perder sus datos, renueve su plan. ¿Le ayudamos?',
         'wa_bienvenida' => 'Hola {nombre}, le saluda Tukán Software. ¡Bienvenido a {programa}! {negocio} ya está lista para usarse. Cualquier duda, escríbanos por aquí.',
     ];
 
     public const NOMBRES_PLANTILLAS = [
-        'wa_recordar_prueba' => 'Prueba por terminar',
+        'wa_recordar_prueba' => 'Demo por terminar',
         'wa_recordar_renovacion' => 'Plan por vencer',
         'wa_vencido' => 'Plan vencido',
         'wa_bienvenida' => 'Bienvenida',

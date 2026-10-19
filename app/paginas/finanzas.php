@@ -24,5 +24,7 @@ $insts = array_column(instancias()->lista(true), 'id');
 vista('finanzas', [
     'r' => $r, 'periodo' => $periodo, 'meses' => $meses, 'repartir' => $repartir, 'prog' => $prog, 'detalle' => $detalle,
     'momento' => sincronizacion()->masViejo($insts, 'finanzas'),
+    // Anexo B: ingreso estimado al mes por cada módulo extra (de los clientes que lo tienen encendido aparte de su plan)
+    'porModulo' => (new \Tukan\Modulos(db()))->ingresoPorModulo(clientes()),
     'sinFinanzas' => array_values(array_filter(instancias()->lista(true), fn($i) => !isset($r['programas'][$i['id']]) && !\Tukan\Productos::tipo($i['producto'])['unico'])),
 ], 'Finanzas · Panel Tukán');

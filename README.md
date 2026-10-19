@@ -155,7 +155,7 @@ src/                     Totp, Qr, Cifrado, Token (protocolo v1 y v2), Productos
 bin/                     crear_admin.php, quitar_2fa.php, revisar.php (cron)
 deploy/                  instalar.sh, respaldo.sh
 datos/                   central.sqlite y sesiones (no va a GitHub)
-tests/                   run_tests.php (+ run_tests_v2.php, run_tests_bajas.php), run_web.sh (punta a punta), integracion.sh
+tests/                   run_tests.php (+ run_tests_v2.php, run_tests_bajas.php, run_tests_pausa.php, run_tests_modulos.php), run_web.sh (punta a punta), integracion.sh
                          (conectores reales), mock/ (programa de prueba v1 y v2, Cloudflare de mentira), form.php, capturas.py
 ```
 
@@ -180,7 +180,7 @@ bash tests/integracion.sh     # con los conectores REALES de TuEvento y TuSalón
 sin nada que se salga a lo ancho.
 
 Puertos que usan las pruebas: 8260-8269 (`run_web.sh`; 8267 y 8269 TuGuarderías que se pueden borrar, 8268 Cloudflare
-de mentira), 8258 (`run_tests.php`: Cloudflare de mentira), 8257 (`run_tests.php`: programa de prueba para pausar y borrar) y 8240-8249 (`integracion.sh`: 8240 panel, 8241 TuEvento,
+de mentira), 8258 (`run_tests.php`: Cloudflare de mentira), 8257 (`run_tests.php`: programa de prueba para pausar y borrar), 8267 (`run_tests.php`: programa de prueba con módulos) y 8240-8249 (`integracion.sh`: 8240 panel, 8241 TuEvento,
 8242 TuSalón, 8243 TuVocalía). Las pruebas **nunca** hablan con el Cloudflare real (`tests/mock/cloudflare.php`).
 
 ---
@@ -243,6 +243,35 @@ la lista abre el botón con ese nombre), y el panel agrega lo que falte:
   la fecha de la papelera.
 - La ficha muestra la pausa (tipo, motivo, desde, quién), el aviso de papelera y **Pausas y borrados**: quién pausó,
   reactivó, suspendió, borró o restauró, cuándo y por qué (tabla `historial_clientes`, se crea sola).
+
+### Módulos: encender y apagar funciones (Anexo B de `docs/PROTOCOLO_V2.md`)
+
+Regla de la casa: **todo por módulos**. Cada programa tiene una base, módulos con precio al mes y planes (precio +
+módulos incluidos). El panel no sabe nada de cada programa: todo sale de `capacidades` (acción `modulos` y
+`capacidades.modulos`) y de la acción `modulos` (catálogo). Los programas sin Anexo B siguen igual.
+
+- **Ficha del cliente → pestaña Módulos**: interruptores por grupo, precio de cada uno, plan base (se puede cambiar),
+  cuentas (plan + extras − quitados) y **total al mes** que cambia en vivo; **precio acordado** opcional. *Revisar y
+  guardar* muestra qué se enciende (con lo que se enciende solo por dependencia), qué se apaga y el precio antes → después;
+  *Sí, guardar* manda `cambiar_modulos` (firmado: no se puede cambiar en el navegador). Solo el dueño; soporte la ve.
+- **TuGuardería**: los mismos interruptores en la ficha del programa, junto a la **Licencia**; al guardar, el total al mes
+  pasa a ser el valor de la licencia.
+- **Ficha del programa → Catálogo de módulos y planes** (`?r=catalogo`): precio, nombre, descripción y orden de cada módulo;
+  qué trae cada plan (o «todos»), plan nuevo y borrar un plan. Se mandan solo los cambios con `guardar_modulos` (pide el
+  código de 2 pasos). El panel revisa antes que un plan traiga lo que sus módulos necesitan.
+- **Solicitudes**: los pedidos `cambio_modulos` (desde «Mi plan» de cada programa) con **Aprobar** (abre el resumen con lo que
+  se enciende y el precio nuevo) y **Rechazar** (motivo obligatorio, lo ve el cliente). Chip **Módulos**; avisa por Telegram.
+- **Clientes**: columna **Al mes** (`mensual_estimado`), etiqueta «+N módulos» y filtro **Con módulos extra**.
+- **Finanzas**: **Ingreso por módulo**, lo que suman al mes los módulos extra (precio del catálogo) de cada programa.
+- **Demos**: si el programa lo acepta (`capacidades.modulos.crear_demo`), al crear la demo se elige el plan y qué módulos
+  encender (lo normal: todos; si se quitan, se manda `datos.modulos` con los que quedan y sus dependencias).
+- **Nada se da gratis**: el registro público de los programas es un **pedido de demo** (tipos `demo_pedida`, `demo` o `alta`,
+  chip *Pedidos de demo*) con **Crear demo** (datos ya llenos, plan, módulos y días de la demo) y **Descartar**. En las
+  pantallas se dice «demo» (no «prueba gratis»).
+- Código: `src/Modulos.php` (catálogo, ficha, vista previa del precio, ingreso por módulo), `app/paginas/modulos.php`,
+  `app/paginas/catalogo.php`, `app/vistas/_modulos.php`, `modulos_confirmar.php`, `catalogo.php`. La copia del catálogo va en
+  `sincronizacion` (`que = 'modulos'`); los módulos de cada cliente, en `clientes.datos.modulos`.
+
 
 ---
 

@@ -17,7 +17,7 @@ use PDO;
  */
 final class Sincronizador
 {
-    public const TIPOS_AVISO_PREDETERMINADOS = ['registro_nuevo', 'demo_pedida', 'comprobante', 'cambio_plan', 'soporte', 'derechos_datos'];
+    public const TIPOS_AVISO_PREDETERMINADOS = ['registro_nuevo', 'demo_pedida', 'demo', 'alta', 'comprobante', 'cambio_plan', 'cambio_modulos', 'soporte', 'derechos_datos'];
 
     /** Lo que pasó (para la salida del cron). */
     public array $registro = [];
@@ -247,7 +247,7 @@ final class Sincronizador
         $r = $this->finanzas->resumen([$mes], $this->ajustes->si('repartir_gastos_generales'), null, $hoy);
         $nombreMes = explode(' ', Finanzas::nombreMes($mes))[0];
         $txt = '☀️ Buenos días. Hoy: ' . $porAtender . ($porAtender === 1 ? ' solicitud' : ' solicitudes') . ' por atender, '
-             . $pruebas . ($pruebas === 1 ? ' prueba termina' : ' pruebas terminan') . ', ' . $planes . ($planes === 1 ? ' plan vence' : ' planes vencen') . '. '
+             . $pruebas . ($pruebas === 1 ? ' demo termina' : ' demos terminan') . ', ' . $planes . ($planes === 1 ? ' plan vence' : ' planes vencen') . '. '
              . "Cobrado en $nombreMes: " . self::dinero($r['total']['meses'][$mes]['ingresos']) . ' · Gastos: ' . self::dinero($r['total']['meses'][$mes]['gastos']) . '.';
         $this->ajustes->guardar('ultimo_resumen', $hoy);
         return $this->enviar($txt);

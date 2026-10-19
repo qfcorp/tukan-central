@@ -166,6 +166,13 @@ function botones_acciones(array $acciones, array $ctx): string
             $n++;
             continue;
         }
+        if (in_array($a['accion'], Operaciones::DE_MODULOS, true)) {
+            // Anexo B: aprobar un pedido de módulos abre el resumen (qué se enciende y el precio nuevo) antes de mandar
+            $p = ['i' => $inst] + (!empty($ctx['sol']) ? ['sol' => $ctx['sol']] : ['cliente' => (string) ($ctx['cliente_id'] ?? 'unico'), 'tab' => 'modulos']);
+            $html .= '<a class="' . $clase . '" href="' . e(url(!empty($ctx['sol']) ? 'modulos' : 'cliente', !empty($ctx['sol']) ? $p : ['i' => $inst, 'id' => $p['cliente'], 'tab' => 'modulos'])) . '">' . e($a['etiqueta']) . '</a>';
+            $n++;
+            continue;
+        }
         if ($a['accion'] === 'crear_demo') {
             $html .= '<a class="' . $clase . '" href="' . e(url('demo_nueva', ['i' => $inst] + (!empty($ctx['sol']) ? ['sol' => $ctx['sol']] : []))) . '">' . icono('demo') . e($a['etiqueta']) . '</a>';
             $n++;

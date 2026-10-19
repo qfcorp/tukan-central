@@ -63,7 +63,7 @@ $on = $activo && $f['consultado'] !== null && (int) $f['en_linea'];
         <?php if ($datos['nuevos_30d'] !== null): ?><div><dt>Nuevos (30 días)</dt><dd><?= (int) $datos['nuevos_30d'] ?></dd></div><?php endif; ?>
         <?php if ($datos['ingresos_mes'] !== null): ?><div><dt>Ingresos del mes</dt><dd><?= e(dinero($datos['ingresos_mes'])) ?> <span class="chico suave">(mes pasado <?= e(dinero($datos['ingresos_mes_anterior'])) ?>)</span></dd></div><?php endif; ?>
         <?php foreach ($datos['extra'] as $k => $v): ?><div><dt><?= e($k) ?></dt><dd><?= e(numero_corto($v)) ?></dd></div><?php endforeach; ?>
-        <div><dt>Pruebas que vencen</dt><dd><?= count($datos['pruebas_vencen_7d']) ?: 'Ninguna' ?></dd></div>
+        <div><dt>Demos que vencen</dt><dd><?= count($datos['pruebas_vencen_7d']) ?: 'Ninguna' ?></dd></div>
         <div><dt>Pagos vencidos</dt><dd><?= count($datos['pagos_vencidos']) ?: 'Ninguno' ?></dd></div>
       </dl>
     <?php endif; ?>
@@ -78,7 +78,7 @@ $on = $activo && $f['consultado'] !== null && (int) $f['en_linea'];
   <?php else: ?>
     <p class="chico suave mb"><?= $esV2 ? 'Protocolo v2' . (!empty($cap['datos']['version']) ? ' · versión ' . e($cap['datos']['version']) : '') . ' · revisado ' . e(hace($cap['consultado'])) : 'Este programa todavía usa el protocolo v1: solo cifras y Entrar.' ?></p>
     <ul class="capacidades">
-      <?php foreach ($resumen as $t => $si): if ($unico && in_array($t, ['Crear demos', 'Alargar pruebas', 'Registrar pagos', 'Aprobar comprobantes', 'Finanzas (ingresos por mes)', 'Ver las solicitudes (bandeja)', 'Borrar clientes (papelera)'], true)) continue; ?>
+      <?php foreach ($resumen as $t => $si): if ($unico && in_array($t, ['Crear demos', 'Alargar demos', 'Registrar pagos', 'Aprobar comprobantes', 'Finanzas (ingresos por mes)', 'Borrar clientes (papelera)'], true)) continue; ?>
         <li class="<?= $si ? 'si' : 'no' ?>"><?= icono($si ? 'check' : 'cruz') ?> <?= e($t) ?></li>
       <?php endforeach; ?>
     </ul>
@@ -103,6 +103,7 @@ $on = $activo && $f['consultado'] !== null && (int) $f['en_linea'];
     </div>
     <div class="campo"><label for="l-ce">Correo</label><input id="l-ce" type="email" name="contacto_email" value="<?= e((string) ($lc['email'] ?? '')) ?>" maxlength="150"></div>
     <div class="campo"><label for="l-n">Notas</label><textarea id="l-n" name="notas" maxlength="1000"><?= e((string) ($licencia['notas'] ?? '')) ?></textarea></div>
+    <?php if ($mCat && $mCli): ?><p class="chico suave mb">Con módulos: el valor al mes se pone solo al guardar los módulos (abajo).</p><?php endif; ?>
     <button class="btn" type="submit">Guardar licencia</button>
   </form>
   <form method="post" action="<?= e(url('licencias')) ?>" class="tarjeta" id="pago-licencia">
@@ -118,6 +119,28 @@ $on = $activo && $f['consultado'] !== null && (int) $f['en_linea'];
     <button class="btn btn-primario" type="submit"><?= icono('dinero') ?> Registrar pago</button>
   </form>
 </div>
+<?php endif; ?>
+
+<?php if ($unico && $mCat && $mCli): ?>
+<section class="seccion" id="modulos-licencia">
+  <h2>Módulos de la instalación <span class="cuenta"><?= count($mCli['activos']) ?> de <?= count($mCat['modulos']) ?></span></h2>
+  <p class="suave mb">Lo que tiene encendido <?= e($f['nombre']) ?>. El total al mes pasa a ser el valor de la licencia.</p>
+  <?php $mInst = ['id' => $f['id'], 'nombre' => $f['nombre'], 'producto' => $f['producto']]; $mCid = 'unico';
+        $mVolver = url('programa', ['id' => $f['id']]); $mPuede = puede_operacion($f['id'], 'cambiar_modulos');
+        $mFlags = $cap['datos']['modulos'] ?? []; $mNombre = $f['nombre'];
+        require __DIR__ . '/_modulos.php'; ?>
+</section>
+<?php endif; ?>
+
+<?php if ($mCat): ?>
+<section class="tarjeta seccion" id="catalogo">
+  <h2>Catálogo de módulos y planes</h2>
+  <p class="suave mb"><?= count($mCat['modulos']) ?> módulos y <?= count($mCat['planes']) ?> planes. Aquí se ponen los precios y qué trae cada plan.</p>
+  <ul class="lista-p">
+    <?php foreach ($mCat['planes'] as $p): ?><li><div class="dato"><strong><?= e($p['nombre']) ?> · <?= e(dinero($p['precio_mensual'])) ?> al mes</strong><span><?= $p['todos'] ? 'Todos los módulos' : e(\Tukan\Modulos::nombres($mCat, $p['modulos']) ?: 'Solo la base') ?></span></div></li><?php endforeach; ?>
+  </ul>
+  <a class="btn mt" href="<?= e(url('catalogo', ['i' => $f['id']])) ?>"><?= icono('editar') ?> <?= puede_operacion($f['id'], 'guardar_modulos') ? 'Editar precios y planes' : 'Ver el catálogo' ?></a>
+</section>
 <?php endif; ?>
 
 <?php if (puede('programas')): ?>

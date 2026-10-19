@@ -12,8 +12,8 @@ use PDO;
  */
 final class Clientes
 {
-    public const ESTADOS = ['prueba' => 'En prueba', 'activo' => 'Al día', 'por_vencer' => 'Por vencer', 'vencido' => 'Vencido', 'suspendido' => 'Suspendido'];
-    public const ORIGENES = ['registro' => 'Se registró solo', 'demo_pedida' => 'Pidió una demo', 'super' => 'Lo creó el súper', 'central' => 'Creado desde el Panel Tukán',
+    public const ESTADOS = ['prueba' => 'En demo', 'activo' => 'Al día', 'por_vencer' => 'Por vencer', 'vencido' => 'Vencido', 'suspendido' => 'Suspendido'];
+    public const ORIGENES = ['registro' => 'Pidió demo (registro)', 'demo_pedida' => 'Pidió una demo', 'super' => 'Lo creó el súper', 'central' => 'Creado desde el Panel Tukán',
                              'google_play' => 'Desde Google Play', 'desconocido' => 'No se sabe'];
     public const BORRAR_DESPUES = 7 * 86400;
 
@@ -127,6 +127,8 @@ final class Clientes
             'actualizado' => self::texto($c['actualizado'] ?? null, 40),
             'pausa' => $pau,
             'papelera' => $pap,
+            // Anexo B: módulos del cliente (plan, extra, quitados, activos y precio)
+            'modulos' => Modulos::limpiarCliente($c['modulos'] ?? null),
         ];
     }
 
@@ -317,6 +319,7 @@ final class Clientes
             $r['contacto'] = $conContacto ? $this->contacto($r) : null;
             if (($f['plan'] ?? '') !== '' && (string) $r['plan'] !== $f['plan']) continue;
             if (($f['origen'] ?? '') !== '' && $r['origen'] !== $f['origen']) continue;
+            if (!empty($f['con_extra']) && empty($r['datos']['modulos']['extra'])) continue;
             if (!empty($f['vence_en'])) {
                 $hasta = date('Y-m-d', strtotime("$hoy +" . (int) $f['vence_en'] . ' days'));
                 if ($r['vence'] === null || $r['vence'] < $hoy || $r['vence'] > $hasta || $r['estado'] === 'suspendido') continue;

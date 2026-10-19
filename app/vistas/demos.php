@@ -1,11 +1,11 @@
 <?php
 $m = $mes;
-$estados = ['prueba' => 'En prueba', 'pago' => 'Pagó', 'sin_pagar' => 'Terminó sin pagar'];
+$estados = ['prueba' => 'En demo', 'pago' => 'Pagó', 'sin_pagar' => 'Terminó sin pagar'];
 ?>
 <div class="cabeza">
   <div>
     <h1>Demos</h1>
-    <p class="sub">Las cuentas de prueba de todos tus programas y cuántas se vuelven clientes.</p>
+    <p class="sub">Las cuentas demo de todos tus programas y cuántas se vuelven clientes.</p>
   </div>
   <?php if (puede('demos') && $pueden): ?>
   <div class="acciones"><a class="btn btn-primario btn-grande" href="<?= e(url('demo_nueva')) ?>"><?= icono('mas') ?> Crear demo</a></div>
@@ -51,11 +51,11 @@ $estados = ['prueba' => 'En prueba', 'pago' => 'Pagó', 'sin_pagar' => 'Terminó
           <td data-t="Creada" class="nowrap"><?= e(fecha_dm($f['alta'], true)) ?></td>
           <td data-t="Cómo va"><?php
             if ($f['estado_demo'] === 'pago') echo '<span class="etiqueta ok">Pagó ✔ (' . e(fecha_dm($f['primer_pago'])) . ($f['monto_primer_pago'] !== null && puede('finanzas') ? ', ' . e(dinero((float) $f['monto_primer_pago'])) : '') . ')</span>';
-            elseif ($f['estado_demo'] === 'prueba') echo '<span class="etiqueta e-prueba">En prueba (' . e(falta($f['dias'])) . ')</span>';
+            elseif ($f['estado_demo'] === 'prueba') echo '<span class="etiqueta e-prueba">En demo (' . e(falta($f['dias'])) . ')</span>';
             elseif ($f['estado_demo'] === 'sin_pagar') echo '<span class="etiqueta mal">Terminó sin pagar</span>';
             else echo $f['estado'] ? etiqueta_estado($f['estado']) : '<span class="etiqueta">Ya no está en el programa</span>';
           ?></td>
-          <td data-t="De dónde"><?= e(['central' => 'Panel Tukán' . ($f['creada_por'] ? ' (' . explode(' ', $f['creada_por'])[0] . ')' : ''), 'demo_pedida' => 'Pidió una demo', 'registro' => 'Se registró solo'][$f['origen']] ?? $f['origen']) ?></td>
+          <td data-t="De dónde"><?= e(['central' => 'Panel Tukán' . ($f['creada_por'] ? ' (' . explode(' ', $f['creada_por'])[0] . ')' : ''), 'demo_pedida' => 'Pidió una demo', 'registro' => 'Pidió demo (registro)'][$f['origen']] ?? $f['origen']) ?></td>
           <td><?php if ($f['estado'] !== null): ?><a class="btn btn-chico" href="<?= e(url('cliente', ['i' => $f['instancia_id'], 'id' => $f['cliente_id']])) ?>">Ficha</a><?php endif; ?></td>
         </tr>
       <?php endforeach; ?>

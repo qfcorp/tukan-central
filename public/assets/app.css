@@ -856,3 +856,61 @@ main p > svg, main span.chico > svg, .vacio svg { width: 18px; height: 18px; ver
 .quitar-solo summary { cursor: pointer; font-weight: 700; color: var(--ink-soft); }
 .zona-peligro .error-campo { display: block; }
 .menu-prog-lista a.peligro:hover, .menu-prog-lista a.peligro:focus-visible { background: var(--bad-bg); }
+
+/* ---------- Módulos (Anexo B): interruptores, totales, confirmación y catálogo ---------- */
+.mods-resumen { display: grid; gap: 14px; grid-template-columns: 1fr; margin-bottom: 18px; position: sticky; top: 8px; z-index: 3; }
+.mods-plan { display: flex; flex-direction: column; gap: 4px; }
+.mods-plan select { max-width: 340px; }
+.mods-cuentas { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.mods-cuentas div { background: var(--surface-2); border-radius: 12px; padding: 8px 10px; min-width: 0; }
+.mods-cuentas dt { font-size: 12px; color: var(--ink-mute); font-weight: 700; }
+.mods-cuentas dd { margin: 2px 0 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mods-cuentas .total { background: var(--brand); color: var(--on-brand); }
+.mods-cuentas .total dt { color: var(--on-brand-soft); }
+.mods-cuentas .total dd { font-size: 20px; font-family: var(--f-display); }
+.mods-acordado { margin-bottom: 0; max-width: 340px; }
+.mods-grupo { margin: 18px 0 8px; font-size: 15px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; }
+.mods-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.mod { background: var(--surface); border: 1.5px solid var(--line); border-radius: var(--r-md); padding: 12px 14px; display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; min-width: 0; }
+.mod.on { border-color: var(--ok); background: color-mix(in srgb, var(--ok-bg) 55%, var(--surface)); }
+.mod-sw { display: flex; align-items: center; gap: 10px; cursor: pointer; min-width: 0; }
+.mod-sw input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.mod-sw .sw { flex: none; width: 44px; height: 26px; border-radius: 999px; background: var(--line); position: relative; transition: background .15s; }
+.mod-sw .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .15s; }
+.mod-sw input:checked + .sw { background: var(--ok); }
+.mod-sw input:checked + .sw::after { transform: translateX(18px); }
+.mod-sw input:focus-visible + .sw { outline: 3px solid var(--yellow); outline-offset: 2px; }
+.mod-sw input:disabled + .sw { opacity: .6; }
+.mod-nombre { font-weight: 700; overflow-wrap: anywhere; }
+.mod-precio { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; align-self: center; }
+.mod-precio small { color: var(--ink-mute); font-weight: 600; }
+.mod-desc { grid-column: 1 / -1; margin: 2px 0 0; font-size: 14px; color: var(--ink-soft); }
+.mod-dep { display: block; font-size: 13px; color: var(--ink-mute); margin-top: 2px; }
+.mod-tag { grid-column: 1 / -1; justify-self: start; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-soft); }
+.mod.on .mod-tag { background: var(--ok-bg); color: var(--ok); }
+.mods-base { margin-top: 16px; }
+.mods-base summary { cursor: pointer; font-weight: 700; }
+.mods-guardar { margin-top: 20px; display: grid; gap: 8px; max-width: 520px; }
+.mods-guardar .campo { margin-bottom: 4px; }
+.cambios { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 8px; }
+.cambios li { display: flex; gap: 10px; align-items: baseline; justify-content: space-between; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); }
+.cambios li.enciende { background: var(--ok-bg); color: var(--ok); }
+.cambios li.apaga { background: var(--bad-bg); color: var(--bad); }
+.cambios li span:last-child { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.precio-nuevo { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; font-size: 15px; margin: 6px 0 18px; }
+.precio-nuevo strong { font-family: var(--f-display); font-size: 28px; }
+.catalogo-tabla input[type=text], .catalogo-tabla input:not([type]) { min-width: 0; width: 100%; }
+.catalogo-tabla td.precio input { max-width: 110px; }
+.catalogo-tabla td.orden input { max-width: 70px; }
+.plan-mods { display: flex; flex-wrap: wrap; gap: 8px 16px; border: 0; padding: 0; margin: 0 0 12px; min-width: 0; }
+.plan-mods legend { padding: 0; margin-bottom: 8px; width: 100%; }
+.catalogo-tabla tr.grupo td { background: var(--surface-2); }
+.demo-mods { border: 0; padding: 0; min-width: 0; }
+.plan-mods .check { font-size: 14px; }
+.catalogo-planes { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+@media (max-width: 640px) {
+  .mods-cuentas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mods-resumen { position: static; }
+  .mods-lista { grid-template-columns: 1fr; }
+  .catalogo-tabla td.precio input, .catalogo-tabla td.orden input { max-width: none; }
+}

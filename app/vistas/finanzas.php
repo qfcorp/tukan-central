@@ -118,6 +118,18 @@ $puntos = [];
 </div>
 <?php endif; ?>
 
+<?php if ($porModulo): $mxm = max(array_column($porModulo, 'monto') ?: [1]); ?>
+<div class="tarjeta seccion" id="por-modulo">
+  <h2>Ingreso por módulo <span class="cuenta"><?= e(dinero(array_sum(array_column($porModulo, 'monto')))) ?> al mes</span></h2>
+  <p class="chico suave mb">Lo que suman al mes los módulos <b>extra</b> (encendidos aparte del plan), con el precio del catálogo de cada programa. Así se ve qué módulos venden más.</p>
+  <ul class="barras-h">
+    <?php foreach ($porModulo as $x): ?>
+      <li><span class="bh-t"><?= e($x['nombre']) ?> <small><?= e($x['programa']) ?> · <?= (int) $x['clientes'] ?> <?= $x['clientes'] === 1 ? 'cliente' : 'clientes' ?></small></span><progress max="<?= e((string) max(0.01, $mxm)) ?>" value="<?= e((string) $x['monto']) ?>"></progress><b><?= e(dinero($x['monto'])) ?></b></li>
+    <?php endforeach; ?>
+  </ul>
+</div>
+<?php endif; ?>
+
 <div class="acciones-form seccion">
   <a class="btn btn-oscuro" href="<?= e(url('exportar', ['f' => 'xlsx', 'periodo' => $periodo])) ?>"><?= icono('descargar') ?> Descargar Excel</a>
   <a class="btn" href="<?= e(url('exportar', ['f' => 'csv', 'periodo' => $periodo])) ?>"><?= icono('descargar') ?> Descargar CSV</a>

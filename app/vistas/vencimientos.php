@@ -14,7 +14,7 @@ $nombreDia = ['', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
 <div class="cabeza">
   <div>
     <h1>Vencimientos</h1>
-    <p class="sub">Qué día termina cada prueba y vence cada plan.</p>
+    <p class="sub">Qué día termina cada demo y vence cada plan.</p>
   </div>
   <form method="get" action="/" class="acciones"><input type="hidden" name="r" value="vencimientos"><input type="hidden" name="mes" value="<?= e($mes) ?>">
     <label class="oculto" for="fi">Programa</label>
@@ -34,7 +34,7 @@ $nombreDia = ['', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
   <h2><?= e(ucfirst(Finanzas::nombreMes($mes))) ?></h2>
   <a class="btn btn-chico btn-icono" href="<?= e(url_aqui(['mes' => $siguiente])) ?>" aria-label="Mes siguiente"><?= icono('chevron') ?></a>
   <?php if ($mes !== date('Y-m')): ?><a class="btn btn-chico" href="<?= e(url_aqui([], ['mes'])) ?>">Hoy</a><?php endif; ?>
-  <span class="leyenda"><i class="amarillo"></i>prueba termina <i class="verde"></i>plan vence <i class="rojo"></i>ya venció</span>
+  <span class="leyenda"><i class="amarillo"></i>demo termina <i class="verde"></i>plan vence <i class="rojo"></i>ya venció</span>
 </div>
 
 <div class="calendario tarjeta" role="table" aria-label="Calendario de <?= e(Finanzas::nombreMes($mes)) ?>">
@@ -64,7 +64,7 @@ $nombreDia = ['', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
           <li class="p-<?= e($c['producto']) ?>">
             <span class="punto <?= e($c['color']) ?>" aria-hidden="true"></span>
             <div class="dato"><a href="<?= e(url('cliente', ['i' => $c['instancia_id'], 'id' => $c['cliente_id']])) ?>"><strong><?= e($c['nombre']) ?></strong></a>
-              <span><?= e(fecha_corta($f)) ?> · <?= e($c['programa']) ?> · <?= e($c['color'] === 'amarillo' ? 'termina la prueba' : ($c['color'] === 'rojo' ? 'ya venció' : 'vence el plan')) ?></span></div>
+              <span><?= e(fecha_corta($f)) ?> · <?= e($c['programa']) ?> · <?= e($c['color'] === 'amarillo' ? 'termina la demo' : ($c['color'] === 'rojo' ? 'ya venció' : 'vence el plan')) ?></span></div>
             <?php if (ve_contacto() && $c['contacto_cif']): ?>
               <form method="post" action="<?= e(url('recordar')) ?>" target="_blank"><?= campo_csrf() ?><input type="hidden" name="i" value="<?= e($c['instancia_id']) ?>"><input type="hidden" name="id" value="<?= e($c['cliente_id']) ?>">
                 <button class="btn btn-chico btn-wa btn-icono" type="submit" aria-label="Recordar a <?= e($c['nombre']) ?> por WhatsApp"><?= icono('whatsapp') ?></button></form>

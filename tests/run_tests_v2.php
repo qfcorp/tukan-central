@@ -317,7 +317,7 @@ $res = $ops->ejecutar($iv, 'crear_demo', Operaciones::nuevaId(), null, ['nombre'
 check('Error de datos: no es "sin respuesta" y trae el campo', [false, 'email'], [$res['sin_respuesta'], $res['error']->campoFormulario()]);
 check('Permisos de cada operación (§9.3)', ['atender', 'atender', 'demos', 'demos', 'cobros', 'cobros', 'cobros'],
       array_map([Operaciones::class, 'permiso'], ['atender_solicitud', 'responder_ticket', 'crear_demo', 'extender_prueba', 'registrar_pago', 'anular_pago', 'operacion_nueva_rara']));
-check('anular_pago, guardar_plan y borrar_cliente piden el código de 2 pasos', ['anular_pago', 'guardar_plan', 'borrar_cliente'], Operaciones::PIDEN_2FA);
+check('anular_pago, guardar_plan, borrar_cliente y guardar_modulos piden el código de 2 pasos', ['anular_pago', 'guardar_plan', 'borrar_cliente', 'guardar_modulos'], Operaciones::PIDEN_2FA);
 check('Soporte: atiende pero no cobra ni ve contactos ni plata', [true, false, false, false, false],
       [Acceso::puede('soporte', 'atender'), Acceso::puede('soporte', 'cobros'), Acceso::puede('soporte', 'contacto'), Acceso::puede('soporte', 'finanzas'), Acceso::puede('soporte', 'demos')]);
 check('Dueño: todo', true, Acceso::puede('dueno', 'cobros') && Acceso::puede('dueno', 'contacto') && Acceso::puede('dueno', 'finanzas'));

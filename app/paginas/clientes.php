@@ -11,6 +11,7 @@ $f = [
     'papelera' => $estado === 'papelera',
     'vence_en' => in_array(param('vence'), ['7', '15', '30'], true) ? (int) param('vence') : null,
     'sin_uso' => param('sin_uso') === '15' ? 15 : null,
+    'con_extra' => param('extra') === '1',   // Anexo B: solo los que tienen módulos extra (pagan más que su plan)
     'orden' => in_array(param('orden'), ['vence', 'alta', 'nombre', 'actividad'], true) ? param('orden') : 'vence',
 ];
 $r = clientes()->lista($f, ve_contacto());

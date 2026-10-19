@@ -1521,3 +1521,50 @@ Los módulos son de **toda la instalación** (`cliente_id = "unico"`). Mismas ac
 - Solicitudes: los pedidos `cambio_modulos` con Aprobar / Rechazar.
 - Demos: al crear una demo se puede elegir el plan y qué módulos encender.
 - Finanzas: ingreso estimado por módulo (qué módulos venden más).
+
+---
+
+## Notas de implementación — Anexo B
+
+(Agregadas por TuGuardería y el Panel Central. No cambian nada de arriba; dicen qué se decidió donde el Anexo no lo decía.)
+
+1. **Sin pruebas gratis: registro público = solicitud de demo.** Nada se da gratis: quien quiere probar pide una demo
+   (tipos `demo_pedida`, `demo` o `alta`, categoría `pedido`) y el súper usuario la crea con `crear_demo`. El Panel los muestra
+   juntos («Pedido de demo», chip *Pedidos de demo*) con Crear demo (datos ya llenos) y Descartar, y en pantalla dice «demo».
+2. **Regla del precio** (B.1, «con descuento opcional»): `mensual = max(0, precio_plan + Σ precio de los extra encendidos − Σ
+   precio de los quitados)`; con `precio_acordado` (número) vale ese. El objeto `modulos` puede traer además `calculado`
+   (el total sin el acordado) y `plan: {codigo, nombre}`. El Panel usa esta regla **solo** para la vista previa antes de
+   guardar; lo que vale es lo que responde el programa.
+3. **`modulos` (acción)**: cada plan trae `modulos` con los ids **ya expandidos** y `todos: true` cuando el plan es `*`
+   (así el Central no tiene que saber qué significa `*`). También `editable` y `base`.
+4. **`capacidades.modulos`** (objeto, opcional): `editable`, `por_instalacion` (TuGuardería), `cambia_plan`, `precio_acordado`
+   (si el programa acepta esos campos en `cambiar_modulos`) y `crear_demo` (si `crear_demo` acepta `datos.modulos`).
+   Sin la acción `modulos` en `capacidades.acciones` el Central no muestra nada de módulos.
+5. **`cambiar_modulos`**: además de `encender`/`apagar`, acepta `plan` (cambiar el plan base **conservando** lo que está
+   encendido; `encender`/`apagar` se aplican después) y `solicitud_id` (`cambio_modulos:N`: aprueba ese pedido; si ya no está
+   abierto → `409 conflicto`, `detalle.motivo = "ya_atendida"`). `precio_acordado` presente = se cambia (`null` lo quita);
+   ausente = queda igual. Apagar uno que otro encendido necesita → `422 invalido`, `campo: "datos.apagar"`,
+   `detalle: {motivo: "dependencia", modulo, lo_necesita}`. Nada cambia → `sin_cambios: true`. La respuesta trae `modulos`
+   arriba y en `resultado.modulos`, más `resultado.encendidos`, `apagados`, `por_dependencia`, `mensual_antes`, `mensual`.
+6. **`guardar_modulos`**: `datos.modulos = [{id, nombre?, descripcion?, precio_mensual?, orden?}]` y
+   `datos.planes = [{codigo, nombre?, precio_mensual?, modulos?: [ids] | "*", borrar?: true}]`; solo se mandan los cambios.
+   `depende_de` y `grupo` los fija el programa (no se editan). Plan que trae un módulo sin su dependencia → `422`
+   (`detalle.motivo = "dependencia"`); borrar el plan en uso → `409` (`plan_en_uso`). Respuesta con `catalogo` (igual que la
+   acción `modulos`). En el Central pide el código de 2 pasos (como `guardar_plan`).
+7. **Pedidos `cambio_modulos`**: `detalle.encender` / `detalle.apagar` son listas `[{id, nombre, precio_mensual}]`, con
+   `mensual_actual` y `mensual_nuevo`. Rechazar = `atender_solicitud` con `resultado: "descartada"` y `nota` obligatoria (la ve
+   el cliente); `atendida` → `403 no_permitido` (`motivo: usar_cambiar_modulos`: se aprueba con `cambiar_modulos`).
+   El Central no usa el formulario genérico para `cambiar_modulos`: «Aprobar» abre su resumen y manda `encender`/`apagar`
+   del pedido con el `solicitud_id`.
+8. **TuGuardería** (`cliente_id = "unico"`): `cliente.plan` = el plan de los módulos y `mensual_estimado` = el total; el
+   Central pone ese total como `valor_mensual` de la licencia cada vez que guarda `cambiar_modulos`. Sin nada guardado la
+   instalación tiene el plan **Completo** (todo encendido). Ahora declara `solicitudes`/`solicitud` (solo `cambio_modulos`)
+   y `atender_solicitud`. `capacidades.revision` = 3. Las respuestas JSON llevan el dinero con `.0` (`69.0`).
+9. **Finanzas `por_modulo`**: el Central calcula «Ingreso por módulo» con los `modulos.extra` de su copia de clientes y el
+   precio del catálogo (sin clientes suspendidos); no necesita que el programa lo mande.
+10. **Otros programas (revisión 3)**: `capacidades.modulos` puede ser solo `true` (= todas las opciones; con `crear_demo` en
+    `ejecutar`, la demo acepta `plan` y `modulos`). `capacidades.finanzas_por_modulo: true` se acepta (el Central igual lo
+    calcula, nota 9). En `crear_demo`, `datos.modulos` = lista de los que se encienden; **lista vacía = todos** y el texto
+    `"ninguno"` = solo la base (el Central manda `"ninguno"` si se desmarcan todos y no manda nada si quedan todos). Desde un
+    `demo_pedida`, «Crear demo» manda `solicitud_id`. `planes.ajustes.registro_abierto` es siempre `false` (no hay registro con
+    prueba gratis). Los errores de dependencia (`422`, `detalle.motivo = "dependencia"`) se muestran con el texto del programa.

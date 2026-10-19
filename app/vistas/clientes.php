@@ -1,7 +1,8 @@
 <?php
 use Tukan\{Clientes, Contacto};
 
-$hayFiltro = $f['buscar'] !== '' || $f['inst'] !== '' || $f['plan'] !== '' || $f['vence_en'] || $f['sin_uso'] || $f['origen'] !== '';
+$hayFiltro = $f['buscar'] !== '' || $f['inst'] !== '' || $f['plan'] !== '' || $f['vence_en'] || $f['sin_uso'] || $f['origen'] !== '' || $f['con_extra'];
+$verMes = puede('finanzas');
 ?>
 <div class="cabeza">
   <div>
@@ -19,8 +20,8 @@ $hayFiltro = $f['buscar'] !== '' || $f['inst'] !== '' || $f['plan'] !== '' || $f
   <div class="busqueda"><label class="oculto" for="q">Buscar</label>
     <input id="q" type="search" name="q" value="<?= e($f['buscar']) ?>" placeholder="<?= ve_contacto() ? 'Nombre, teléfono o correo' : 'Nombre del negocio' ?>">
     <button class="btn btn-oscuro" type="submit"><?= icono('buscar') ?><span class="oculto-cel">Buscar</span></button></div>
-  <details class="filtros-mas"<?= ($f['inst'] !== '' || $f['plan'] !== '' || $f['vence_en'] || $f['sin_uso'] || $f['origen'] !== '') ? ' open' : '' ?>>
-    <summary><?= icono('filtro') ?> Filtros: programa, plan, vencimiento, sin uso</summary>
+  <details class="filtros-mas"<?= ($f['inst'] !== '' || $f['plan'] !== '' || $f['vence_en'] || $f['sin_uso'] || $f['origen'] !== '' || $f['con_extra']) ? ' open' : '' ?>>
+    <summary><?= icono('filtro') ?> Filtros: programa, plan, vencimiento, sin uso, módulos extra</summary>
     <div class="filtros-grid">
   <div class="campo"><label for="fi">Programa</label><select id="fi" name="i"><option value="">Todos</option>
     <?php foreach ($insts as $i): ?><option value="<?= e($i['id']) ?>" <?= $f['inst'] === $i['id'] ? 'selected' : '' ?>><?= e($i['nombre']) ?></option><?php endforeach; ?></select></div>
@@ -33,6 +34,7 @@ $hayFiltro = $f['buscar'] !== '' || $f['inst'] !== '' || $f['plan'] !== '' || $f
       <label class="chip-radio"><input type="radio" name="vence" value="<?= e($k) ?>" <?= (string) ($f['vence_en'] ?? '') === $k ? 'checked' : '' ?>><span><?= e($t) ?></span></label>
     <?php endforeach; ?></fieldset>
   <label class="check sin-uso"><input type="checkbox" name="sin_uso" value="15" <?= $f['sin_uso'] ? 'checked' : '' ?>> <span>Sin usar el programa hace 15 días <small class="suave">(en riesgo de irse)</small></span></label>
+  <label class="check con-extra"><input type="checkbox" name="extra" value="1" <?= $f['con_extra'] ? 'checked' : '' ?>> <span>Con módulos extra <small class="suave">(pagan más que su plan)</small></span></label>
   <div class="acciones-form"><button class="btn btn-oscuro" type="submit"><?= icono('filtro') ?> Filtrar</button><?php if ($hayFiltro || $estado !== ''): ?><a class="btn" href="<?= e(url('clientes')) ?>">Limpiar</a><?php endif; ?></div>
     </div>
   </details>
@@ -61,7 +63,7 @@ $hayFiltro = $f['buscar'] !== '' || $f['inst'] !== '' || $f['plan'] !== '' || $f
     <?php if ($f['papelera']): ?>
     <thead><tr><th>Cliente</th><th>Borrado</th><th>Se borra para siempre</th><th>Motivo</th><th></th></tr></thead>
     <?php else: ?>
-    <thead><tr><th>Cliente</th><th>Estado</th><th>Plan</th><th>Vence</th><th>Último uso</th><th>Pagado</th><th></th></tr></thead>
+    <thead><tr><th>Cliente</th><th>Estado</th><th>Plan</th><?= $verMes ? '<th>Al mes</th>' : '' ?><th>Vence</th><th>Último uso</th><th>Pagado</th><th></th></tr></thead>
     <?php endif; ?>
     <tbody>
     <?php foreach ($filas as $c): $rec = $recordados[$c['instancia_id'] . '|' . $c['cliente_id']] ?? null; $ct = $c['contacto'] ?? [];
@@ -79,7 +81,8 @@ $hayFiltro = $f['buscar'] !== '' || $f['inst'] !== '' || $f['plan'] !== '' || $f
         <?php else: ?>
         <td data-t="Estado"><?= !empty($d['pausa']) ? '<span class="etiqueta e-pausado">Pausado</span>' : etiqueta_estado($c['estado']) ?><?= !empty($d['en_gracia']) ? ' <span class="chico suave">en gracia</span>' : '' ?>
           <?php if (!empty($d['pausa'])): ?><span class="pausa-motivo"><?= e($d['pausa']['tipo_nombre'] ?? '') ?></span><?php endif; ?></td>
-        <td data-t="Plan"><?= e($c['plan'] ?? '—') ?></td>
+        <td data-t="Plan"><?= e($c['plan'] ?? '—') ?><?php $mx = count($d['modulos']['extra'] ?? []); if ($mx): ?> <span class="etiqueta ok" title="Módulos extra">+<?= $mx ?> <?= $mx === 1 ? 'módulo' : 'módulos' ?></span><?php endif; ?></td>
+        <?php if ($verMes): ?><td data-t="Al mes" class="nowrap"><?= (float) $c['mensual_estimado'] > 0 ? e(dinero((float) $c['mensual_estimado'])) : '—' ?></td><?php endif; ?>
         <td data-t="Vence" class="nowrap<?= $dias !== null && $dias <= 7 && $c['estado'] !== 'suspendido' ? ' urgente-suave' : '' ?>"><?= $c['vence'] ? e(fecha_dm($c['vence'])) . ' · ' . e(falta($dias)) : 'No vence' ?></td>
         <td data-t="Último uso"><?= e(hace_iso($c['ultima_actividad'])) ?></td>
         <td data-t="Pagado"><?= e(dinero((float) $c['total_pagado'])) ?></td>
