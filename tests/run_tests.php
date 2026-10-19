@@ -282,6 +282,7 @@ $plantillas = [
     'tuvocalia'  => 'sudo bash /var/www/ligas/vps/conectar_central.sh {ID} {SECRETO} {URL}',
     'tuacademia' => 'sudo bash /var/www/tuacademia/vps/conectar_central.sh {ID} {SECRETO} {URL}',
     'tuplanner'  => 'sudo bash /var/www/tuplanner/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
+    'tuhospedaje' => 'sudo bash /var/www/tuhospedaje/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
 ];
 // TuPlanner: la plantilla es la misma que dice su script (si el repositorio está al lado)
 $scriptTp = dirname(__DIR__, 2) . '/tuplanner/deploy/conectar_central.sh';

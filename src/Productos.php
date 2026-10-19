@@ -49,6 +49,11 @@ final class Productos
             'para' => 'Guarderías y hoteles de perros (una instalación por cliente)',
             'comando' => 'sudo bash /home/qf/github/tuguarderia/conectar_central.sh {CARPETA} {ID} {SECRETO} {URL}',
         ],
+        'tuhospedaje' => [
+            'nombre' => 'TuHospedaje', 'color' => '#14254A', 'letra' => 'H', 'unico' => false,
+            'para' => 'Hoteles, hostales y hosterías',
+            'comando' => 'sudo bash /var/www/tuhospedaje/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
+        ],
         // Ejemplo para el futuro:
         // 'tuvet' => ['nombre' => 'TuVet', 'color' => '#C2410C', 'letra' => 'P', 'unico' => false,
         //             'para' => 'Veterinarias', 'comando' => 'sudo bash /var/www/tuvet/deploy/conectar_central.sh {ID} {SECRETO} {URL}'],
