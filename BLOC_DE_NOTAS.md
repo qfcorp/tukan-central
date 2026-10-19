@@ -105,3 +105,9 @@ entrar a cada uno. El ERP QF no participa.
 - Los comandos de consola (bin/, deploy/) escriben sin tildes ni ñ (la app de SSH del celular las daña); las pruebas lo revisan.
 - v2: lo que el panel decidió donde la especificación no lo decía está en `docs/PROTOCOLO_V2.md`, al final
   ("Notas de implementación — Panel Central").
+
+## 2026-10-19 — Cobrado de Inicio corregido
+- Problema: Inicio mostraba "Cobrado en octubre $2.110" sin ventas reales; Finanzas decía $0.
+- Causa: TuGuardería (un solo cliente, Dogssy) informa en `ingresos_mes` lo que la guardería cobra a SUS clientes.
+- Arreglo: `Monitor::ingresosSonDeTukan()` deja fuera los programas de un solo cliente en Inicio y en los totales;
+  la ficha del programa lo muestra como "Ventas del negocio este mes (no es plata de Tukán)". Pruebas: 695 + 781 OK.
