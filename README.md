@@ -67,6 +67,7 @@ Comandos (el panel los arma solo; `ID`, `SECRETO`, `CARPETA` y la URL del panel 
 | TuEvento | `sudo bash /var/www/tuevento/deploy/conectar_central.sh ID SECRETO https://panel.tukanec.com` |
 | TuPlanner | `sudo bash /var/www/tuplanner/deploy/conectar_central.sh ID SECRETO https://panel.tukanec.com` |
 | TuSalón | `sudo bash /var/www/tusalon/deploy/conectar_central.sh ID SECRETO https://panel.tukanec.com` |
+| TuHospedaje | `sudo bash /var/www/tuhospedaje/deploy/conectar_central.sh ID SECRETO https://panel.tukanec.com` |
 | TuVocalía (VPS) | `sudo bash /var/www/ligas/vps/conectar_central.sh ID SECRETO https://panel.tukanec.com` |
 | TuAcademia (VPS) | `sudo bash /var/www/tuacademia/vps/conectar_central.sh ID SECRETO https://panel.tukanec.com` |
 | TuGuardería | `sudo bash /home/qf/github/tuguarderia/conectar_central.sh CARPETA ID SECRETO https://panel.tukanec.com` |
