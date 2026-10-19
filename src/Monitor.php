@@ -222,6 +222,13 @@ final class Monitor
         return false;
     }
 
+    /** ¿Los "ingresos_mes" de este programa son plata de Tukán? No en los de un solo cliente (son ventas del negocio). */
+    public static function ingresosSonDeTukan(array $fila): bool
+    {
+        if (($fila['datos']['unico'] ?? false) === true || ($fila['datos']['cliente'] ?? null) !== null) return false;
+        return !Productos::tipo((string) ($fila['producto'] ?? 'otro'))['unico'];
+    }
+
     /** Totales de todos los programas activos (con el último dato conocido). */
     public static function totales(array $tablero): array
     {
@@ -239,7 +246,9 @@ final class Monitor
                 foreach (Estado::CLAVES_NEGOCIOS as $k) $t[$k] += (int) ($d['negocios'][$k] ?? 0);
             }
             $t['nuevos_30d'] += (int) ($d['nuevos_30d'] ?? 0);
-            if ($d['ingresos_mes'] !== null || $d['ingresos_mes_anterior'] !== null) {
+            // Los programas de un solo cliente (TuGuardería) informan lo que ESE negocio cobra a sus clientes,
+            // no lo que paga a Tukán: no se suma a los ingresos de Tukán.
+            if (self::ingresosSonDeTukan($f) && ($d['ingresos_mes'] !== null || $d['ingresos_mes_anterior'] !== null)) {
                 $t['con_ingresos']++;
                 $t['ingresos_mes'] += (float) ($d['ingresos_mes'] ?? 0);
                 $t['ingresos_mes_anterior'] += (float) ($d['ingresos_mes_anterior'] ?? 0);

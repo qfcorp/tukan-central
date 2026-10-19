@@ -36,7 +36,7 @@ $fin = finanzas()->resumen([$mes], ajustes()->si('repartir_gastos_generales'));
 $cobrado = $fin['total']['meses'][$mes]['ingresos'];
 $gastos = $fin['total']['meses'][$mes]['gastos'];
 foreach ($activas as $f) {
-    if (!Capacidades::puede($caps[$f['id']]['datos'] ?? [], 'finanzas') && $f['datos'] && $f['datos']['ingresos_mes'] !== null) $cobrado += (float) $f['datos']['ingresos_mes'];
+    if (!Capacidades::puede($caps[$f['id']]['datos'] ?? [], 'finanzas') && $f['datos'] && Monitor::ingresosSonDeTukan($f) && $f['datos']['ingresos_mes'] !== null) $cobrado += (float) $f['datos']['ingresos_mes'];
 }
 
 $bandeja = solicitudes()->lista(['pestana' => 'pendiente'], ve_contacto());

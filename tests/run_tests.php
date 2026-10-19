@@ -395,7 +395,10 @@ $tab = [
 $t = Monitor::totales($tab);
 check('Total de negocios (solo activos, con último dato)', 32, $t['total']);
 check('En prueba sumados', 8, $t['prueba']);
-check('Ingresos del mes sumados', 514.0, $t['ingresos_mes']);
+check('Ingresos del mes sumados (sin TuGuardería: son ventas de Dogssy, no de Tukán)', 514.0, $t['ingresos_mes']);
+check('TuGuardería no cuenta como plata de Tukán', false, Monitor::ingresosSonDeTukan($tab[2]));
+check('TuGuardería con 2110 no cambia el total', 514.0, Monitor::totales([$tab[0], $tab[1], ['datos' => ['ingresos_mes' => 2110.0, 'ingresos_mes_anterior' => 0.0] + $tab[2]['datos']] + $tab[2]])['ingresos_mes']);
+check('TuEvento sí cuenta como plata de Tukán', true, Monitor::ingresosSonDeTukan($tab[0]));
 check('Ingresos mes anterior', 276.0, $t['ingresos_mes_anterior']);
 check('Variación %', 86.2, $t['variacion']);
 check('En línea / sin conexión', [2, 1], [$t['en_linea'], $t['sin_conexion']]);

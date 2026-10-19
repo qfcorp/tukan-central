@@ -61,7 +61,7 @@ $on = $activo && $f['consultado'] !== null && (int) $f['en_linea'];
           <div><dt>Negocios</dt><dd><b><?= (int) $datos['negocios']['total'] ?></b> en total · <?= (int) $datos['negocios']['prueba'] ?> en prueba · <?= (int) $datos['negocios']['activos'] ?> activos · <?= (int) $datos['negocios']['por_vencer'] ?> por vencer · <?= (int) $datos['negocios']['vencidos'] ?> vencidos · <?= (int) $datos['negocios']['suspendidos'] ?> suspendidos</dd></div>
         <?php endif; ?>
         <?php if ($datos['nuevos_30d'] !== null): ?><div><dt>Nuevos (30 días)</dt><dd><?= (int) $datos['nuevos_30d'] ?></dd></div><?php endif; ?>
-        <?php if ($datos['ingresos_mes'] !== null): ?><div><dt>Ingresos del mes</dt><dd><?= e(dinero($datos['ingresos_mes'])) ?> <span class="chico suave">(mes pasado <?= e(dinero($datos['ingresos_mes_anterior'])) ?>)</span></dd></div><?php endif; ?>
+        <?php if ($datos['ingresos_mes'] !== null): ?><div><dt><?= \Tukan\Monitor::ingresosSonDeTukan(['datos' => $datos] + $f) ? 'Ingresos del mes' : 'Ventas del negocio este mes (no es plata de Tukán)' ?></dt><dd><?= e(dinero($datos['ingresos_mes'])) ?> <span class="chico suave">(mes pasado <?= e(dinero($datos['ingresos_mes_anterior'])) ?>)</span></dd></div><?php endif; ?>
         <?php foreach ($datos['extra'] as $k => $v): ?><div><dt><?= e($k) ?></dt><dd><?= e(numero_corto($v)) ?></dd></div><?php endforeach; ?>
         <div><dt>Demos que vencen</dt><dd><?= count($datos['pruebas_vencen_7d']) ?: 'Ninguna' ?></dd></div>
         <div><dt>Pagos vencidos</dt><dd><?= count($datos['pagos_vencidos']) ?: 'Ninguno' ?></dd></div>
