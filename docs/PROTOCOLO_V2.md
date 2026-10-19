@@ -1476,3 +1476,48 @@ Pedido de Dimitry: "en clientes se debería poder borrar o pausar por algún mot
   Pausar pide tipo + motivo. Borrar pide escribir el nombre exacto + motivo + código de 2 pasos (solo dueño).
 - En la ficha se ve el historial: quién pausó/borró, cuándo y por qué.
 - Para TuGuardería la fila muestra Pausar y Borrar (Borrar lleva a "Borrar esta instalación").
+
+---
+
+## Anexo B (18 oct 2026) — Programas modulares: encender y apagar funciones por cliente
+
+Pedido de Dimitry: "Todos los programas deben ser modulares para encender o apagar las funciones que necesita el cliente,
+para poder cobrar más o menos." Regla de la casa: **todo se hace por módulos**.
+
+Modelo (igual al que ya usa TuVocalía en `app/v12.php`: `modulos_sistema`, `modulos_plan`, `modulos_liga`, `modulo_activo`):
+
+### B.1 Conceptos (en cada programa)
+- **Base**: lo que todo cliente tiene siempre (no es un módulo, no se puede apagar).
+- **Módulo**: una función que se enciende o apaga: `id` (minúsculas y `_`), `nombre`, `icono`, `descripcion` (para vender, en español sencillo),
+  `precio_mensual` (USD, editable por el súper usuario), `depende_de` (ids que deben estar encendidos), `grupo` (para ordenar en pantalla).
+- **Plan**: precio base + lista de módulos incluidos (`*` = todos). Los planes actuales de cada programa pasan a ser "base + módulos".
+- **Por cliente**: `extra` (módulos encendidos además de su plan, se cobran aparte) y `quitados` (módulos de su plan que se apagaron, con descuento opcional).
+  **Activos = (módulos del plan − quitados) + extra**, respetando dependencias.
+- **Prueba gratis y demos**: todos los módulos encendidos (para que vean todo), salvo que el súper usuario elija otra cosa al crear la demo.
+- **Apagar nunca borra datos**: se esconden menús, páginas, botones, portales públicos ("no disponible en tu plan"), tareas automáticas y avisos de ese módulo.
+  Si se vuelve a encender, todo sigue como estaba.
+- **Precio mensual del cliente** = precio del plan + Σ precio de `extra` − Σ descuento de `quitados` (o un **precio acordado** fijo si se guardó uno).
+  Este valor sale en `cliente`, `clientes` (`mensual_estimado`) y como sugerencia en `registrar_pago` / `cotizar`.
+- **Mi plan** (panel del propio cliente): ve sus módulos (encendidos y los que puede agregar con su precio) y puede **pedir** uno → crea una solicitud
+  tipo `cambio_modulos` que llega al Panel Central; el súper usuario aprueba o rechaza.
+
+### B.2 Acciones nuevas (v2)
+- `modulos` (lectura): `{base:[texto…], modulos:[{id,nombre,icono,descripcion,precio_mensual,depende_de,grupo}], planes:[{codigo,nombre,precio_mensual,modulos:[ids]}]}`.
+- `cliente` agrega: `modulos:{del_plan:[ids], extra:[ids], quitados:[ids], activos:[ids], precio_plan, precio_extra, descuento, precio_acordado|null, mensual}`.
+- `ejecutar cambiar_modulos` (dueño): `datos:{encender:[ids], apagar:[ids], precio_acordado?: número|null, motivo?: texto}`.
+  Valida dependencias (no se puede apagar uno del que depende otro encendido; encender uno enciende sus dependencias y lo dice en la respuesta).
+  Respuesta: `{ok, mensaje, modulos:{…igual que en cliente…}}`. Idempotente y auditado en el programa.
+- `ejecutar guardar_modulos` (dueño): editar precio/descripción/orden de los módulos del catálogo y los módulos de cada plan.
+- `solicitudes` agrega el tipo `cambio_modulos` (pedido desde Mi plan) con `acciones_posibles` aprobar (= cambiar_modulos) / rechazar.
+- `capacidades.ejecutar` incluye `cambiar_modulos`, `guardar_modulos`; `capacidades.acciones` incluye `modulos`.
+- `finanzas` puede desglosar `por_modulo` (ingreso estimado mensual por módulo extra).
+
+### B.3 TuGuardería (una sola empresa)
+Los módulos son de **toda la instalación** (`cliente_id = "unico"`). Mismas acciones. El precio mensual es el de la **licencia** que lleva el Panel Central.
+
+### B.4 Panel Central
+- Ficha del cliente: pestaña **Módulos** con interruptores (encendido/apagado), precio de cada uno, total mensual y precio acordado; guardar pide confirmación.
+- Programas → ficha del programa: **Catálogo de módulos y planes** (editar precios, descripciones y qué trae cada plan).
+- Solicitudes: los pedidos `cambio_modulos` con Aprobar / Rechazar.
+- Demos: al crear una demo se puede elegir el plan y qué módulos encender.
+- Finanzas: ingreso estimado por módulo (qué módulos venden más).
