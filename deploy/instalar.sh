@@ -30,9 +30,11 @@ else
 fi
 
 echo "== 2. Bajar o actualizar el panel"
-if [ -d "$APP/.git" ]; then
+if sudo test -d "$APP/.git"; then
   sudo chown -R "$YO":www-data "$APP"
   git -C "$APP" pull -q && echo "   actualizado ($(git -C "$APP" rev-parse --short HEAD))" || echo "   AVISO: no se pudo actualizar (git pull)"
+elif sudo test -e "$APP" && [ -n "$(sudo ls -A "$APP" 2>/dev/null)" ]; then
+  echo "   ERROR: $APP ya existe pero no es una copia de GitHub. No la toco para no borrar datos."; exit 1
 else
   if sudo git clone -q "$REPO" "$APP"; then echo "   bajado"; else echo "   ERROR: no se pudo bajar $REPO"; exit 1; fi
 fi
