@@ -284,6 +284,7 @@ $plantillas = [
     'tuplanner'  => 'sudo bash /var/www/tuplanner/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
     'tuhospedaje' => 'sudo bash /var/www/tuhospedaje/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
     'turemolque' => 'sudo bash /var/www/turemolque/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
+    'tuspa' => 'sudo bash /var/www/tuspa/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
     'erp_productoras' => 'sudo bash /var/www/erp-productoras/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
     'tupass' => 'sudo bash /var/www/tupass/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
 ];

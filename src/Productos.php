@@ -54,6 +54,11 @@ final class Productos
             'para' => 'Hoteles, hostales y hosterías',
             'comando' => 'sudo bash /var/www/tuhospedaje/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
         ],
+        'tuspa' => [
+            'nombre' => 'TuSpa', 'color' => '#2A9D8F', 'letra' => 'S', 'unico' => false,
+            'para' => 'Spas, masajes y tratamientos',
+            'comando' => 'sudo bash /var/www/tuspa/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
+        ],
         'turemolque' => [
             'nombre' => 'TuRemolque', 'color' => '#CB1F26', 'letra' => 'R', 'unico' => true,
             'para' => 'Fábricas de remolques y carrocerías (una instalación por cliente)',
