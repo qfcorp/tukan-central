@@ -62,12 +62,12 @@ final class Productos
         'erp_productoras' => [
             'nombre' => 'ERP para productoras', 'color' => '#3B6FE0', 'letra' => 'Q', 'unico' => true,
             'para' => 'Productoras de eventos y transmisiones (una instalación por cliente)',
-            'comando' => 'sudo bash /var/www/erp_qf/deploy/conectar_central.sh erp {ID} {SECRETO} {URL}',
+            'comando' => 'sudo bash /var/www/erp-productoras/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
         ],
         'tupass' => [
             'nombre' => 'TuPass', 'color' => '#7C4DFF', 'letra' => 'T', 'unico' => true,
             'para' => 'Venta de eventos en vivo por internet (PPV)',
-            'comando' => 'sudo bash /var/www/erp_qf/deploy/conectar_central.sh tupass {ID} {SECRETO} {URL}',
+            'comando' => 'sudo bash /var/www/tupass/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
         ],
         // Ejemplo para el futuro:
         // 'tuvet' => ['nombre' => 'TuVet', 'color' => '#C2410C', 'letra' => 'P', 'unico' => false,
