@@ -59,6 +59,11 @@ final class Productos
             'para' => 'Spas, masajes y tratamientos',
             'comando' => 'sudo bash /var/www/tuspa/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
         ],
+        'tugroomer' => [
+            'nombre' => 'TuGroomer', 'color' => '#E07A2E', 'letra' => 'G', 'unico' => false,
+            'para' => 'Peluquerías y spas de mascotas (perros y gatos)',
+            'comando' => 'sudo bash /var/www/tugroomer/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
+        ],
         'turemolque' => [
             'nombre' => 'TuRemolque', 'color' => '#CB1F26', 'letra' => 'R', 'unico' => true,
             'para' => 'Fábricas de remolques y carrocerías (una instalación por cliente)',
