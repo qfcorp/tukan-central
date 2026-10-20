@@ -7,7 +7,7 @@ use InvalidArgumentException;
 
 /**
  * Tipos de programa de la familia Tukán.
- * Para agregar uno nuevo (ej. la veterinaria o TuPass) basta con sumar una entrada aquí:
+ * Para agregar uno nuevo (ej. la veterinaria) basta con sumar una entrada aquí:
  *   nombre  = cómo se ve en el panel
  *   color   = color del producto (tarjetas e icono)
  *   letra   = letra del icono
@@ -45,7 +45,7 @@ final class Productos
             'comando' => 'sudo bash /var/www/tuacademia/vps/conectar_central.sh {ID} {SECRETO} {URL}',
         ],
         'tuguarderia' => [
-            'nombre' => 'TuGuardería', 'color' => '#2E9E5B', 'letra' => 'G', 'unico' => true,
+            'nombre' => 'TuGuardería Canina', 'color' => '#2E9E5B', 'letra' => 'G', 'unico' => true,
             'para' => 'Guarderías y hoteles de perros (una instalación por cliente)',
             'comando' => 'sudo bash /home/qf/github/tuguarderia/conectar_central.sh {CARPETA} {ID} {SECRETO} {URL}',
         ],
@@ -53,6 +53,21 @@ final class Productos
             'nombre' => 'TuHospedaje', 'color' => '#14254A', 'letra' => 'H', 'unico' => false,
             'para' => 'Hoteles, hostales y hosterías',
             'comando' => 'sudo bash /var/www/tuhospedaje/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
+        ],
+        'turemolque' => [
+            'nombre' => 'TuRemolque', 'color' => '#CB1F26', 'letra' => 'R', 'unico' => true,
+            'para' => 'Fábricas de remolques y carrocerías (una instalación por cliente)',
+            'comando' => 'sudo bash /var/www/turemolque/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
+        ],
+        'erp_productoras' => [
+            'nombre' => 'ERP para productoras', 'color' => '#3B6FE0', 'letra' => 'Q', 'unico' => true,
+            'para' => 'Productoras de eventos y transmisiones (una instalación por cliente)',
+            'comando' => 'sudo bash /var/www/erp_qf/deploy/conectar_central.sh erp {ID} {SECRETO} {URL}',
+        ],
+        'tupass' => [
+            'nombre' => 'TuPass', 'color' => '#7C4DFF', 'letra' => 'T', 'unico' => true,
+            'para' => 'Venta de eventos en vivo por internet (PPV)',
+            'comando' => 'sudo bash /var/www/erp_qf/deploy/conectar_central.sh tupass {ID} {SECRETO} {URL}',
         ],
         // Ejemplo para el futuro:
         // 'tuvet' => ['nombre' => 'TuVet', 'color' => '#C2410C', 'letra' => 'P', 'unico' => false,

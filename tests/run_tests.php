@@ -283,7 +283,11 @@ $plantillas = [
     'tuacademia' => 'sudo bash /var/www/tuacademia/vps/conectar_central.sh {ID} {SECRETO} {URL}',
     'tuplanner'  => 'sudo bash /var/www/tuplanner/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
     'tuhospedaje' => 'sudo bash /var/www/tuhospedaje/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
+    'turemolque' => 'sudo bash /var/www/turemolque/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
+    'erp_productoras' => 'sudo bash /var/www/erp_qf/deploy/conectar_central.sh erp {ID} {SECRETO} {URL}',
+    'tupass' => 'sudo bash /var/www/erp_qf/deploy/conectar_central.sh tupass {ID} {SECRETO} {URL}',
 ];
+foreach (['turemolque', 'erp_productoras', 'tupass'] as $u) check("$u es de una sola instalación (unico)", true, Productos::tipo($u)['unico']);
 // TuPlanner: la plantilla es la misma que dice su script (si el repositorio está al lado)
 $scriptTp = dirname(__DIR__, 2) . '/tuplanner/deploy/conectar_central.sh';
 if (is_file($scriptTp)) {
