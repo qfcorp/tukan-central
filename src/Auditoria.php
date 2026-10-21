@@ -50,6 +50,11 @@ final class Auditoria
         'baja_rechazada'      => 'Borrado de una instalación: no se hizo',
         'cloudflare'          => 'Cloudflare (túnel y DNS)',
         'solicitud_atendida'  => 'Solicitud atendida (al borrar el cliente)',
+        // Actualizar los programas de este servidor (Más → Actualizaciones)
+        'actualizacion_pedida'    => 'Pidió actualizar programas',
+        'actualizacion_resultado' => 'Resultado de una actualización',
+        'actualizacion_rechazada' => 'Actualización no pedida (código o datos)',
+        'actualizacion_revisar'   => 'Buscó versiones nuevas en GitHub',
     ];
 
     public function __construct(private PDO $db) {}
@@ -86,10 +91,12 @@ final class Auditoria
                 'acceso'    => ['login_ok', 'login_fallido', 'login_bloqueado', '2fa_fallido', '2fa_activado', '2fa_respaldo', '2fa_quitado', 'salir', 'sesion_vencida', 'sesiones_cerradas', 'codigos_nuevos', 'clave_cambiada'],
                 'fallos'    => ['login_fallido', 'login_bloqueado', '2fa_fallido', 'csrf_rechazado', 'permiso_negado'],
                 'programas' => ['entrar', 'probar', 'instancia_agregada', 'instancia_editada', 'instancia_eliminada', 'secreto_cambiado', 'ejecutar',
-                                'baja_programada', 'baja_cancelada', 'baja_estado', 'baja_rechazada', 'cloudflare'],
+                                'baja_programada', 'baja_cancelada', 'baja_estado', 'baja_rechazada', 'cloudflare',
+                                'actualizacion_pedida', 'actualizacion_resultado', 'actualizacion_rechazada', 'actualizacion_revisar'],
                 'clientes'  => ['ejecutar', 'recordatorio', 'solicitud_atendida'],
                 'plata'     => ['gasto', 'ingreso_extra', 'licencia', 'exportar'],
-                'cambios'   => ['instancia_agregada', 'instancia_editada', 'instancia_eliminada', 'secreto_cambiado', 'usuario_creado', 'usuario_editado', 'ajustes', 'clave_cambiada', '2fa_quitado', 'cli'],
+                'cambios'   => ['instancia_agregada', 'instancia_editada', 'instancia_eliminada', 'secreto_cambiado', 'usuario_creado', 'usuario_editado', 'ajustes', 'clave_cambiada', '2fa_quitado', 'cli',
+                                'actualizacion_pedida', 'actualizacion_resultado'],
             ];
             if (isset($grupos[$f['grupo']])) {
                 $donde[] = 'accion IN (' . implode(',', array_fill(0, count($grupos[$f['grupo']]), '?')) . ')';

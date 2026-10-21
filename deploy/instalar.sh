@@ -146,3 +146,11 @@ echo "   sudo -u www-data php $APP/bin/crear_admin.php"
 echo "En Cloudflare (Zero Trust > Tunnels > tu tunel > Public Hostname):"
 echo "   $DOMINIO -> HTTP -> localhost:80   (HTTP Host Header: $DOMINIO)"
 echo "Luego entra en: https://$DOMINIO"
+# Actualizador (comando "actualizar" y boton del panel): se instala aparte, una sola vez
+if [ ! -x /usr/local/bin/actualizar ]; then
+  echo "Para actualizar los programas con un comando corto o desde el panel (una sola vez):"
+  echo "   bash $APP/deploy/instalar_actualizador.sh"
+elif ! cmp -s "$APP/deploy/actualizar.sh" /usr/local/bin/actualizar || ! sudo cmp -s "$APP/deploy/actualizar_pedidos.sh" /usr/local/sbin/tukan-actualizar-pedidos; then
+  echo "Hay una version nueva del actualizador. Para ponerla:"
+  echo "   bash $APP/deploy/instalar_actualizador.sh"
+fi

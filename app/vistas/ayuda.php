@@ -130,6 +130,20 @@ $notas = [
     <details><summary>Me arrepentí: ¿cómo recupero un cliente borrado?</summary><div>
       <p>La copia final está en el servidor del cliente, en <span class="mono">/var/backups/borrados/CARPETA_FECHA.tar.gz</span>. Trae la base de datos (<span class="mono">base_CARPETA.sql</span>), los archivos, las fotos, la configuración de nginx y las credenciales. Pídele ayuda a Claude para restaurarla.</p></div></details>
   </div>
+  <?php if (puede('actualizaciones')): ?>
+  <div class="tarjeta preguntas" id="ayuda-actualizar">
+    <h2>Actualizar los programas</h2>
+    <details><summary>¿Cómo actualizo un programa?</summary><div>
+      <p>En <a href="<?= e(url('actualizaciones')) ?>">Más → Actualizaciones</a> toca <b>Buscar novedades</b>. Cada programa muestra la versión instalada, la de GitHub y la lista de cambios. Escribe el código de 2 pasos y toca <b>Actualizar</b> (o <b>Actualizar todo</b>).</p>
+      <p>El servidor respalda la base, corre el instalador y prueba la página. Si algo falla, <b>vuelve solo a la versión anterior</b> y te lo dice aquí y por Telegram.</p>
+      <p>También por SSH, con tu usuario y sin sudo: <span class="mono">actualizar</span> (pregunta antes), <span class="mono">actualizar todo</span>, <span class="mono">actualizar tuevento</span> o <span class="mono">actualizar estado</span>.</p></div></details>
+    <details><summary>¿Se actualiza algo solo?</summary><div>
+      <p>No. Nada se publica sin que tú lo apruebes: no hay horario ni detección automática. El servidor solo actúa cuando tocas el botón (con tu código) o escribes el comando.</p></div></details>
+    <details><summary>Dice «Falta instalar el actualizador»</summary><div>
+      <p>Se instala una sola vez. Entra por SSH con tu usuario normal y pega:</p>
+      <p class="comando">bash /var/www/tukan-central/deploy/instalar.sh &amp;&amp; bash /var/www/tukan-central/deploy/instalar_actualizador.sh</p></div></details>
+  </div>
+  <?php endif; ?>
   <div class="tarjeta preguntas" id="ayuda-cloudflare">
     <h2>Cloudflare: quitar la dirección sola</h2>
     <details><summary>¿Cómo creo el token de Cloudflare?</summary><div>

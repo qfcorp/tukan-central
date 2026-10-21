@@ -450,6 +450,7 @@ require __DIR__ . '/run_tests_pausa.php';
 require __DIR__ . '/run_tests_modulos.php';
 require __DIR__ . '/run_tests_correo.php';
 require __DIR__ . '/run_tests_ia.php';
+require __DIR__ . '/run_tests_actualizar.php';
 
 // ---------------------------------------------------------------------------
 echo "\n----------------------------------------\n";

@@ -20,6 +20,7 @@ if (puede('finanzas')) $mas[] = ['ia', 'IA', 'rayo'];
 if (puede('auditoria')) $mas[] = ['auditoria', 'Auditoría', 'actividad'];
 if (puede('usuarios')) $mas[] = ['usuarios', 'Usuarios', 'usuarios'];
 if (puede('ajustes')) $mas[] = ['ajustes', 'Ajustes', 'ajustes'];
+if (puede('actualizaciones')) $mas[] = ['actualizaciones', 'Actualizaciones', 'refrescar'];
 $mas[] = ['ayuda', 'Ayuda', 'ayuda'];
 $enMas = in_array($grupo, array_column($mas, 0), true);
 // Abajo (celular): 4 botones + Más

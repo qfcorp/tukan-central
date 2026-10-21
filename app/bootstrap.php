@@ -26,7 +26,7 @@ spl_autoload_register(function (string $clase): void {
     }
 });
 
-use Tukan\{Acceso, Auditoria, Bajas, Db, Historial, Instancias, Monitor, Telegram, Ajustes, Capacidades, ClienteV2, Clientes, Solicitudes, Finanzas, Licencias,
+use Tukan\{Acceso, Actualizaciones, Auditoria, Bajas, Db, Historial, Instancias, Monitor, Telegram, Ajustes, Capacidades, ClienteV2, Clientes, Solicitudes, Finanzas, Licencias,
             Operaciones, Sincronizador, Sincronizacion};
 
 require RAIZ . '/app/iconos.php';
@@ -181,6 +181,13 @@ function bajas(): Bajas
 {
     static $b = null;
     return $b ??= new Bajas(db(), null, fn(string $accion, string $detalle, string $inst) => auditar($accion, $detalle, $inst));
+}
+
+/** Actualizar los programas de este servidor (cola de pedidos firmados para el servicio tukan-actualizar). */
+function actualizaciones(): Actualizaciones
+{
+    static $a = null;
+    return $a ??= new Actualizaciones(db());
 }
 
 function sincronizacion(): Sincronizacion

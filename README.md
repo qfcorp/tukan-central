@@ -169,6 +169,8 @@ programas: [`compartido/tukan_ia.php`](compartido/tukan_ia.php) y [`compartido/L
 - Secretos de los programas y de 2FA **cifrados** (XChaCha20-Poly1305) con `TUKAN_CENTRAL_KEY`.
 - IP real: `CF-Connecting-IP`, solo si la conexión viene del túnel (127.0.0.1).
 - **Auditoría** de todo: ingresos, fallos, bloqueos, 2FA, cada "Entrar a X", cambios de programas y secretos, usuarios, ajustes.
+- **Actualizar programas** (sección 10): el panel no tiene sudo ni corre comandos; deja un pedido **firmado** (HMAC, 10 min,
+  un solo uso, commit exacto) que atiende un servicio de root solo cuando el dueño aprueba con su código de 2 pasos.
 - Roles: **dueño** (todo) y **soporte** (ve el panel, entra a los programas, prueba conexiones, actualiza datos y marca
   solicitudes como atendidas; no agrega/edita/borra programas, no ve comandos ni secretos, usuarios, auditoría ni ajustes,
   y **no** ve teléfonos/correos, comprobantes, plata, demos ni cobros — ver la tabla de la sección 8).
@@ -197,9 +199,11 @@ src/                     Totp, Qr, Cifrado, Token (protocolo v1 y v2), Productos
                          CorreoDemo («Enviar por correo» de Demo lista)
 compartido/              tukan_correo.php (correo SMTP de un solo archivo, para el panel y los programas) y LEEME_CORREO.md
 bin/                     crear_admin.php, quitar_2fa.php, revisar.php (cron)
-deploy/                  instalar.sh, respaldo.sh, configurar_correo.sh (correo de Tukán, una vez)
+deploy/                  instalar.sh, respaldo.sh, configurar_correo.sh (correo de Tukán, una vez),
+                         actualizar.sh + actualizar_pedidos.sh + actualizar_ayudante.php + instalar_actualizador.sh (sección 10)
 datos/                   central.sqlite y sesiones (no va a GitHub)
-tests/                   run_tests.php (+ run_tests_v2.php, run_tests_bajas.php, run_tests_pausa.php, run_tests_modulos.php, run_tests_correo.php), run_web.sh (punta a punta), integracion.sh
+tests/                   run_tests.php (+ run_tests_v2.php, run_tests_bajas.php, run_tests_pausa.php, run_tests_modulos.php, run_tests_correo.php, run_tests_actualizar.php), run_web.sh (punta a punta),
+                         run_actualizar.sh (comando actualizar y su servicio, con repos git de mentira), integracion.sh
                          (conectores reales), mock/ (programa de prueba v1 y v2, Cloudflare de mentira), smtp_falso.py (SMTP de mentira), form.php, capturas.py
 ```
 
@@ -212,6 +216,7 @@ php tests/run_tests.php       # lógica: TOTP (vectores RFC 6238), QR (leído co
                               # timeout, configurar_correo.sh y el sello de «Enviar por correo»
 bash tests/run_web.sh         # punta a punta con programas de prueba que cumplen el protocolo + capturas (Playwright)
 SIN_CAPTURAS=1 bash tests/run_web.sh
+bash tests/run_actualizar.sh  # comando actualizar + servicio de pedidos (repos git, instaladores y páginas de mentira; también lo corre run_web.sh)
 bash tests/integracion.sh     # con los conectores REALES de TuEvento y TuSalón (php -S + PostgreSQL de prueba) y
                               # TuVocalía (SQLite, con su pruebas/tukan_central/reiniciar.sh, que solo toca data/ de su repo):
                               # agregar, probar conexión, cifras en Inicio, Entrar hasta su panel de super usuario,
@@ -227,7 +232,7 @@ sin nada que se salga a lo ancho.
 
 Puertos que usan las pruebas: 8250-8254 (`run_tests.php`: SMTP de mentira), 8255 (`run_web.sh`: SMTP de mentira), 8260-8269 (`run_web.sh`; 8267 y 8269 TuGuarderías que se pueden borrar, 8268 Cloudflare
 de mentira), 8258 (`run_tests.php`: Cloudflare de mentira), 8257 (`run_tests.php`: programa de prueba para pausar y borrar), 8267 (`run_tests.php`: programa de prueba con módulos) y 8240-8249 (`integracion.sh`: 8240 panel, 8241 TuEvento,
-8242 TuSalón, 8243 TuVocalía). Las pruebas **nunca** hablan con el Cloudflare real (`tests/mock/cloudflare.php`).
+8242 TuSalón, 8243 TuVocalía) y 8291-8292 (`run_actualizar.sh`: páginas y Telegram de mentira). Las pruebas **nunca** hablan con el Cloudflare real (`tests/mock/cloudflare.php`).
 
 ---
 
@@ -362,3 +367,28 @@ cd /home/qf/github/tuguarderia && git pull && sudo bash instalar.sh DOMINIO CARP
 ```
 
 y luego tocar **Probar conexión** en el panel.
+
+---
+
+## 10. Actualizar los programas (comando `actualizar` y botón del panel)
+
+Detalle completo, la decisión de sudo y los riesgos: [`docs/ACTUALIZAR.md`](docs/ACTUALIZAR.md).
+
+**Una sola vez** en qfcorp, con tu usuario normal (sudo te pide la contraseña):
+
+```
+bash /var/www/tukan-central/deploy/instalar.sh && bash /var/www/tukan-central/deploy/instalar_actualizador.sh
+```
+
+Después:
+
+- En la consola, sin sudo: `actualizar` (muestra lo nuevo y pregunta «Actualizar todos? [S/n]»), `actualizar todo`,
+  `actualizar tuevento` o `actualizar estado` (no cambia nada).
+- En el panel: **Más → Actualizaciones** → *Buscar novedades* → **Actualizar** (o *Actualizar todo*) con el código de 2 pasos.
+  Solo el dueño. Queda en la Auditoría.
+
+Por cada programa con algo nuevo: respaldo de su base (`/var/backups/tukan-actualizar`, guarda 10) → su instalador
+(log en `/var/log/tukan-actualizar`) → prueba que la página responda 200 → si falla, vuelve al commit anterior, corre el
+instalador otra vez y avisa. Un candado impide dos corridas a la vez. Aviso por Telegram si está configurado.
+**Nada se actualiza solo**: no hay horario ni detección de commits.
+

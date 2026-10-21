@@ -964,3 +964,9 @@ main p > svg, main span.chico > svg, .vacio svg { width: 18px; height: 18px; ver
 .ia-comandos { padding-left: 18px; display: grid; gap: 8px; font-size: 15px; }
 .ia-comandos .mono { overflow-wrap: anywhere; font-size: 13.5px; }
 @media (max-width: 599px) { .ia-tabla th:nth-child(3), .ia-tabla td:nth-child(3) { display: none; } .ia-tabla th, .ia-tabla td { padding: 10px 6px; } }
+
+/* Actualizaciones (Más → Actualizaciones) */
+.lista-cambios { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; }
+.lista-cambios li { padding: 8px 12px; border-radius: 12px; background: var(--surface-2); overflow-wrap: anywhere; }
+.lista-cambios .mono { color: var(--ink-soft); margin-right: 8px; }
+.log-servidor { max-height: 360px; overflow: auto; font-size: 13px; }

@@ -29,7 +29,7 @@ if ($ruta === '/admin') {
     return true;
 }
 if (preg_match('#^/bot[^/]+/sendMessage$#', $ruta)) {
-    $cuerpo = json_decode((string) file_get_contents('php://input'), true) ?: [];
+    $cuerpo = json_decode((string) file_get_contents('php://input'), true) ?: $_POST;   // JSON (panel) o formulario (actualizar.sh)
     file_put_contents("$dir/telegram.log", str_replace("\n", ' ', (string) ($cuerpo['text'] ?? '')) . "\n", FILE_APPEND);
     header('Content-Type: application/json');
     echo '{"ok":true,"result":{}}';

@@ -94,6 +94,9 @@ printf '%s\n' "TUKAN_SMTP_HOST=localhost" "TUKAN_SMTP_PUERTO=$SMTP" "TUKAN_SMTP_
 # IA de Tukán: /etc/tukan-ia.env DE PRUEBA (el panel solo lee su estado, sin la clave)
 export TUKAN_IA_ENV="$TMP/tukan-ia.env"
 printf '%s\n' "TUKAN_IA_CLAVE=sk-ant-prueba-panel-0000000000" "TUKAN_IA_MODELO_RAPIDO=claude-haiku-5-5" "TUKAN_IA_MODELO_FUERTE=claude-sonnet-5-5" "TUKAN_IA_PAUSA=0" "TUKAN_IA_TOPE_PROGRAMA_TUEVENTO=20" > "$TUKAN_IA_ENV"
+# Actualizaciones: cola de pedidos, estado y llave DE PRUEBA (al principio no existen: «falta instalar»)
+export TUKAN_ACTUALIZAR_DIR="$TMP/actualizar"
+export TUKAN_ACTUALIZAR_LLAVE="$TUKAN_ACTUALIZAR_DIR/llave" TUKAN_ACTUALIZAR_PEDIDOS="$TUKAN_ACTUALIZAR_DIR/pedidos" TUKAN_ACTUALIZAR_ESTADO="$TUKAN_ACTUALIZAR_DIR/estado"
 php -S "127.0.0.1:$PC" -t public > "$TMP/central.log" 2>&1 &
 PIDS+=($!)
 for _ in $(seq 1 30); do curl -s -o /dev/null "$BASE/?r=login" && break; sleep 0.1; done
@@ -1701,6 +1704,139 @@ JAR="$JAR_IA"
 if grep -qiE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log"; then
   FALLAS=$((FALLAS+1)); echo "  FALLA Avisos o errores de PHP en el panel (IA):"; grep -iE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log" | sort | uniq -c | head -20
 else OK=$((OK+1)); echo "  OK    Sin avisos ni errores de PHP en el panel (IA)"; fi
+
+# =====================================================================
+titulo "40. Actualizaciones (Más): versiones, botón Actualizar con 2FA, pedido firmado y resultado"
+ACTD="$TUKAN_ACTUALIZAR_DIR"
+check "Pantalla Actualizaciones" "200" "$(get 'r=actualizaciones')"
+contiene "Sin instalar: pide el comando de una sola vez" "$TMP/pag.html" 'Falta instalar el actualizador en este servidor'
+contiene "...comando exacto" "$TMP/pag.html" "bash $(pwd)/deploy/instalar.sh &amp;&amp; bash $(pwd)/deploy/instalar_actualizador.sh"
+get 'r=mas' > /dev/null
+contiene "Más → Actualizaciones" "$TMP/pag.html" 'href="/?r=actualizaciones"'
+JAR_ACT="$JAR"; JAR="$TMP/jar_soporte2"
+check "Soporte no entra a Actualizaciones (403)" "403" "$(get 'r=actualizaciones')"
+JAR="$JAR_ACT"
+# "Instalar" el actualizador de mentira: llave, cola y estado (lo que hace deploy/instalar_actualizador.sh)
+mkdir -p "$ACTD/pedidos" "$ACTD/estado" "$ACTD/tomados" "$ACTD/usados" "$ACTD/logs"
+openssl rand -hex 32 > "$ACTD/llave"
+SHA_TE=$(printf 'a%.0s' $(seq 1 40)); SHA_TS=$(printf 'c%.0s' $(seq 1 40)); SHA_V=$(printf 'b%.0s' $(seq 1 40))
+cat > "$ACTD/estado/versiones.json" <<EOF
+{"revisado": $(date +%s), "servidor": "qfcorp", "programas": [
+ {"id":"tuevento","nombre":"TuEvento","tipo":"deploy","estado":"nuevo","mensaje":"","instancias":[],"nuevos":2,
+  "instalada":{"commit":"$SHA_V","corto":"bbbbbbb","fecha":"2026-10-20T10:00:00-05:00","titulo":"Versión anterior"},
+  "disponible":{"commit":"$SHA_TE","corto":"aaaaaaa","fecha":"2026-10-21T10:00:00-05:00","titulo":"Corrige el depósito"},
+  "cambios":[{"corto":"aaaaaaa","titulo":"Corrige el depósito"},{"corto":"a1a1a1a","titulo":"Añade <b>reservas</b>"}]},
+ {"id":"tusalon","nombre":"TuSalon","tipo":"deploy","estado":"nuevo","mensaje":"","instancias":[],"nuevos":1,
+  "instalada":{"commit":"$SHA_V","corto":"bbbbbbb","fecha":"","titulo":""},"disponible":{"commit":"$SHA_TS","corto":"ccccccc","fecha":"","titulo":""},
+  "cambios":[{"corto":"ccccccc","titulo":"Salón: agenda"}]},
+ {"id":"tuguarderia","nombre":"TuGuarderia","tipo":"guarderia","estado":"al_dia","mensaje":"","instancias":["tuguarderia","dogssy"],"nuevos":0,
+  "instalada":{"commit":"$SHA_V","corto":"bbbbbbb","fecha":"","titulo":"Asistente IA"},"disponible":null,"cambios":[]}
+]}
+EOF
+get 'r=actualizaciones' > /dev/null
+no_contiene "Instalado: ya no pide el comando" "$TMP/pag.html" 'Falta instalar el actualizador'
+contiene "Versión instalada" "$TMP/pag.html" '<dd class="mono">bbbbbbb</dd>'
+contiene "Versión nueva en GitHub" "$TMP/pag.html" '<dd class="mono">aaaaaaa</dd>'
+contiene "Lista de cambios (títulos de los commits)" "$TMP/pag.html" 'Corrige el depósito</li>'
+contiene "...escapados" "$TMP/pag.html" 'Añade &lt;b&gt;reservas&lt;/b&gt;'
+contiene "Nombre con tilde" "$TMP/pag.html" '<h2>TuSalón</h2>'
+contiene "TuGuardería: al día con sus instalaciones" "$TMP/pag.html" 'tuguarderia, dogssy'
+contiene "Botón Actualizar por programa" "$TMP/pag.html" 'Actualizar TuEvento</button>'
+contiene "Actualizar todo (2 programas)" "$TMP/pag.html" 'Actualizar todo (2 programas)'
+contiene "Pide el código de 2 pasos" "$TMP/pag.html" 'id="cod-tuevento" name="codigo"'
+contiene "Buscar novedades" "$TMP/pag.html" 'Buscar novedades'
+no_contiene "Al día: sin botón" "$TMP/pag.html" 'Actualizar TuGuardería</button>'
+N2FA=$(audit_n 2fa_fallido)
+R=$(post actualizaciones --data-urlencode "accion=actualizar" --data-urlencode "programa=tuevento" --data-urlencode "commit=$SHA_TE" --data-urlencode "codigo=000000")
+check "Código equivocado -> vuelve a la pantalla" "303 /?r=actualizaciones" "$(echo "$R" | sed "s#$BASE##")"
+get 'r=actualizaciones' > /dev/null
+contiene "...aviso" "$TMP/pag.html" 'El código de 2 pasos no es correcto. Escribe el que aparece ahora en tu app. No se actualizó nada.'
+check "...no deja pedido en la cola" "0" "$(ls "$ACTD/pedidos" | wc -l | tr -d ' ')"
+check "...auditoría: 2FA fallido" "$((N2FA+1))" "$(audit_n 2fa_fallido)"
+check "...auditoría: actualización rechazada" "1" "$(audit_n actualizacion_rechazada)"
+post actualizaciones --data-urlencode "accion=actualizar" --data-urlencode "programa=tuevento" --data-urlencode "commit=$SHA_TE" > /dev/null
+check "Sin código: tampoco" "0 2" "$(ls "$ACTD/pedidos" | wc -l | tr -d ' ') $(audit_n actualizacion_rechazada)"
+sql "DELETE FROM intentos_fallidos" > /dev/null   # los códigos malos de esta y otras secciones no deben bloquear lo que sigue
+get 'r=actualizaciones' > /dev/null
+post actualizaciones --data-urlencode "accion=actualizar" --data-urlencode "programa=tuevento" --data-urlencode "commit=$SHA_V" --data-urlencode "codigo=$(codigo "$SECRETO_D" "$TMP/paso_d")" > /dev/null
+get 'r=actualizaciones' > /dev/null
+contiene "La versión cambió mientras miraba: no pide nada" "$TMP/pag.html" 'La versión cambió mientras mirabas'
+check "...sin pedido" "0" "$(ls "$ACTD/pedidos" | wc -l | tr -d ' ')"
+R=$(post actualizaciones --data-urlencode "accion=actualizar" --data-urlencode "programa=tuevento" --data-urlencode "commit=$SHA_TE" --data-urlencode "codigo=$(codigo "$SECRETO_D" "$TMP/paso_d")")
+ID_A=$(echo "$R" | grep -o 'p=[0-9a-f]\{32\}' | cut -d= -f2)
+check "Código bueno -> pedido enviado" "303 /?r=actualizaciones&p=$ID_A" "$(echo "$R" | sed "s#$BASE##")"
+check "...queda UN pedido en la cola" "1" "$(ls "$ACTD/pedidos/"*"-$ID_A.json" | wc -l | tr -d ' ')"
+check "...firmado con la llave, con el commit aprobado" "{\"tuevento\":\"$SHA_TE\"}" "$(php -r 'require "src/Pedido.php"; $d=Tukan\Pedido::verificar(file_get_contents($argv[1]), hex2bin(trim(file_get_contents($argv[2])))); echo json_encode($d["objetivos"]), "";' "$(ls "$ACTD/pedidos/"*.json)" "$ACTD/llave")"
+check "...auditoría: pidió actualizar" "1" "$(audit_n actualizacion_pedida)"
+check "...con el programa y la versión" "TuEvento → aaaaaaa (pedido ${ID_A:0:8})" "$(sql "SELECT detalle FROM auditoria WHERE accion='actualizacion_pedida'")"
+curl -s -b "$JAR" -D "$TMP/cab_act.txt" -o "$TMP/pag.html" -H "CF-Connecting-IP: $IP" "$BASE/?r=actualizaciones"
+contiene "Mientras corre: «Actualizando…»" "$TMP/pag.html" 'Actualizando…'
+contiene "...la pantalla se recarga sola" "$TMP/cab_act.txt" 'Refresh: 5'
+contiene "...los botones quedan apagados" "$TMP/pag.html" 'Buscar novedades</button>'
+post actualizaciones --data-urlencode "accion=revisar" > /dev/null
+get 'r=actualizaciones' > /dev/null
+contiene "Otro pedido mientras corre: no" "$TMP/pag.html" 'Ya hay un pedido en curso'
+check "...sigue uno solo en la cola" "1" "$(ls "$ACTD/pedidos" | wc -l | tr -d ' ')"
+# El servicio de root (de mentira: sin root) con un "actualizar" falso que responde lo que diga ACT_FALSO_ESTADO
+cat > "$TMP/actualizar_falso" <<'EOF'
+#!/bin/bash
+res=""; objs=()
+while [ $# -gt 0 ]; do case "$1" in --resultado) res=$2; shift 2 ;; --pedido|--usuario) shift 2 ;; *) objs+=("$1"); shift ;; esac; done
+[ "${objs[0]}" = "estado" ] && { echo "PROGRAMA  INSTALADA  GITHUB  ESTADO"; exit 0; }
+for o in "${objs[@]}"; do
+  p=${o%@*}; c=${o#*@}; e=ok; m=""
+  [ "$p" = "tusalon" ] && { e=revertido; m="la pagina no responde 200. Se volvio a la version anterior y responde bien."; c=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb; }
+  echo "== $p: LISTO"; printf '%s\t%s\t%s\t%s\t%s\n' "$p" "$e" bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb "$c" "$m" >> "$res"
+done
+EOF
+chmod +x "$TMP/actualizar_falso"
+servicio() {
+  TUKAN_ACT_SIN_ROOT=1 TUKAN_ACT_PEDIDOS="$ACTD/pedidos" TUKAN_ACT_LLAVE="$ACTD/llave" TUKAN_ACT_ESTADO="$ACTD/estado" TUKAN_ACT_TOMADOS="$ACTD/tomados" \
+  TUKAN_ACT_USADOS="$ACTD/usados" TUKAN_ACT_LOGS="$ACTD/logs" TUKAN_ACT_SUDOERS="$ACTD/sudoers" TUKAN_ACT_COMANDO="$TMP/actualizar_falso" \
+  TUKAN_ACT_AJUSTES=/no/existe bash deploy/actualizar_pedidos.sh > "$TMP/servicio.txt" 2>&1
+}
+servicio
+check "El servicio toma el pedido" "0" "$(ls "$ACTD/pedidos" | wc -l | tr -d ' ')"
+get "r=actualizaciones&p=$ID_A" > /dev/null
+contiene "Resultado: listo" "$TMP/pag.html" '<span class="estado on">Listo</span>'
+contiene "...con el programa y las versiones" "$TMP/pag.html" 'TuEvento: actualizado (bbbbbbb → aaaaaaa)'
+contiene "...y lo que hizo el servidor" "$TMP/pag.html" '== tuevento: LISTO'
+check "...auditoría del resultado (una vez)" "1" "$(audit_n actualizacion_resultado)"
+get 'r=actualizaciones' > /dev/null; get 'r=auditoria' > /dev/null
+check "...al volver a mirar no se repite" "1" "$(audit_n actualizacion_resultado)"
+contiene "Auditoría: textos" "$TMP/pag.html" 'Pidió actualizar programas'
+R=$(post actualizaciones --data-urlencode "accion=actualizar" --data-urlencode "todo=1" --data-urlencode "codigo=$(codigo "$SECRETO_D" "$TMP/paso_d")")
+ID_T=$(echo "$R" | grep -o 'p=[0-9a-f]\{32\}' | cut -d= -f2)
+check "Actualizar todo: un pedido con los 2 programas" "{\"tuevento\":\"$SHA_TE\",\"tusalon\":\"$SHA_TS\"}" "$(php -r 'require "src/Pedido.php"; $d=Tukan\Pedido::verificar(file_get_contents($argv[1]), hex2bin(trim(file_get_contents($argv[2])))); echo json_encode($d["objetivos"]);' "$(ls "$ACTD/pedidos/"*.json)" "$ACTD/llave")"
+servicio
+get "r=actualizaciones&p=$ID_T" > /dev/null
+contiene "Uno falló: «Con problemas»" "$TMP/pag.html" '<span class="estado off">Con problemas</span>'
+contiene "...dice que volvió a la versión anterior" "$TMP/pag.html" 'TuSalón: falló y volvió a la versión anterior'
+contiene "...con el mensaje del servidor" "$TMP/pag.html" 'la pagina no responde 200. Se volvio a la version anterior y responde bien.'
+check "...auditoría del resultado" "2" "$(audit_n actualizacion_resultado)"
+contiene "...con problemas en la auditoría" "$TMP/pag.html" 'TuSalón'
+R=$(post actualizaciones --data-urlencode "accion=revisar")
+ID_R=$(echo "$R" | grep -o 'p=[0-9a-f]\{32\}' | cut -d= -f2)
+check "Buscar novedades: sin código, un pedido de revisar" "1 1" "$(ls "$ACTD/pedidos" | wc -l | tr -d ' ') $(audit_n actualizacion_revisar)"
+servicio
+get "r=actualizaciones&p=$ID_R" > /dev/null
+contiene "...terminado" "$TMP/pag.html" 'Búsqueda de novedades del'
+check "...no ensucia la auditoría con un resultado (no cambió nada)" "2" "$(audit_n actualizacion_resultado)"
+check "Historial de pedidos" "3" "$(grep -c 'r=actualizaciones&amp;p=' "$TMP/pag.html")"
+# Pedido falso dejado directo en la cola (sin la llave): el servicio lo rechaza y la pantalla no se rompe
+echo '{"v":1,"datos":"eyJpZCI6MX0","firma":"'"$(printf '0%.0s' $(seq 1 64))"'"}' > "$ACTD/pedidos/$(date +%s)-falso.json"
+servicio
+contiene "Pedido falso: rechazado por el servicio" "$ACTD/logs/pedidos.log" 'falso.json: firma invalida'
+check "Pantalla bien después del pedido falso" "200" "$(get 'r=actualizaciones')"
+if grep -qiE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log"; then
+  FALLAS=$((FALLAS+1)); echo "  FALLA Avisos o errores de PHP en el panel (Actualizaciones):"; grep -iE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log" | sort | uniq -c | head -20
+else OK=$((OK+1)); echo "  OK    Sin avisos ni errores de PHP en el panel (Actualizaciones)"; fi
+titulo "41. Comando actualizar y servicio (tests/run_actualizar.sh: repos git, instaladores y paginas de mentira)"
+if bash tests/run_actualizar.sh > "$TMP/run_actualizar.txt" 2>&1; then
+  OK=$((OK+1)); echo "  OK    $(tail -1 "$TMP/run_actualizar.txt")"
+else
+  FALLAS=$((FALLAS+1)); echo "  FALLA tests/run_actualizar.sh:"; grep -E "FALLA|correctas" "$TMP/run_actualizar.txt" | head -30
+fi
 
 # =====================================================================
 if [ -z "${SIN_CAPTURAS:-}" ] && python3 -c "import playwright" 2>/dev/null; then

@@ -137,3 +137,16 @@ entrar a cada uno. El ERP QF no participa.
 - Causa: TuGuardería (un solo cliente, Dogssy) informa en `ingresos_mes` lo que la guardería cobra a SUS clientes.
 - Arreglo: `Monitor::ingresosSonDeTukan()` deja fuera los programas de un solo cliente en Inicio y en los totales;
   la ficha del programa lo muestra como "Ventas del negocio este mes (no es plata de Tukán)". Pruebas: 695 + 781 OK.
+
+## 2026-10-21 — Actualizar sin pegar comandos largos
+- Pedido: actualizar los programas aprobando con una palabra o un botón; nada publicado solo (sin horario ni detección de commits).
+- Consola: `deploy/actualizar.sh` → `/usr/local/bin/actualizar` (`actualizar`, `todo`, `PROGRAMA`, `estado`): respaldo de la
+  base, instalador con `git pull` fijado a la versión aprobada, página 200 y vuelta atrás si falla; flock; Telegram.
+- Panel: Más → Actualizaciones (solo dueño, 2FA). Pedido firmado (`src/Pedido.php`) en `/var/lib/tukan-actualizar/pedidos`;
+  lo atiende `tukan-actualizar.path/.service` (root) con `deploy/actualizar_pedidos.sh`.
+- Sudo: sin regla permanente; sudo sin contraseña para `qf` SOLO mientras corre un pedido aprobado (archivo temporal en
+  /etc/sudoers.d que se borra al terminar). Los instaladores no se pueden limitar con una lista (tee, chown -R, bash del repo).
+  Decisión y riesgos en `docs/ACTUALIZAR.md`.
+- Instalar una vez: `bash /var/www/tukan-central/deploy/instalar.sh && bash /var/www/tukan-central/deploy/instalar_actualizador.sh`.
+- Pruebas: `tests/run_actualizar.sh` (repos git de mentira), `tests/run_tests_actualizar.php`, `tests/run_web.sh` §40-41.
+

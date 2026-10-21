@@ -190,6 +190,8 @@ with sync_playwright() as p:
     ir('ia&act=1', '43_ia')
     pag.click('#pausar-ia summary')
     parte('#pausar-ia', '44_pausar_ia')
+    # Más → Actualizaciones: versiones, lo nuevo, Actualizar con código de 2 pasos y el último resultado
+    ir('actualizaciones', '45_actualizaciones')
     nav.close()
 
 print(f'{len(hechas)} capturas en {SALIDA}')

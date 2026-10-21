@@ -27,6 +27,8 @@ $rutas = [
     'programa_nuevo' => 'programas', 'programa_editar' => 'programas', 'programa_comando' => 'programas',
     'rotar' => 'programas', 'eliminar' => 'programas', 'baja' => 'programas',
     'usuarios' => 'usuarios', 'auditoria' => 'auditoria', 'ajustes' => 'ajustes',
+    // Actualizar los programas de este servidor (solo el dueño, con código de 2 pasos; ver docs/ACTUALIZAR.md)
+    'actualizaciones' => 'actualizaciones',
 ];
 // Rutas que solo aceptan POST (cambian algo)
 $soloPost = ['refrescar', 'actualizar_datos', 'entrar', 'probar', 'rotar', 'eliminar', 'baja', 'salir', 'ejecutar', 'recordar', 'licencias', 'demo_correo'];

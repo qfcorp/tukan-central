@@ -48,7 +48,7 @@ final class Acceso
 
     /**
      * Permisos: ver, entrar, probar, actualizar, mi_cuenta (todos)
-     * y programas (agregar/editar/eliminar/cambiar secreto), secretos, usuarios, auditoria, ajustes (solo dueño).
+     * y programas (agregar/editar/eliminar/cambiar secreto), secretos, usuarios, auditoria, ajustes, actualizaciones (solo dueño).
      */
     public static function puede(string $rol, string $accion): bool
     {
