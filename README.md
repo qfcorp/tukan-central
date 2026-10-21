@@ -134,6 +134,28 @@ También acepta variables (`TUKAN_SMTP_HOST=… TUKAN_SMTP_CLAVE=… PRUEBA_A=�
 Probar después: `sudo -u www-data php /var/www/tukan-central/compartido/tukan_correo.php probar tu@correo.com`.
 Cómo lo usa cada programa: [`compartido/LEEME_CORREO.md`](compartido/LEEME_CORREO.md).
 
+### Inteligencia artificial (módulo «Asistente IA» y la Ayuda)
+
+Una vez, en qfcorp, con tu usuario normal:
+
+```
+cd /var/www/tukan-central && git pull && bash deploy/configurar_ia.sh
+```
+
+Pide la clave de Anthropic (no se ve al escribir), los modelos (Enter = `claude-haiku-5-5` y `claude-sonnet-5-5`) y si queda en
+pausa; escribe `/etc/tukan-ia.env` (`root:www-data`, `640`) y hace una llamada mínima: dice **IA: FUNCIONA** o el error (clave
+inválida, sin saldo en la cuenta, sin conexión). Después:
+
+| Comando | Para qué |
+|---|---|
+| `bash deploy/configurar_ia.sh --pausar` / `--reanudar` | cortar o volver a encender TODO el gasto de IA, al instante |
+| `bash deploy/configurar_ia.sh --tope tuevento 20` | tope del mes de un programa en USD (`quitar` = sin tope) |
+| `bash deploy/configurar_ia.sh --probar` | solo la prueba |
+| `bash deploy/configurar_ia.sh --usar-clave-tuhospedaje` | usa la clave que ya está en `/var/www/tuhospedaje/config/.env` (sin preguntar; sin esa opción, si `/etc/tukan-ia.env` no tiene clave, el script la ofrece: «usarla? [S/n]») |
+
+El gasto de cada programa se ve en **Más → IA** (acción `ia_uso`, Anexo C de `docs/PROTOCOLO_V2.md`). Librería y guía para los
+programas: [`compartido/tukan_ia.php`](compartido/tukan_ia.php) y [`compartido/LEEME_IA.md`](compartido/LEEME_IA.md).
+
 ---
 
 ## 5. Seguridad (resumen)

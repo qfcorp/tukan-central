@@ -22,6 +22,8 @@ declare(strict_types=1);
  *   MOCK_BAJA_ESPERA segundos de espera antes de borrar (por defecto 300)
  *   MOCK_SIN_PAUSA=1 programa que todavía no sabe pausar ni borrar clientes (Anexo A): sin pausar, borrar_cliente ni restaurar_cliente
  *   MOCK_SIN_MODULOS=1 programa sin módulos (Anexo B): sin modulos, cambiar_modulos, guardar_modulos ni cambio_modulos
+ *   MOCK_SIN_IA=1  programa que todavía no reporta IA (Anexo C): sin ia_uso
+ *   MOCK_IA_PAUSADA=1 ia_uso dice pausada: true · MOCK_IA_TOPE=20 tope del programa
  * Archivos de control en MOCK_DIR (se pueden crear durante la prueba):
  *   total          cambia negocios.total del "estado" (para probar el aviso de negocio nuevo)
  *   lento_ejecutar segundos que tarda "ejecutar" DESPUÉS de hacer la operación (para probar "no respondió" + Revisar)
@@ -38,6 +40,7 @@ $producto = (string) (getenv('MOCK_PRODUCTO') ?: 'tuevento');
 $unico = $producto === 'tuguarderia';
 $conBaja = $unico && getenv('MOCK_BAJA') === '1';
 $conPausa = getenv('MOCK_SIN_PAUSA') !== '1';
+$conIa = getenv('MOCK_SIN_IA') !== '1';   // Anexo C: ia_uso
 $conModulos = getenv('MOCK_SIN_MODULOS') !== '1';   // Anexo B: módulos (modulos, cambiar_modulos, guardar_modulos, solicitudes cambio_modulos)     // Anexo A: pausar / reactivar (y en los de varios clientes, borrar_cliente / restaurar_cliente)
 date_default_timezone_set('America/Guayaquil');
 if ((int) getenv('MOCK_DESFASE') !== 0) header('Date: ' . gmdate('D, d M Y H:i:s', $ahora) . ' GMT');
@@ -135,7 +138,7 @@ if ($esV2Accion && $v1 !== '') {
     if ($v1 === '404') { http_response_code(404); exit('No encontrado'); }
     json_out(['ok' => false, 'error' => 'Acción no válida.'], 400);
 }
-if ($esV2Accion && !in_array($accion, ['capacidades', 'clientes', 'cliente', 'cotizar', 'planes', 'solicitudes', 'solicitud', 'adjunto', 'finanzas', 'ejecutar', 'modulos'], true)) {
+if ($esV2Accion && !in_array($accion, ['capacidades', 'clientes', 'cliente', 'cotizar', 'planes', 'solicitudes', 'solicitud', 'adjunto', 'finanzas', 'ejecutar', 'modulos', 'ia_uso'], true)) {
     json_out(['ok' => false, 'protocolo' => 2, 'codigo' => 'no_permitido', 'error' => 'Esa acción no existe.', 'detalle' => ['motivo' => 'no_disponible']], 403);
 }
 
@@ -296,6 +299,7 @@ try {
     $r = match ($accion) {
         'capacidades' => capacidades(),
         'modulos' => mod_accion_modulos(),
+        'ia_uso' => accion_ia_uso($db, $datos),
         'clientes' => accion_clientes($db, $datos),
         'cliente' => ['cliente' => cliente_detalle($db, cliente_de($db, (string) ($datos['id'] ?? '')))],
         'cotizar' => accion_cotizar($db, $datos),
@@ -678,7 +682,7 @@ function capacidades(): array
     if ($unico) {
         return ['revision' => 1, 'producto' => $producto, 'nombre' => $NOMBRES[$producto], 'version' => '57ed3ce', 'unico' => true, 'moneda' => 'USD',
                 'zona_horaria' => 'America/Guayaquil', 'url_publica' => getenv('MOCK_DOMINIO') ? 'https://' . getenv('MOCK_DOMINIO') : 'https://dogssy.ejemplo.ec',
-                'acciones' => array_merge(['capacidades', 'estado', 'sso', 'cliente', 'ejecutar'], $GLOBALS['conModulos'] ? ['modulos', 'solicitudes', 'solicitud'] : []), 'sso_ir' => true, 'rutas_sso' => ['/admin'],
+                'acciones' => array_merge(['capacidades', 'estado', 'sso', 'cliente', 'ejecutar'], $GLOBALS['conModulos'] ? ['modulos', 'solicitudes', 'solicitud'] : [], $GLOBALS['conIa'] ? ['ia_uso'] : []), 'sso_ir' => true, 'rutas_sso' => ['/admin'],
                 'ejecutar' => array_merge(['nueva_clave_dueno'], $GLOBALS['conPausa'] ? ['pausar', 'reactivar'] : [], $GLOBALS['conBaja'] ? ['dar_de_baja', 'cancelar_baja'] : [],
                                           $GLOBALS['conModulos'] ? ['cambiar_modulos', 'guardar_modulos', 'atender_solicitud'] : []),
                 'tipos_solicitud' => $GLOBALS['conModulos'] ? ['cambio_modulos'] : [],
@@ -698,7 +702,7 @@ function capacidades(): array
     return [
         'revision' => 1, 'producto' => $producto, 'nombre' => $NOMBRES[$producto], 'version' => $producto === 'tuvocalia' ? '3f0b7aa' : '75df6b3', 'unico' => false,
         'moneda' => 'USD', 'zona_horaria' => 'America/Guayaquil', 'url_publica' => 'https://' . $producto . '.ejemplo.ec',
-        'acciones' => array_merge(['capacidades', 'estado', 'sso', 'clientes', 'cliente', 'cotizar', 'planes', 'solicitudes', 'solicitud', 'adjunto', 'finanzas', 'ejecutar'], $GLOBALS['conModulos'] ? ['modulos'] : []),
+        'acciones' => array_merge(['capacidades', 'estado', 'sso', 'clientes', 'cliente', 'cotizar', 'planes', 'solicitudes', 'solicitud', 'adjunto', 'finanzas', 'ejecutar'], $GLOBALS['conModulos'] ? ['modulos'] : [], $GLOBALS['conIa'] ? ['ia_uso'] : []),
         'sso_ir' => true, 'rutas_sso' => ['/admin'], 'ejecutar' => $ejecutar, 'tipos_solicitud' => $tipos,
         'modulos' => ['editable' => true, 'por_instalacion' => false, 'cambia_plan' => true, 'precio_acordado' => true, 'crear_demo' => true],
         'estados_detalle' => ['prueba' => 'Demo', 'activa' => 'Activa', 'sin_limite' => 'Sin vencimiento', 'gracia' => 'En gracia', 'vencida' => 'Vencida', 'prueba_vencida' => 'Demo terminada', 'suspendida' => 'Suspendida'],
@@ -774,6 +778,31 @@ function accion_cotizar(array $db, array $d): array
     $c = cliente_de($db, (string) ($d['cliente_id'] ?? ''));
     $q = cotizacion($c, $d);
     return ['monto' => $q['monto'], 'meses' => $q['meses'], 'desde' => $q['desde'], 'hasta' => $q['hasta'], 'detalle' => $q['detalle'], 'incluye_dominio' => false, 'descuentos' => []];
+}
+
+/** Anexo C: uso de IA del mes (solo lectura). Cifras fijas por cliente para poder revisarlas en las pruebas. */
+function accion_ia_uso(array $db, array $d): array
+{
+    global $unico;
+    $mes = is_string($d['mes'] ?? null) && preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $d['mes']) ? $d['mes'] : date('Y-m');
+    if (array_diff(array_keys($d), ['mes'])) fallo('invalido', 'Campo desconocido.', 422, array_values(array_diff(array_keys($d), ['mes']))[0]);
+    registrar('ia_uso.log', $mes);
+    $neg = [];
+    if ($mes === date('Y-m')) {
+        $lista = $unico ? ['unico' => $db['unico']] : array_slice($db['clientes'], 0, 3, true);
+        $n = 0;
+        foreach ($lista as $cid => $c) {
+            $n++;
+            $neg[] = ['cliente_id' => (string) $cid, 'nombre' => (string) $c['nombre'], 'costo' => round(0.0123 * $n, 6), 'llamadas' => 10 * $n, 'fallidas' => $n === 2 ? 1 : 0,
+                      'ahorradas' => 25 * $n, 'ayudas_nuevas' => 3 * $n, 'tope' => $n === 1 ? 0.0123 : ($n === 2 ? 3.0 : null), 'modulo' => $n !== 3];
+        }
+    }
+    $tot = ['costo' => round(array_sum(array_column($neg, 'costo')), 6), 'llamadas' => array_sum(array_column($neg, 'llamadas')), 'fallidas' => array_sum(array_column($neg, 'fallidas')),
+            'ahorradas' => array_sum(array_column($neg, 'ahorradas')), 'ayudas_nuevas' => array_sum(array_column($neg, 'ayudas_nuevas')), 'tokens_entrada' => 1200, 'tokens_salida' => 300];
+    return ['mes' => $mes, 'moneda' => 'USD', 'modulo' => 'asistente_ia', 'version_libreria' => '1', 'configurada' => true,
+            'pausada' => getenv('MOCK_IA_PAUSADA') === '1', 'modelo_rapido' => 'claude-haiku-5-5', 'modelo_fuerte' => 'claude-sonnet-5-5',
+            'tope_programa' => getenv('MOCK_IA_TOPE') !== false && getenv('MOCK_IA_TOPE') !== '' ? (float) getenv('MOCK_IA_TOPE') : null,
+            'totales' => $tot, 'faq' => ['total' => 12, 'automaticas' => 9, 'manuales' => 3, 'sin_aprobar' => 4, 'usos' => 80], 'negocios' => $neg];
 }
 
 function accion_planes(array $db): array

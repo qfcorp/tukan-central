@@ -20,6 +20,8 @@ $rutas = [
     'demo_nueva' => 'demos', 'demo_correo' => 'demos', 'cotizar' => 'cobros', 'recordar' => 'contacto',
     // Anexo B: módulos (cambiar es solo del dueño; se revisa adentro) y catálogo de precios (todos lo ven)
     'modulos' => 'ver', 'catalogo' => 'ver',
+    // IA: gasto de la inteligencia artificial por programa (Anexo C; solo lectura)
+    'ia' => 'finanzas',
     'finanzas' => 'finanzas', 'gastos' => 'finanzas', 'ingresos_extra' => 'finanzas', 'exportar' => 'finanzas', 'licencias' => 'finanzas',
     // Solo el dueño
     'programa_nuevo' => 'programas', 'programa_editar' => 'programas', 'programa_comando' => 'programas',

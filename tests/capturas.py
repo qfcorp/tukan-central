@@ -186,6 +186,10 @@ with sync_playwright() as p:
     ir('modulos&i=tuvocalia&sol=cambio_modulos:7', '40_aprobar_modulos')
     ir('programa&id=tuvocalia', '41_programa_catalogo')
     ir('demo_nueva&i=tuvocalia', '42_demo_modulos')
+    # Anexo C: gasto de la IA por programa y el comando para pausarla
+    ir('ia&act=1', '43_ia')
+    pag.click('#pausar-ia summary')
+    parte('#pausar-ia', '44_pausar_ia')
     nav.close()
 
 print(f'{len(hechas)} capturas en {SALIDA}')

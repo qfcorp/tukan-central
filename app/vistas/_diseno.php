@@ -16,6 +16,7 @@ $menu = [['inicio', 'Inicio', 'inicio'], ['solicitudes', 'Solicitudes', 'bandeja
 if (puede('finanzas')) $menu[] = ['finanzas', 'Finanzas', 'finanzas'];
 $menu[] = ['programas', 'Programas', 'programas'];
 $mas = [['vencimientos', 'Vencimientos', 'calendario'], ['embudo', 'Embudo', 'embudo']];
+if (puede('finanzas')) $mas[] = ['ia', 'IA', 'rayo'];
 if (puede('auditoria')) $mas[] = ['auditoria', 'Auditoría', 'actividad'];
 if (puede('usuarios')) $mas[] = ['usuarios', 'Usuarios', 'usuarios'];
 if (puede('ajustes')) $mas[] = ['ajustes', 'Ajustes', 'ajustes'];

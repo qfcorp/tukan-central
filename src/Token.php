@@ -14,7 +14,7 @@ final class Token
     public const DURACION = 60;
     public const DURACION_EJECUTAR = 30;
     public const TIPOS = ['sso', 'estado'];
-    public const TIPOS_V2 = ['capacidades', 'clientes', 'cliente', 'cotizar', 'planes', 'solicitudes', 'solicitud', 'adjunto', 'finanzas', 'ejecutar', 'modulos'];
+    public const TIPOS_V2 = ['capacidades', 'clientes', 'cliente', 'cotizar', 'planes', 'solicitudes', 'solicitud', 'adjunto', 'finanzas', 'ejecutar', 'modulos', 'ia_uso'];
 
     public static function b64(string $s): string
     {

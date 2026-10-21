@@ -21,6 +21,8 @@ Contenido:
 12. Orden de trabajo sugerido
 13. Código de referencia (PHP)
 
+Anexos: A (pausar y borrar clientes), B (módulos), C (inteligencia artificial: `ia_uso`).
+
 ---
 
 ## 1. Principios y compatibilidad con v1
@@ -1568,3 +1570,63 @@ Los módulos son de **toda la instalación** (`cliente_id = "unico"`). Mismas ac
     `"ninguno"` = solo la base (el Central manda `"ninguno"` si se desmarcan todos y no manda nada si quedan todos). Desde un
     `demo_pedida`, «Crear demo» manda `solicitud_id`. `planes.ajustes.registro_abierto` es siempre `false` (no hay registro con
     prueba gratis). Los errores de dependencia (`422`, `detalle.motivo = "dependencia"`) se muestran con el texto del programa.
+
+---
+
+## Anexo C (21 oct 2026) — Inteligencia artificial: acción `ia_uso` (solo lectura)
+
+Pedido de Dimitry: la IA es un **módulo extra («Asistente IA», id `asistente_ia`)** en todos los programas, con el gasto
+controlado. La pieza común es `compartido/tukan_ia.php` (guía para conectar cada programa: `compartido/LEEME_IA.md`).
+Cada programa guarda su gasto por negocio y mes (tabla `tukan_ia_gasto`) y sus preguntas frecuentes (tabla `tukan_ia_faq`);
+el Panel solo **lee** con `ia_uso` y lo muestra en **Más → IA**.
+
+### C.1 Pedido y respuesta
+
+Pedido `{"mes": "2026-10"}` (opcional; por defecto el mes actual en la zona del programa). Otro campo → `422 invalido`.
+
+```json
+{"ok": true, "protocolo": 2, "accion": "ia_uso", "producto": "tuevento", "generado": "2026-10-21T10:00:00-05:00",
+ "mes": "2026-10", "moneda": "USD", "modulo": "asistente_ia", "version_libreria": "1",
+ "configurada": true, "pausada": false, "modelo_rapido": "claude-haiku-5-5", "modelo_fuerte": "claude-sonnet-5-5",
+ "tope_programa": 20.0,
+ "totales": {"costo": 0.4123, "llamadas": 120, "fallidas": 2, "ahorradas": 340, "ayudas_nuevas": 45, "tokens_entrada": 812000, "tokens_salida": 96000},
+ "faq": {"total": 80, "automaticas": 60, "manuales": 20, "sin_aprobar": 12, "usos": 410},
+ "negocios": [
+   {"cliente_id": "12", "nombre": "Quinta Los Arrayanes", "costo": 0.1250, "llamadas": 31, "fallidas": 0, "ahorradas": 80,
+    "ayudas_nuevas": 9, "tope": 3.0, "modulo": true}
+ ]}
+```
+
+| Campo | Regla |
+|---|---|
+| `costo` | USD estimados con la tabla de precios de la librería (lo que Tukán paga a Anthropic), 6 decimales |
+| `llamadas` / `fallidas` | llamadas a la API que salieron bien / que fallaron (no cuestan) |
+| `ahorradas` | respuestas de la Ayuda que salieron de una FAQ guardada o del manual **sin** llamar a la IA |
+| `ayudas_nuevas` | respuestas nuevas de la Ayuda hechas con IA (quedan guardadas como FAQ para todos) |
+| `negocios` | un renglón por negocio con uso en el mes, el que más gastó primero; `cliente_id` es el mismo de `clientes` |
+| `tope` | tope del mes del negocio en USD (`null` = sin tope propio). `modulo`: tiene encendido `asistente_ia` |
+| `configurada` / `pausada` / `tope_programa` | lo que lee la librería de `/etc/tukan-ia.env` (sin la clave) |
+| `faq` | resumen de la tabla de FAQ del programa (opcional) |
+
+- La arma `tukan_ia_uso_pdo($pdo, $mes, $nombres, 'tukan_ia_gasto', $faq, ID)` de la librería: el conector solo agrega `$base`.
+- `capacidades.acciones` incluye `ia_uso`. Sin ella el Panel dice «Este programa aún no reporta IA» (programas v1 también).
+- TuGuardería (una sola empresa): un solo renglón con `cliente_id = "unico"`.
+- Es solo lectura: no cambia nada, no lleva clave de operación. Tiempo del Panel: 5 s.
+
+### C.2 Topes (quién los pone)
+
+- **Pausa de todo** (`TUKAN_IA_PAUSA=1`) y **tope por programa** (`TUKAN_IA_TOPE_PROGRAMA_<ID>`): en `/etc/tukan-ia.env`, con
+  `deploy/configurar_ia.sh --pausar | --reanudar | --tope ID MONTO` del Panel. El Panel no puede escribir en `/etc`: la pantalla
+  IA muestra el comando para copiar.
+- **Tope por negocio**: lo guarda cada programa (columna o ajuste suyo). Para cambiarlo desde el Panel, el programa puede declarar
+  la operación opcional `ejecutar ia_tope` con `datos: {"tope_usd": número | null}` y ofrecerla en `cliente.acciones_posibles`
+  (campo `tope_usd`, tipo `dinero`): el Panel la muestra con su formulario genérico (§4.4), sin código especial.
+- **Nunca** se le dice al cliente «límite», «cupo» ni «saldo»: ver los mensajes neutros de `LEEME_IA.md`.
+
+### C.3 Notas de implementación — Panel Central
+
+1. `Token::TIPOS_V2` incluye `ia_uso`. La pantalla es `/?r=ia` (permiso `finanzas`: dueño), en Más y en el menú Más de escritorio.
+2. Copia de cada mes en `sincronizacion` (`que = "ia_uso:2026-10"`): se usa si tiene menos de 5 minutos (o si el programa no
+   contesta, con «Datos de hace…»). **Actualizar** (`&act=1`) pregunta en vivo.
+3. El Panel corre en el mismo servidor: lee el estado de `/etc/tukan-ia.env` con `tukan_ia_estado()` (sin la clave) y dice si la
+   IA está encendida, en pausa, sin configurar o si no puede leer el archivo.

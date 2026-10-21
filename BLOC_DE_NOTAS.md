@@ -85,6 +85,20 @@ entrar a cada uno. El ERP QF no participa.
 - [ ] En qfcorp: `cd /var/www/tukan-central && git pull && bash deploy/configurar_correo.sh` con la clave real del buzón.
 - [ ] Revisar en HestiaCP que tukansoftware.com tenga SPF, DKIM y DMARC (si no, los correos pueden caer en spam).
 
+### IA de Tukán: base común (21 oct 2026, fase 1)
+- [x] `compartido/tukan_ia.php` (un archivo, sin composer): Messages API con curl, texto, imágenes/PDF en base64, JSON pedido y
+      validado (reintenta 1 vez), reintentos 429/529/5xx con espera, tokens y costo por modelo (tabla configurable), clave en
+      `/etc/tukan-ia.env` (o `ANTHROPIC_API_KEY` de TuHospedaje), guardián de gasto por negocio, `TUKAN_IA_PAUSA=1` global y
+      `TUKAN_IA_TOPE_PROGRAMA_<ID>`. La clave nunca sale en resultados ni registros.
+- [x] Ayuda con FAQ en la misma librería: normaliza, FAQ exacta o parecida (Dice ≥ 0,75) sin IA, IA con las secciones del
+      manual que coinciden (se guarda como FAQ automática), y sin poder gastar el manual + WhatsApp, sin decir «límite».
+- [x] Panel: **Más → IA** (`/?r=ia`, permiso finanzas) con la acción v2 `ia_uso` (Anexo C), copia de 5 min, estado de
+      `/etc/tukan-ia.env` y el comando para pausar. `deploy/configurar_ia.sh` (`--pausar`, `--reanudar`, `--tope`, `--probar`).
+- [x] `compartido/LEEME_IA.md` para los agentes de cada programa. Pruebas: `run_tests.php` 950 (API de mentira
+      `tests/anthropic_falso.py` en 8256) y `run_web.sh` 840 (capturas 43_ia y 44_pausar_ia).
+- [ ] En qfcorp: `bash deploy/configurar_ia.sh --usar-clave-tuhospedaje` (reusa la clave de TuHospedaje) y `--tope` por programa si se quiere.
+- [ ] Conectar cada programa (LEEME_IA.md). TuHospedaje: cambiar «Ya se usó todo el cupo» por los mensajes neutros.
+
 ## Pendiente
 10. En el servidor de cada TuGuardería, una vez: `git pull` y `instalar.sh` de cada cliente (crea `/var/lib/tukan_bajas`
     y la tarea `/etc/cron.d/tukan_bajas`). Luego **Probar conexión** en el panel. Opcional: token de Cloudflare en Ajustes.

@@ -91,6 +91,9 @@ PIDS+=($!)
 export TUKAN_CORREO_ENV="$TMP/tukan-correo.env"
 printf '%s\n' "TUKAN_SMTP_HOST=localhost" "TUKAN_SMTP_PUERTO=$SMTP" "TUKAN_SMTP_SEGURIDAD=tls" "TUKAN_SMTP_USUARIO=info@tukansoftware.com" "TUKAN_SMTP_CLAVE=Buzon#2026" \
   "TUKAN_CORREO_DE=info@tukansoftware.com" "TUKAN_CORREO_NOMBRE=Tukán Software" "TUKAN_SMTP_CA=$TMP/smtp_cert.pem" > "$TUKAN_CORREO_ENV"
+# IA de Tukán: /etc/tukan-ia.env DE PRUEBA (el panel solo lee su estado, sin la clave)
+export TUKAN_IA_ENV="$TMP/tukan-ia.env"
+printf '%s\n' "TUKAN_IA_CLAVE=sk-ant-prueba-panel-0000000000" "TUKAN_IA_MODELO_RAPIDO=claude-haiku-5-5" "TUKAN_IA_MODELO_FUERTE=claude-sonnet-5-5" "TUKAN_IA_PAUSA=0" "TUKAN_IA_TOPE_PROGRAMA_TUEVENTO=20" > "$TUKAN_IA_ENV"
 php -S "127.0.0.1:$PC" -t public > "$TMP/central.log" 2>&1 &
 PIDS+=($!)
 for _ in $(seq 1 30); do curl -s -o /dev/null "$BASE/?r=login" && break; sleep 0.1; done
@@ -1637,8 +1640,71 @@ if grep -qiE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log"
 else OK=$((OK+1)); echo "  OK    Sin avisos ni errores de PHP en el panel (módulos)"; fi
 
 # =====================================================================
+titulo "38. IA: gasto por programa (ia_uso, Anexo C) y cómo pausarla"
+probar tuevento > /dev/null
+check "Pantalla IA" "200" "$(get 'r=ia&act=1')"
+contiene "...dice que la IA está encendida (lee /etc/tukan-ia.env del servidor)" "$TMP/pag.html" 'La IA está encendida.'
+contiene "...con los modelos y el tope de TuEvento" "$TMP/pag.html" 'tuevento $20,00'
+no_contiene "...nunca muestra la clave" "$TMP/pag.html" 'sk-ant-prueba-panel'
+contiene "...gasto total del mes" "$TMP/pag.html" 'data-ia="costo">$0,'
+contiene "TuEvento: tarjeta con su gasto (3 negocios: \$0,0738)" "$TMP/pag.html" '<b>$0,074</b>'
+contiene "...llamadas y respondidas sin gastar" "$TMP/pag.html" '60 llamadas · 150 sin gastar'
+contiene "...preguntas guardadas por revisar" "$TMP/pag.html" '12 preguntas guardadas (4 por revisar)'
+contiene "...negocio con el módulo Asistente IA" "$TMP/pag.html" 'chip-mini">Asistente IA'
+contiene "...negocio que llegó a su tope" "$TMP/pag.html" '<span class="estado off">al tope</span>'
+contiene "...negocio sin tope" "$TMP/pag.html" '<span class="suave">sin tope</span>'
+contiene "...enlace a la ficha del cliente" "$TMP/pag.html" 'href="/?r=cliente&amp;i=tuevento&amp;id='
+TS_IA=$(sed -n '/id="ia-tusalon"/,/<\/section>/p' "$TMP/pag.html")
+check "TuSalón (v1): «Este programa aún no reporta IA»" "1" "$(echo "$TS_IA" | grep -c 'Este programa aún no reporta IA.')"
+contiene "Pausar toda la IA: el comando para copiar" "$TMP/pag.html" "bash deploy/configurar_ia.sh --pausar"
+contiene "...con botón Copiar" "$TMP/pag.html" 'data-copiar="#cmd-pausar'
+contiene "...y cómo reanudar y poner tope por programa" "$TMP/pag.html" 'configurar_ia.sh --tope tuevento 20'
+check "Copia del mes guardada en el panel" "1" "$(sql "SELECT count(*) FROM sincronizacion WHERE instancia_id='tuevento' AND que='ia_uso:$(date +%Y-%m)'")"
+N_IA=$(wc -l < "$TMP/mock_tuevento/ia_uso.log")
+get 'r=ia' > /dev/null
+check "Sin «Actualizar»: usa la copia de menos de 5 minutos (no vuelve a preguntar)" "$N_IA" "$(wc -l < "$TMP/mock_tuevento/ia_uso.log")"
+get 'r=ia&act=1' > /dev/null
+check "...con «Actualizar»: pregunta en vivo" "$((N_IA+1))" "$(wc -l < "$TMP/mock_tuevento/ia_uso.log")"
+check "Mes anterior" "200" "$(get "r=ia&mes=$(date -d "$(date +%Y-%m-01) -1 month" +%Y-%m)&act=1")"
+contiene "...sin uso: «Ningún negocio usó la IA este mes»" "$TMP/pag.html" 'Ningún negocio usó la IA este mes.'
+check "Mes inválido: muestra el actual" "200" "$(get 'r=ia&mes=2019-99')"
+contiene "...el mes actual seleccionado" "$TMP/pag.html" "value=\"$(date +%Y-%m)\" selected"
+printf '%s\n' "TUKAN_IA_CLAVE=sk-ant-prueba-panel-0000000000" "TUKAN_IA_PAUSA=1" > "$TUKAN_IA_ENV"
+get 'r=ia' > /dev/null
+contiene "Con TUKAN_IA_PAUSA=1: «La IA está en pausa para todos los programas»" "$TMP/pag.html" 'La IA está en pausa para todos los programas:'
+mv "$TUKAN_IA_ENV" "$TUKAN_IA_ENV.no"
+get 'r=ia' > /dev/null
+contiene "Sin /etc/tukan-ia.env: «no está configurada» con el comando" "$TMP/pag.html" 'La IA no está configurada en este servidor.'
+mv "$TUKAN_IA_ENV.no" "$TUKAN_IA_ENV"
+mock tuevento 8262 tuevento "$SEC_TE" tuevento MOCK_IA_PAUSADA=1 MOCK_IA_TOPE=0.05
+get 'r=ia&act=1' > /dev/null
+TE_IA=$(sed -n '/id="ia-tuevento"/,/<\/section>/p' "$TMP/pag.html")
+check "Programa que reporta pausa: «En pausa»" "1" "$(echo "$TE_IA" | grep -c '<span class="estado pausa">En pausa</span>')"
+check "...con su tope y la barra (\$0,074 de \$0,050: llena)" "2" "$(echo "$TE_IA" | grep -c 'de $0,050 de tope\|ia-barra-llena ia-p100')"
+parar tuevento
+get 'r=ia&act=1' > /dev/null
+contiene "Programa que no contesta: muestra la copia con «No contestó ahora»" "$TMP/pag.html" 'No contestó ahora ('
+contiene "...y los datos de la copia" "$TMP/pag.html" '<b>$0,074</b>'
+mock tuevento 8262 tuevento "$SEC_TE" tuevento MOCK_SIN_IA=1
+probar tuevento > /dev/null
+get 'r=ia&act=1' > /dev/null
+TE_IA=$(sed -n '/id="ia-tuevento"/,/<\/section>/p' "$TMP/pag.html")
+check "Programa actualizado sin ia_uso: «aún no reporta IA»" "1" "$(echo "$TE_IA" | grep -c 'Este programa aún no reporta IA.')"
+mock tuevento 8262 tuevento "$SEC_TE" tuevento
+probar tuevento > /dev/null
+get 'r=mas' > /dev/null
+contiene "Más → IA" "$TMP/pag.html" 'href="/?r=ia"'
+contiene "...en el menú Más de escritorio también" "$TMP/pag.html" '</svg>IA</a>'
+JAR_IA="$JAR"; JAR="$TMP/jar_soporte2"
+check "Soporte no ve el gasto de IA (403)" "403" "$(get 'r=ia')"
+JAR="$JAR_IA"
+if grep -qiE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log"; then
+  FALLAS=$((FALLAS+1)); echo "  FALLA Avisos o errores de PHP en el panel (IA):"; grep -iE "fatal|warning|deprecated|notice|Tukan Central:" "$TMP/central.log" | sort | uniq -c | head -20
+else OK=$((OK+1)); echo "  OK    Sin avisos ni errores de PHP en el panel (IA)"; fi
+
+# =====================================================================
 if [ -z "${SIN_CAPTURAS:-}" ] && python3 -c "import playwright" 2>/dev/null; then
-  titulo "38. Capturas de pantalla (Playwright, Chromium)"
+  titulo "39. Capturas de pantalla (Playwright, Chromium)"
   TUKAN_ADMIN_NOMBRE="Dimitry Fierro" TUKAN_ADMIN_EMAIL="capturas@tukan.ec" TUKAN_ADMIN_CLAVE="claveCapturas2026" php bin/crear_admin.php > /dev/null
   parar dogssy   # una caida para que se vea el estado "sin conexion" (tarjeta y zona de peligro de su ficha)
   get "r=inicio" > /dev/null; post refrescar > /dev/null

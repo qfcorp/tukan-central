@@ -91,6 +91,16 @@ $notas = [
       <p>En <b>Demo lista</b>, debajo de los accesos, está <b>Enviar por correo</b> con el correo de la demo ya escrito (lo puedes cambiar). Le llega «Su demo de … está lista» desde <b>info@tukansoftware.com</b>, con su usuario, la contraseña, el botón <b>Entrar a su demo</b>, el día en que termina y el contacto de Tukán. Hazlo en esa misma pantalla: la contraseña se ve una sola vez y no se guarda. Queda en la Auditoría (sin la contraseña).</p>
       <p>Si el botón dice <b>Configure el correo de Tukán</b>, en el servidor corre una vez: <code>cd /var/www/tukan-central &amp;&amp; git pull &amp;&amp; bash deploy/configurar_correo.sh</code></p></div></details>
   </div>
+  <div class="tarjeta preguntas" id="ayuda-ia">
+    <h2>Inteligencia artificial (Asistente IA)</h2>
+    <details><summary>¿Cómo funciona y cuánto gasta?</summary><div>
+      <p>La IA es un módulo extra, <b>Asistente IA</b> (por cotización), que lee fotos de documentos. La <b>Ayuda</b> de cada programa («¿cómo hago…?») está en todos los planes: cada respuesta queda guardada como <b>pregunta frecuente</b> y, si alguien pregunta lo mismo o algo parecido, se responde desde lo guardado <b>sin gastar</b>.</p>
+      <p>En <a href="<?= e(url('ia')) ?>">Más → IA</a> ves lo que gasta cada programa en el mes, por negocio, y cuántas respuestas salieron sin gastar.</p></div></details>
+    <details><summary>¿Qué ve el cliente cuando se llega al tope?</summary><div>
+      <p>Nada que hable de topes ni de saldo. La Ayuda sigue respondiendo con las preguntas guardadas y el manual, y en las fotos le sale «En este momento no pudimos procesar la foto automáticamente; puede hacerlo a mano aquí».</p></div></details>
+    <details><summary>¿Cómo pauso toda la IA o pongo un tope?</summary><div>
+      <p>En el servidor: <code>cd /var/www/tukan-central &amp;&amp; bash deploy/configurar_ia.sh --pausar</code> (vuelve con <code>--reanudar</code>). Tope del mes de un programa: <code>--tope tuevento 20</code>. La primera vez, sin nada: pide la clave de Anthropic y dice «IA: FUNCIONA».</p></div></details>
+  </div>
   <div class="tarjeta preguntas" id="ayuda-pausar">
     <h2>Pausar o borrar un cliente</h2>
     <details><summary>¿Qué pasa cuando pauso a un cliente?</summary><div>

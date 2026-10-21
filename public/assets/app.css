@@ -922,3 +922,45 @@ main p > svg, main span.chico > svg, .vacio svg { width: 18px; height: 18px; ver
 .correo-demo .campo { max-width: 420px; margin-bottom: 8px; }
 .correo-demo pre { white-space: pre-wrap; word-break: break-all; font-family: var(--f-mono, monospace); font-size: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 12px; }
 @media (max-width: 599px) { .correo-demo .acciones-form .btn { width: 100%; } }
+
+/* IA (Más → IA): gasto de la inteligencia artificial por programa */
+.ia-cifras { margin-top: 4px; }
+.ia-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.ia-cab h2 { margin: 0; }
+.ia-linea { color: var(--ink-soft); font-size: 15px; margin-bottom: 10px; overflow-wrap: anywhere; }
+.ia-linea b { color: var(--ink); font-size: 18px; }
+.ia-barra { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 0 0 12px; }
+.ia-barra span { display: block; height: 100%; border-radius: 999px; background: var(--ok); }
+.ia-barra .ia-barra-alta { background: var(--warn); } .ia-barra .ia-barra-llena { background: var(--bad); }
+.ia-barra .ia-p0 { width: 0%; }
+.ia-barra .ia-p5 { width: 5%; }
+.ia-barra .ia-p10 { width: 10%; }
+.ia-barra .ia-p15 { width: 15%; }
+.ia-barra .ia-p20 { width: 20%; }
+.ia-barra .ia-p25 { width: 25%; }
+.ia-barra .ia-p30 { width: 30%; }
+.ia-barra .ia-p35 { width: 35%; }
+.ia-barra .ia-p40 { width: 40%; }
+.ia-barra .ia-p45 { width: 45%; }
+.ia-barra .ia-p50 { width: 50%; }
+.ia-barra .ia-p55 { width: 55%; }
+.ia-barra .ia-p60 { width: 60%; }
+.ia-barra .ia-p65 { width: 65%; }
+.ia-barra .ia-p70 { width: 70%; }
+.ia-barra .ia-p75 { width: 75%; }
+.ia-barra .ia-p80 { width: 80%; }
+.ia-barra .ia-p85 { width: 85%; }
+.ia-barra .ia-p90 { width: 90%; }
+.ia-barra .ia-p95 { width: 95%; }
+.ia-barra .ia-p100 { width: 100%; }
+.ia-tabla td:nth-child(n+2), .ia-tabla th:nth-child(n+2) { text-align: right; white-space: nowrap; }
+.ia-tabla td a { font-weight: 700; }
+.chip-mini { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--info-bg); color: #3B6FE0; white-space: nowrap; }
+.ia-no-reporta svg { color: var(--ink-mute); }
+#pausar-ia h2 { display: flex; align-items: center; gap: 8px; }
+#pausar-ia h2 svg { width: 20px; height: 20px; color: var(--warn); }
+.ia-pausar summary { list-style: none; width: fit-content; }
+.ia-pausar summary::-webkit-details-marker { display: none; }
+.ia-comandos { padding-left: 18px; display: grid; gap: 8px; font-size: 15px; }
+.ia-comandos .mono { overflow-wrap: anywhere; font-size: 13.5px; }
+@media (max-width: 599px) { .ia-tabla th:nth-child(3), .ia-tabla td:nth-child(3) { display: none; } .ia-tabla th, .ia-tabla td { padding: 10px 6px; } }
