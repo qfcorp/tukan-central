@@ -82,6 +82,15 @@ probar() { # probar ID -> deja el aviso en $TMP/pag.html
 mkdir -p "$TMP/mock_telegram"
 env -i PATH="$PATH" MOCK_DIR="$TMP/mock_telegram" php -S "127.0.0.1:$TG" tests/mock/router.php > "$TMP/telegram.log" 2>&1 &
 PIDS+=($!)
+# Correo de Tukán: SMTP DE MENTIRA (tests/smtp_falso.py en 8255, con STARTTLS y certificado propio)
+SMTP=8255
+mkdir -p "$TMP/smtp"
+openssl req -x509 -newkey rsa:2048 -nodes -keyout "$TMP/smtp_key.pem" -out "$TMP/smtp_cert.pem" -days 2 -subj '/CN=localhost' -addext 'subjectAltName=DNS:localhost' > /dev/null 2>&1
+python3 tests/smtp_falso.py --puerto "$SMTP" --modo starttls --cert "$TMP/smtp_cert.pem" --key "$TMP/smtp_key.pem" --usuario info@tukansoftware.com --clave 'Buzon#2026' --dir "$TMP/smtp" > "$TMP/smtp.log" 2>&1 &
+PIDS+=($!)
+export TUKAN_CORREO_ENV="$TMP/tukan-correo.env"
+printf '%s\n' "TUKAN_SMTP_HOST=localhost" "TUKAN_SMTP_PUERTO=$SMTP" "TUKAN_SMTP_SEGURIDAD=tls" "TUKAN_SMTP_USUARIO=info@tukansoftware.com" "TUKAN_SMTP_CLAVE=Buzon#2026" \
+  "TUKAN_CORREO_DE=info@tukansoftware.com" "TUKAN_CORREO_NOMBRE=Tukán Software" "TUKAN_SMTP_CA=$TMP/smtp_cert.pem" > "$TUKAN_CORREO_ENV"
 php -S "127.0.0.1:$PC" -t public > "$TMP/central.log" 2>&1 &
 PIDS+=($!)
 for _ in $(seq 1 30); do curl -s -o /dev/null "$BASE/?r=login" && break; sleep 0.1; done
@@ -807,6 +816,40 @@ contiene "Botón Entrar a la demo" "$TMP/post.html" "Entrar a la demo"
 check "La clave NO quedó en la base del panel" "0" "$(grep -c "$CLAVE" "$TUKAN_CENTRAL_DATOS/central.sqlite" "$TUKAN_CENTRAL_DATOS"/central.sqlite-wal 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')"
 check "...ni en la auditoría" "0" "$(sql "SELECT count(*) FROM auditoria WHERE detalle LIKE '%$CLAVE%'")"
 check "...ni en la sesión" "0" "$(grep -rl "$CLAVE" "$TUKAN_CENTRAL_DATOS/sesiones" 2>/dev/null | wc -l)"
+cp "$TMP/post.html" "$TMP/demo_lista.html"
+contiene "Enviar por correo: formulario en la misma pantalla" "$TMP/demo_lista.html" 'id="form-correo-demo"'
+contiene "...con el correo de la demo ya lleno" "$TMP/demo_lista.html" 'name="para" type="email" required maxlength="254" autocomplete="off" value="roberto@calderon.ec"'
+no_contiene "...la clave no va a la vista en el sello" "$TMP/demo_lista.html" "name=\"sello\" value=\"[^\"]*$CLAVE"
+mv "$TUKAN_CORREO_ENV" "$TUKAN_CORREO_ENV.no"
+R=$(post_form "$TMP/demo_lista.html" "#form-correo-demo")
+check "Sin el correo configurado: no se manda" "503" "${R%% *}"
+contiene "...el botón dice «Configure el correo de Tukán»" "$TMP/post.html" "Configure el correo de Tukán"
+contiene "...con la instrucción" "$TMP/post.html" "bash deploy/configurar_correo.sh"
+mv "$TUKAN_CORREO_ENV.no" "$TUKAN_CORREO_ENV"
+R=$(post_form "$TMP/demo_lista.html" "#form-correo-demo" "para=roberto@calderon.ec
+Bcc: espia@malo.com")
+check "Correo con salto de línea: rechazado" "422" "${R%% *}"
+contiene "...dice que escriba un correo válido" "$TMP/post.html" "Escribe un correo válido"
+check "...y no se mandó nada" "0" "$(ls "$TMP/smtp"/*.eml 2>/dev/null | wc -l)"
+R=$(post_form "$TMP/demo_lista.html" "#form-correo-demo" "csrf=falso")
+check "Sin CSRF válido: rechazado" "400" "${R%% *}"
+R=$(post_form "$TMP/demo_lista.html" "#form-correo-demo")
+check "Enviar por correo: listo" "200" "${R%% *}"
+contiene "...«Correo enviado a roberto@calderon.ec»" "$TMP/post.html" "Correo enviado a <b>roberto@calderon.ec</b>"
+contiene "...la pantalla sigue con WhatsApp" "$TMP/post.html" 'href="https://wa.me/593987654321?text='
+check "...el SMTP recibió un correo" "1" "$(ls "$TMP/smtp"/*.eml 2>/dev/null | wc -l)"
+EML=$(ls "$TMP/smtp"/*.eml 2>/dev/null | head -1)
+check "...asunto «Su demo de TuVocalía está lista»" "Su demo de TuVocalía está lista" "$(php -r '$h=iconv_mime_decode_headers(explode("\r\n\r\n",file_get_contents($argv[1]),2)[0],0,"UTF-8"); echo $h["Subject"]??"";' "$EML")"
+check "...de info@tukansoftware.com a roberto" "Tukán Software <info@tukansoftware.com>|<roberto@calderon.ec>" "$(php -r '$h=iconv_mime_decode_headers(explode("\r\n\r\n",file_get_contents($argv[1]),2)[0],0,"UTF-8"); echo $h["From"],"|",preg_replace("/^.*</","<",$h["To"]);' "$EML")"
+check "...con usuario, clave, botón y fecha" "1111" "$(php -r '$t=quoted_printable_decode(file_get_contents($argv[1])); echo (int)str_contains($t,"roberto@calderon.ec"),(int)str_contains($t,$argv[2]),(int)str_contains($t,"Entrar a su demo"),(int)str_contains($t,"Su demo termina el");' "$EML" "$CLAVE")"
+check "...sin «gratis» ni precios" "0" "$(php -r '$t=quoted_printable_decode(file_get_contents($argv[1])); echo preg_match("/grat|\\$\\s?[0-9]/i",$t);' "$EML")"
+check "Auditoría: «Envió la demo por correo a roberto@calderon.ec»" "1" "$(sql "SELECT count(*) FROM auditoria WHERE accion='correo_demo' AND detalle='Envió la demo por correo a roberto@calderon.ec'")"
+check "...sin la clave en la auditoría" "0" "$(sql "SELECT count(*) FROM auditoria WHERE detalle LIKE '%$CLAVE%'")"
+check "...ni en la base ni en la sesión" "0" "$(grep -rl -- "$CLAVE" "$TUKAN_CENTRAL_DATOS" 2>/dev/null | wc -l)"
+R=$(post_form "$TMP/demo_lista.html" "#form-correo-demo")
+contiene "Mandar otra vez la misma pantalla: «ya se envió»" "$TMP/post.html" "Este correo ya se envió"
+no_contiene "...y la clave ya no se muestra" "$TMP/post.html" "$CLAVE"
+check "...no sale otro correo" "1" "$(ls "$TMP/smtp"/*.eml 2>/dev/null | wc -l)"
 check "El pedido quedó como demo creada en el programa" "creada" "$(mockdb tuvocalia "\$d['solicitudes']['demo_pedida:12']['estado']")"
 check "Historial de demos del panel" "Liga Deportiva Calderón" "$(sql "SELECT nombre FROM demos ORDER BY id DESC LIMIT 1")"
 R=$(post_form "$TMP/form_demo2.html" "#form-demo" "campo[email]=roberto@calderon.ec")
@@ -962,6 +1005,8 @@ check "Soporte: Finanzas -> 403" "403" "$(get 'r=finanzas')"
 check "Soporte: Gastos -> 403" "403" "$(get 'r=gastos')"
 check "Soporte: Descargar -> 403" "403" "$(get 'r=exportar&f=csv')"
 check "Soporte: Crear demo -> 403" "403" "$(get 'r=demo_nueva')"
+R=$(post demo_correo --data-urlencode "sello=v1:x" --data-urlencode "para=a@ejemplo.com")
+check "Soporte: Enviar una demo por correo -> 403" "403" "${R%% *}"
 check "Soporte: Cotizar -> 403" "403" "$(get 'r=cotizar&i=tuvocalia&cliente=3&plan=1')"
 check "Soporte: foto del comprobante -> 403" "403" "$(get 'r=adjunto&i=tuvocalia&sol=comprobante:45&adj=1')"
 check "Soporte: captura del ticket sí" "200" "$(get 'r=adjunto&i=tuvocalia&sol=soporte:9&adj=31')"

@@ -436,8 +436,8 @@ $db->exec("DELETE FROM demos");
 foreach ([
     $mk('11', 'prueba', 2, ['origen' => 'central', 'fechas' => ['alta' => date('Y-m-d')]]),
     $mk('12', 'activo', 30, ['origen' => 'demo_pedida', 'fechas' => ['alta' => date('Y-m-d')], 'pagos' => ['total' => 19.0, 'cantidad' => 1, 'primer_pago' => date('Y-m-d'), 'ultimo_monto' => 19.0], 'mensual_estimado' => 19.0]),
-    $mk('13', 'vencido', -5, ['origen' => 'registro', 'fechas' => ['alta' => date('Y-m-d', strtotime('-20 days'))]]),
-    $mk('14', 'activo', 40, ['origen' => 'super', 'ultima_actividad' => date('c', strtotime('-30 days')), 'pagos' => ['total' => 50.0, 'cantidad' => 2, 'primer_pago' => date('Y-m-d', strtotime('-60 days'))]]),
+    $mk('13', 'vencido', -5, ['origen' => 'registro', 'fechas' => ['alta' => date('Y-m-d', strtotime('first day of last month'))]]),
+    $mk('14', 'activo', 40, ['origen' => 'super', 'fechas' => ['alta' => date('Y-m-d', strtotime('first day of last month'))], 'ultima_actividad' => date('c', strtotime('-30 days')), 'pagos' => ['total' => 50.0, 'cantidad' => 2, 'primer_pago' => date('Y-m-d', strtotime('-60 days'))]]),
 ] as $c) $cl->guardar('tuvocalia', Clientes::limpiar($c));
 $db->exec("INSERT INTO demos (instancia_id, cliente_id, nombre, creada, prueba_hasta) VALUES ('tuvocalia', '12', 'Liga 12', " . time() . ", NULL)");
 check('Demo creada desde el Central que pagó: se llena sola', [['nombre' => 'Liga 12', 'monto' => 19.0, 'instancia_id' => 'tuvocalia', 'primer_pago' => date('Y-m-d')]], $cl->vincularDemos('tuvocalia'));

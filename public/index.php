@@ -17,7 +17,7 @@ $rutas = [
     // Protocolo v2 (los permisos de cada operación se revisan adentro, §9.3)
     'solicitudes' => 'ver', 'solicitud' => 'ver', 'adjunto' => 'ver', 'clientes' => 'ver', 'cliente' => 'ver',
     'vencimientos' => 'ver', 'demos' => 'ver', 'embudo' => 'ver', 'accion' => 'ver', 'ejecutar' => 'ver',
-    'demo_nueva' => 'demos', 'cotizar' => 'cobros', 'recordar' => 'contacto',
+    'demo_nueva' => 'demos', 'demo_correo' => 'demos', 'cotizar' => 'cobros', 'recordar' => 'contacto',
     // Anexo B: módulos (cambiar es solo del dueño; se revisa adentro) y catálogo de precios (todos lo ven)
     'modulos' => 'ver', 'catalogo' => 'ver',
     'finanzas' => 'finanzas', 'gastos' => 'finanzas', 'ingresos_extra' => 'finanzas', 'exportar' => 'finanzas', 'licencias' => 'finanzas',
@@ -27,7 +27,7 @@ $rutas = [
     'usuarios' => 'usuarios', 'auditoria' => 'auditoria', 'ajustes' => 'ajustes',
 ];
 // Rutas que solo aceptan POST (cambian algo)
-$soloPost = ['refrescar', 'actualizar_datos', 'entrar', 'probar', 'rotar', 'eliminar', 'baja', 'salir', 'ejecutar', 'recordar', 'licencias'];
+$soloPost = ['refrescar', 'actualizar_datos', 'entrar', 'probar', 'rotar', 'eliminar', 'baja', 'salir', 'ejecutar', 'recordar', 'licencias', 'demo_correo'];
 
 $ruta = param('r', 'inicio');
 if (!isset($rutas[$ruta]) || !is_file(RAIZ . "/app/paginas/$ruta.php")) {

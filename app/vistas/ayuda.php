@@ -87,6 +87,9 @@ $notas = [
       <p>En <a href="<?= e(url('finanzas')) ?>">Finanzas</a>, <b>Ingreso por módulo</b> dice cuánto suman al mes los módulos extra: así ves qué módulos venden más. En Clientes, el filtro <b>Con módulos extra</b> muestra quiénes pagan más que su plan.</p></div></details>
     <details><summary>Demos: ¿con qué módulos?</summary><div>
       <p>Nada se da gratis: quien quiere probar <b>pide una demo</b> (llega a Solicitudes como <b>Pedido de demo</b>) y tú la creas con <b>Crear demo</b>, con sus datos ya llenos. Eliges el plan, los días de la demo y, si el programa lo permite, qué módulos encender (lo normal: todos, para que vea todo).</p></div></details>
+    <details><summary>¿Cómo le mando los accesos de la demo por correo?</summary><div>
+      <p>En <b>Demo lista</b>, debajo de los accesos, está <b>Enviar por correo</b> con el correo de la demo ya escrito (lo puedes cambiar). Le llega «Su demo de … está lista» desde <b>info@tukansoftware.com</b>, con su usuario, la contraseña, el botón <b>Entrar a su demo</b>, el día en que termina y el contacto de Tukán. Hazlo en esa misma pantalla: la contraseña se ve una sola vez y no se guarda. Queda en la Auditoría (sin la contraseña).</p>
+      <p>Si el botón dice <b>Configure el correo de Tukán</b>, en el servidor corre una vez: <code>cd /var/www/tukan-central &amp;&amp; git pull &amp;&amp; bash deploy/configurar_correo.sh</code></p></div></details>
   </div>
   <div class="tarjeta preguntas" id="ayuda-pausar">
     <h2>Pausar o borrar un cliente</h2>

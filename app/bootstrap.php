@@ -533,3 +533,26 @@ function decir(string $t, bool $error = false): void
 {
     fwrite($error ? STDERR : STDOUT, sin_tildes($t) . "\n");
 }
+
+/**
+ * Datos para «Enviar por correo» en «Demo lista» (ver src/CorreoDemo.php): sella lo que hace falta para volver a dibujar
+ * la pantalla y mandar el correo, sin guardar la contraseña en ningún lado. null si no aplica (sin clave o sin permiso).
+ */
+function correo_demo_preparar(array $inst, string $mensaje, array $resultado, array $respuesta, string $volver, array $demo = []): ?array
+{
+    $acceso = is_array($resultado['acceso'] ?? null) ? $resultado['acceso'] : [];
+    $clave = $acceso['clave'] ?? $resultado['clave'] ?? null;
+    $esDemo = isset($resultado['cliente_id']) || isset($resultado['prueba_hasta']);
+    $u = usuario();
+    if (!$esDemo || !is_string($clave) || $clave === '' || !$u || !puede('demos') || !ve_contacto()) return null;
+    $cl = is_array($respuesta['cliente'] ?? null) ? $respuesta['cliente'] : [];
+    $d = [
+        'inst' => $inst['id'], 'programa' => \Tukan\Productos::nombre((string) $inst['producto']), 'inst_url' => (string) ($inst['url'] ?? ''),
+        'mensaje' => $mensaje, 'resultado' => $resultado, 'volver' => $volver,
+        'cliente' => array_filter(['id' => $cl['id'] ?? null, 'ir' => $cl['ir'] ?? null, 'ir_trabajar' => $cl['ir_trabajar'] ?? null,
+                                   'dueno' => is_array($cl['dueno'] ?? null) ? array_intersect_key($cl['dueno'], array_flip(['nombre', 'email', 'telefono', 'whatsapp'])) : null], fn($v) => $v !== null),
+        'email' => $demo['email'] ?? null, 'contacto' => $demo['contacto'] ?? ($cl['dueno']['nombre'] ?? null), 'negocio' => $demo['negocio'] ?? ($cl['nombre'] ?? null),
+    ];
+    $sello = (new \Tukan\CorreoDemo(new \Tukan\Cifrado()))->sellar($d, (int) $u['id'], $_SESSION);
+    return ['sello' => $sello, 'para' => \Tukan\CorreoDemo::correoSugerido($d), 'listo' => \Tukan\CorreoDemo::listo(), 'estado' => null, 'error' => null];
+}

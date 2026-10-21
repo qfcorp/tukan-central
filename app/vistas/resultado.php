@@ -2,6 +2,7 @@
 /**
  * Resultado de una operación que no se puede mostrar con un aviso:
  *   tipo = clave: contraseña nueva o demo creada (la clave se ve SOLO aquí; no se guarda)
+ *     $correo (opcional, solo demos): «Enviar por correo» (ver correo_demo_preparar y app/paginas/demo_correo.php)
  *   tipo = sin_respuesta: el programa no contestó → "Revisar" reenvía la misma operación
  */
 use Tukan\Contacto;
@@ -39,7 +40,7 @@ $prog = $inst['nombre'];
   <div class="tarjeta marco-ok form-sola resultado">
     <h1 class="h2"><?= icono('ok') ?> <?= $esDemo ? 'Demo lista' : 'Contraseña nueva lista' ?></h1>
     <p class="mt"><?= e($mensaje) ?></p>
-    <?php if ($clave === null && !empty($resultado['clave_oculta'])): ?>
+    <?php if ($clave === null && !empty($resultado['clave_oculta']) && ($correo['estado'] ?? null) !== 'usado'): ?>
       <div class="aviso info mt"><?= icono('info') ?><p>Esta operación ya se había hecho y la contraseña solo se muestra una vez. Si hace falta otra, usa <b>Nueva clave del dueño</b> en la ficha del cliente.</p></div>
     <?php endif; ?>
     <dl class="datos accesos mt">
@@ -54,6 +55,29 @@ $prog = $inst['nombre'];
     <?php if ($texto && $clave): ?>
       <h2 class="mt">Mensaje para WhatsApp</h2>
       <pre class="mensaje-wa" id="mensaje-wa"><?= e($texto) ?></pre>
+    <?php endif; ?>
+    <?php if (!empty($correo)): $ce = $correo['estado'] ?? null; ?>
+      <section class="correo-demo mt" id="correo-demo" aria-labelledby="correo-demo-t">
+        <h2 id="correo-demo-t"><?= icono('correo') ?> Enviar por correo</h2>
+        <?php if ($ce === 'enviado'): ?>
+          <div class="aviso mt" role="status"><?= icono('ok') ?><p>Correo enviado a <b><?= e($correo['para']) ?></b> desde info@tukansoftware.com. Que revise también la carpeta de spam.</p></div>
+        <?php elseif ($ce === 'usado'): ?>
+          <div class="aviso info mt" role="status"><?= icono('info') ?><p>Este correo ya se envió. La contraseña solo se muestra una vez: si hace falta otra, usa <b>Nueva clave del dueño</b> en la ficha del cliente.</p></div>
+        <?php elseif (!$correo['listo']): ?>
+          <div class="acciones-form mt"><button type="button" class="btn btn-grande" disabled><?= icono('correo') ?> Configure el correo de Tukán</button></div>
+          <p class="chico suave mt">El panel todavía no puede mandar correos desde info@tukansoftware.com. En el servidor, una sola vez:</p>
+          <pre class="mono"><?= e(\Tukan\CorreoDemo::comandoConfigurar()) ?></pre>
+        <?php elseif ($clave): ?>
+          <?php if (!empty($correo['error'])): ?><div class="aviso error mt" role="alert"><?= icono('error') ?><p><?= e($correo['error']) ?></p></div><?php endif; ?>
+          <form method="post" action="<?= e(url('demo_correo')) ?>" class="mt" id="form-correo-demo">
+            <?= campo_csrf() ?><input type="hidden" name="sello" value="<?= e($correo['sello']) ?>">
+            <div class="campo"><label for="correo-para">Correo del cliente</label>
+              <input id="correo-para" name="para" type="email" required maxlength="254" autocomplete="off" value="<?= e($correo['para']) ?>">
+              <span class="ayuda">Le llega «Su demo de <?= e(\Tukan\Productos::nombre((string) $inst['producto'])) ?> está lista» con sus datos de entrada, desde info@tukansoftware.com.</span></div>
+            <div class="acciones-form"><button class="btn btn-primario btn-grande" type="submit"><?= icono('correo') ?> Enviar por correo</button></div>
+          </form>
+        <?php endif; ?>
+      </section>
     <?php endif; ?>
     <div class="acciones-form mt">
       <?php if ($wa && ve_contacto() && $clave): ?><a class="btn btn-wa btn-grande" href="<?= e($wa) ?>" target="_blank" rel="noopener noreferrer"><?= icono('whatsapp') ?> Enviar por WhatsApp</a><?php endif; ?>

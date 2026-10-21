@@ -37,6 +37,6 @@
       <button class="btn btn-primario btn-grande" type="submit"><?= icono('demo') ?> Crear demo</button>
       <a class="btn btn-grande" href="<?= e(url('demo_nueva')) ?>">Otro programa</a>
     </div>
-    <p class="chico suave mt">La contraseña se mostrará una sola vez, para mandarla por WhatsApp. No se guarda en el panel.</p>
+    <p class="chico suave mt">La contraseña se mostrará una sola vez, para mandarla por WhatsApp o por correo. No se guarda en el panel.</p>
   </form>
 <?php endif; ?>

@@ -448,6 +448,7 @@ require __DIR__ . '/run_tests_v2.php';
 require __DIR__ . '/run_tests_bajas.php';
 require __DIR__ . '/run_tests_pausa.php';
 require __DIR__ . '/run_tests_modulos.php';
+require __DIR__ . '/run_tests_correo.php';
 
 // ---------------------------------------------------------------------------
 echo "\n----------------------------------------\n";

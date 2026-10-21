@@ -6,7 +6,7 @@ use Tukan\{Capacidades, ErrorPrograma, Formulario, Operaciones};
 /**
  * Crear demo en cualquier programa (PROTOCOLO_V2 §6.1, §6.3 y §9.5 F):
  *   1) elegir el programa (solo los que pueden crear demos); 2) llenar los datos comunes + los propios del programa;
- *   3) resultado con los accesos (la clave se ve solo ahí), WhatsApp, Copiar y Entrar a la demo.
+ *   3) resultado con los accesos (la clave se ve solo ahí), WhatsApp, Enviar por correo, Copiar y Entrar a la demo.
  * Desde un "Pedido de demo" el formulario viene lleno.
  */
 $pueden = array_values(array_filter(instancias()->lista(true), fn($i) => Capacidades::puede(capacidades()->datos($i['id']), 'ejecutar', 'crear_demo')));
@@ -110,8 +110,11 @@ if ($res['ok']) {
     $r = $res['respuesta'];
     $resultado = is_array($r['resultado'] ?? null) ? $r['resultado'] : [];
     auditar('ejecutar', $res['resumen'] . ' → listo' . (($r['repetida'] ?? false) ? ' (ya estaba hecho)' : '') . " (op $corto)", $inst['id']);
-    vista('resultado', ['inst' => $inst, 'tipo' => 'clave', 'mensaje' => Operaciones::sinClaves((string) ($r['mensaje'] ?? 'Demo creada.'), $resultado),
-                        'resultado' => $resultado, 'respuesta' => $r, 'volver' => '/?r=demos'], 'Demo lista · Panel Tukán');
+    $mensaje = Operaciones::sinClaves((string) ($r['mensaje'] ?? 'Demo creada.'), $resultado);
+    // «Enviar por correo»: los datos van sellados en la misma pantalla (la clave no se guarda en ningún lado)
+    $correo = correo_demo_preparar($inst, $mensaje, $resultado, $r, '/?r=demos', ['email' => $v['email'], 'contacto' => $v['contacto_nombre'], 'negocio' => $v['nombre']]);
+    vista('resultado', ['inst' => $inst, 'tipo' => 'clave', 'mensaje' => $mensaje, 'resultado' => $resultado, 'respuesta' => $r, 'volver' => '/?r=demos', 'correo' => $correo],
+          'Demo lista · Panel Tukán');
     exit;
 }
 $e = $res['error'];

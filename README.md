@@ -117,6 +117,23 @@ TELEGRAM_CHAT_ID=123456789
 El panel avisa cuando un programa se queda sin conexión (después de 2 fallos seguidos), cuando vuelve y cuando hay
 negocios nuevos. Se prueba en **Ajustes → Enviar mensaje de prueba**. El instalador conserva estas líneas.
 
+### Correo de Tukán (info@tukansoftware.com)
+
+Para el botón **Enviar por correo** de «Demo lista» (y, después, los programas del mismo servidor). Una vez, en qfcorp,
+con tu usuario normal:
+
+```
+cd /var/www/tukan-central && git pull && bash deploy/configurar_correo.sh
+```
+
+Pregunta el servidor SMTP (Enter = `mail.qfproducciones.com`, el HestiaCP), puerto `587`, `tls`, usuario
+`info@tukansoftware.com` y la clave del buzón (no se ve al escribir); escribe `/etc/tukan-correo.env` (`root:www-data`, `640`)
+y manda un correo de prueba: al final dice **Correo de prueba: ENVIADO** o el error (clave, conexión, certificado…).
+Si el certificado no es de ese nombre, prueba `mail.tukansoftware.com`. Se puede correr otra vez (Enter conserva la clave).
+También acepta variables (`TUKAN_SMTP_HOST=… TUKAN_SMTP_CLAVE=… PRUEBA_A=… bash deploy/configurar_correo.sh`).
+Probar después: `sudo -u www-data php /var/www/tukan-central/compartido/tukan_correo.php probar tu@correo.com`.
+Cómo lo usa cada programa: [`compartido/LEEME_CORREO.md`](compartido/LEEME_CORREO.md).
+
 ---
 
 ## 5. Seguridad (resumen)
@@ -135,7 +152,9 @@ negocios nuevos. Se prueba en **Ajustes → Enviar mensaje de prueba**. El insta
   y **no** ve teléfonos/correos, comprobantes, plata, demos ni cobros — ver la tabla de la sección 8).
 - Datos de contacto de los clientes y de las solicitudes: **cifrados** en la copia local (solo los ve el dueño; en
   Telegram el teléfono va enmascarado: `099•••4567`). Las contraseñas temporales de las demos se muestran **una vez** y
-  nunca se guardan (ni en la base, ni en la auditoría, ni en la sesión).
+  nunca se guardan (ni en la base, ni en la auditoría, ni en la sesión). **Enviar por correo** las lleva en un sello cifrado
+  dentro de la misma pantalla (atado al usuario, 30 minutos; en la sesión solo un número de un solo uso que se borra al
+  enviar). La auditoría dice «Envió la demo por correo a X», sin la contraseña.
 
 ---
 
@@ -153,18 +172,22 @@ src/                     Totp, Qr, Cifrado, Token (protocolo v1 y v2), Productos
                          Solicitudes, Operaciones (ejecutar idempotente), Contacto, Finanzas, Licencias,
                          Sincronizador (cron), Analisis (embudo, vencimientos), Xlsx, Exportar,
                          Bajas (borrar una instalación), Cloudflare (quitar su dirección del túnel y DNS)
+                         CorreoDemo («Enviar por correo» de Demo lista)
+compartido/              tukan_correo.php (correo SMTP de un solo archivo, para el panel y los programas) y LEEME_CORREO.md
 bin/                     crear_admin.php, quitar_2fa.php, revisar.php (cron)
-deploy/                  instalar.sh, respaldo.sh
+deploy/                  instalar.sh, respaldo.sh, configurar_correo.sh (correo de Tukán, una vez)
 datos/                   central.sqlite y sesiones (no va a GitHub)
-tests/                   run_tests.php (+ run_tests_v2.php, run_tests_bajas.php, run_tests_pausa.php, run_tests_modulos.php), run_web.sh (punta a punta), integracion.sh
-                         (conectores reales), mock/ (programa de prueba v1 y v2, Cloudflare de mentira), form.php, capturas.py
+tests/                   run_tests.php (+ run_tests_v2.php, run_tests_bajas.php, run_tests_pausa.php, run_tests_modulos.php, run_tests_correo.php), run_web.sh (punta a punta), integracion.sh
+                         (conectores reales), mock/ (programa de prueba v1 y v2, Cloudflare de mentira), smtp_falso.py (SMTP de mentira), form.php, capturas.py
 ```
 
 ## 7. Pruebas
 
 ```
 php tests/run_tests.php       # lógica: TOTP (vectores RFC 6238), QR (leído con OpenCV), token byte a byte, cifrado,
-                              # bloqueo, roles, comandos, JSON de estado, errores reales de los conectores
+                              # bloqueo, roles, comandos, JSON de estado, errores reales de los conectores; correo: cabeceras,
+                              # UTF-8, multipart, STARTTLS/SSL contra tests/smtp_falso.py, clave equivocada, anti-inyección,
+                              # timeout, configurar_correo.sh y el sello de «Enviar por correo»
 bash tests/run_web.sh         # punta a punta con programas de prueba que cumplen el protocolo + capturas (Playwright)
 SIN_CAPTURAS=1 bash tests/run_web.sh
 bash tests/integracion.sh     # con los conectores REALES de TuEvento y TuSalón (php -S + PostgreSQL de prueba) y
@@ -180,7 +203,7 @@ bash tests/integracion.sh     # con los conectores REALES de TuEvento y TuSalón
 (`MOCK_V1=400` o `404`). Capturas a 390 px y en escritorio (Chromium de `/opt/pw-browsers`), sin errores de consola y
 sin nada que se salga a lo ancho.
 
-Puertos que usan las pruebas: 8260-8269 (`run_web.sh`; 8267 y 8269 TuGuarderías que se pueden borrar, 8268 Cloudflare
+Puertos que usan las pruebas: 8250-8254 (`run_tests.php`: SMTP de mentira), 8255 (`run_web.sh`: SMTP de mentira), 8260-8269 (`run_web.sh`; 8267 y 8269 TuGuarderías que se pueden borrar, 8268 Cloudflare
 de mentira), 8258 (`run_tests.php`: Cloudflare de mentira), 8257 (`run_tests.php`: programa de prueba para pausar y borrar), 8267 (`run_tests.php`: programa de prueba con módulos) y 8240-8249 (`integracion.sh`: 8240 panel, 8241 TuEvento,
 8242 TuSalón, 8243 TuVocalía). Las pruebas **nunca** hablan con el Cloudflare real (`tests/mock/cloudflare.php`).
 
@@ -201,7 +224,7 @@ programa nuevo funciona sin tocar el panel. Si un programa contesta 400/404 a `c
 | Solicitudes | Una sola bandeja de todos los programas (pestañas y filtros); detalle, comprobantes, aprobar / rechazar, marcar atendida |
 | Clientes | Todos los clientes de todos los programas, filtros (estado, vence en, sin uso, origen, buscar) y **Recordar por WhatsApp** |
 | Ficha del cliente | Estado, pagos, acciones del programa: alargar prueba, registrar pago (con cotización), anular, suspender / reactivar, cambiar plan, nueva clave, Entrar como el dueño |
-| Demos | Crear una demo en cualquier programa que lo permita (la clave se muestra una vez, con el mensaje de WhatsApp listo) e historial |
+| Demos | Crear una demo en cualquier programa que lo permita (la clave se muestra una vez, con el mensaje de WhatsApp listo y **Enviar por correo** desde info@tukansoftware.com) e historial |
 | Finanzas | Ingresos por programa y mes, gastos (categorías de §9.6), gastos fijos de cada mes, otros ingresos, ganancia por mes y programa; descarga en Excel (.xlsx) y CSV |
 | Vencimientos / Embudo | Calendario de lo que vence; interesados → demos → pagaron |
 

@@ -73,6 +73,18 @@ entrar a cada uno. El ERP QF no participa.
       La parte de Telegram de `run_web.sh` apaga el horario de silencio (de noche fallaba).
 - [ ] Al actualizar cada programa con el Anexo B: **Probar conexión** en el panel (para que vea los módulos).
 
+### Enviar la demo por correo (21 oct 2026)
+- [x] `compartido/tukan_correo.php`: correo SMTP de un solo archivo (STARTTLS 587 / SSL 465, AUTH LOGIN, UTF-8,
+      multipart, Reply-To, anti-inyección, timeout 10 s, la clave nunca en los errores). Lee `/etc/tukan-correo.env`.
+      Plantilla `tukan_correo_demo()` («Su demo de X está lista», marca Tukán, sin «gratis» ni precios).
+- [x] `deploy/configurar_correo.sh`: pregunta los datos (por defecto mail.qfproducciones.com, 587, tls,
+      info@tukansoftware.com), escribe el archivo `root:www-data 640` y manda un correo de prueba.
+- [x] Demo lista → **Enviar por correo** (sello cifrado de 30 min, un solo uso; auditoría sin la clave).
+- [x] `compartido/LEEME_CORREO.md` para llevarlo a los 12 programas. Pruebas: `run_tests.php` (SMTP de mentira en 8250-8254)
+      y `run_web.sh` (8255).
+- [ ] En qfcorp: `cd /var/www/tukan-central && git pull && bash deploy/configurar_correo.sh` con la clave real del buzón.
+- [ ] Revisar en HestiaCP que tukansoftware.com tenga SPF, DKIM y DMARC (si no, los correos pueden caer en spam).
+
 ## Pendiente
 10. En el servidor de cada TuGuardería, una vez: `git pull` y `instalar.sh` de cada cliente (crea `/var/lib/tukan_bajas`
     y la tarea `/etc/cron.d/tukan_bajas`). Luego **Probar conexión** en el panel. Opcional: token de Cloudflare en Ajustes.

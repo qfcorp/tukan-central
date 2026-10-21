@@ -37,6 +37,7 @@ final class Auditoria
         // Protocolo v2
         'ejecutar'            => 'Hizo un cambio en un programa',
         'recordatorio'        => 'Recordó a un cliente por WhatsApp',
+        'correo_demo'         => 'Envió una demo por correo',
         'gasto'               => 'Gastos',
         'ingreso_extra'       => 'Ingresos extra',
         'licencia'            => 'Licencia de un programa',
