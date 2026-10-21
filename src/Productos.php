@@ -79,6 +79,11 @@ final class Productos
             'para' => 'Venta de eventos en vivo por internet (PPV)',
             'comando' => 'sudo bash /var/www/tupass/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
         ],
+        'tuwhatsapp' => [
+            'nombre' => 'WhatsApp Tukán', 'color' => '#1F8A5B', 'letra' => 'W', 'unico' => false,
+            'para' => 'Bandeja de WhatsApp con respuestas automáticas y campañas (API oficial de Meta)',
+            'comando' => 'sudo bash /var/www/tuwhatsapp/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
+        ],
         // Ejemplo para el futuro:
         // 'tuvet' => ['nombre' => 'TuVet', 'color' => '#C2410C', 'letra' => 'P', 'unico' => false,
         //             'para' => 'Veterinarias', 'comando' => 'sudo bash /var/www/tuvet/deploy/conectar_central.sh {ID} {SECRETO} {URL}'],

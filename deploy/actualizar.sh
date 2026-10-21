@@ -53,6 +53,7 @@ umask 027
 PROGRAMAS_BASE='tuevento|TuEvento|deploy|/var/www/tuevento|http://127.0.0.1/?r=login|TUEVENTO_URL|tuevento.tukanec.com
 tuplanner|TuPlanner|deploy|/var/www/tuplanner|http://127.0.0.1/?r=login|TUPLANNER_URL|tuplanner.tukanec.com
 tusalon|TuSalon|deploy|/var/www/tusalon|http://127.0.0.1/?r=login|TUSALON_URL|tusalon.tukanec.com
+tuwhatsapp|WhatsApp Tukan|deploy|/var/www/tuwhatsapp|http://127.0.0.1/?r=login|TUWA_URL|whatsapp.tukanec.com
 tuspa|TuSpa|deploy|/var/www/tuspa|http://127.0.0.1:8108/?r=login||
 tugroomer|TuGroomer|deploy|/var/www/tugroomer|http://127.0.0.1:8109/?r=login||
 tuhospedaje|TuHospedaje|deploy|/var/www/tuhospedaje|http://127.0.0.1:8104/?r=login||

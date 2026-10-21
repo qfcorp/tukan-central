@@ -7,6 +7,7 @@ $notas = [
     'tusalon'     => 'Vive en el servidor qfcorp. Usa como ID <b>tusalon</b>.',
     'tuvocalia'   => 'Vive en el VPS de las ligas. Usa como ID <b>tuvocalia</b>.',
     'tuacademia'  => 'Vive en el VPS. Usa como ID <b>tuacademia</b>.',
+    'tuwhatsapp'  => 'Vive en el servidor qfcorp. Usa como ID <b>tuwhatsapp</b> y como dirección <b>https://whatsapp.tukanec.com</b>.',
     'tuguarderia' => 'Cada cliente tiene su propia instalación: agrega <b>una por cliente</b> (dogssy, huellitas…). El ID y la carpeta suelen ser el nombre corto del cliente.',
     'otro'        => 'Para un programa nuevo de la familia Tukán que ya tenga su archivo tukan_central.php.',
 ];

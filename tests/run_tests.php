@@ -288,6 +288,7 @@ $plantillas = [
     'tugroomer' => 'sudo bash /var/www/tugroomer/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
     'erp_productoras' => 'sudo bash /var/www/erp-productoras/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
     'tupass' => 'sudo bash /var/www/tupass/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
+    'tuwhatsapp' => 'sudo bash /var/www/tuwhatsapp/deploy/conectar_central.sh {ID} {SECRETO} {URL}',
 ];
 foreach (['turemolque', 'erp_productoras', 'tupass'] as $u) check("$u es de una sola instalación (unico)", true, Productos::tipo($u)['unico']);
 // TuPlanner: la plantilla es la misma que dice su script (si el repositorio está al lado)
