@@ -156,6 +156,9 @@ inválida, sin saldo en la cuenta, sin conexión). Después:
 El gasto de cada programa se ve en **Más → IA** (acción `ia_uso`, Anexo C de `docs/PROTOCOLO_V2.md`). Librería y guía para los
 programas: [`compartido/tukan_ia.php`](compartido/tukan_ia.php) y [`compartido/LEEME_IA.md`](compartido/LEEME_IA.md).
 
+**Idiomas para todos los programas** (botón 🌐: español, inglés, francés, portugués e italiano): pieza compartida
+[`compartido/tukan_idiomas.php`](compartido/tukan_idiomas.php) y guía [`compartido/LEEME_IDIOMAS.md`](compartido/LEEME_IDIOMAS.md).
+
 ---
 
 ## 5. Seguridad (resumen)
