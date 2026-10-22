@@ -332,7 +332,7 @@ function tukan_idioma_js(array $frases): string
             }
         }
     }
-    $json = json_encode($mapa, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
+    $json = json_encode($mapa ?: new \stdClass(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP);
     return '<script>window.TUKAN_IDIOMA=' . json_encode($idioma) . ';window.TUKAN_TR=' . $json . ';window.TR=function(t){return (window.TUKAN_TR&&window.TUKAN_TR[t])||t;};</script>';
 }
 
