@@ -65,7 +65,6 @@ permitir_sudo() {
   {
     echo "# TEMPORAL - lo crea tukan-actualizar-pedidos mientras corre un pedido aprobado en el Panel Tukan Central"
     echo "# y lo borra al terminar (tambien lo borra systemd: ExecStopPost). No lo edites."
-    echo "Defaults:$USUARIO !requiretty"
     echo "$USUARIO ALL=(ALL:ALL) NOPASSWD: ALL"
   } > "$tmp"
   chmod 440 "$tmp"

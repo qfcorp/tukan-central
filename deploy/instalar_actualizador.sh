@@ -105,7 +105,7 @@ EOF
 sudo rm -f "$SUDOERS_TEMP" "$SUDOERS_TEMP.nuevo"
 # Se prueba que la regla temporal sea valida (no se deja puesta)
 PRUEBA="$(mktemp)"
-printf 'Defaults:%s !requiretty\n%s ALL=(ALL:ALL) NOPASSWD: ALL\n' "$YO" "$YO" > "$PRUEBA"
+printf '%s ALL=(ALL:ALL) NOPASSWD: ALL\n' "$YO" > "$PRUEBA"
 if sudo visudo -cqf "$PRUEBA"; then echo "   regla de sudo temporal: valida (solo se activa durante un pedido)"; else echo "   ERROR: visudo rechazo la regla temporal"; fi
 rm -f "$PRUEBA"
 sudo systemctl daemon-reload
